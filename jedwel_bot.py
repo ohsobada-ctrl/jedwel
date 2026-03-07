@@ -17,7 +17,7 @@ EXAMS_FILE = "webapp/exams.json"
 FACULTY_FILE = "webapp/faculty.json"
 
 # --- Web App Configuration ---
-WEBAPP_URL = "https://jedwel.vercel.app/" 
+WEBAPP_URL = "https://87422f5k-8080.euw.devtunnels.ms/" 
 
 # --- Database Configuration ---
 DB_FILE = "jedwel.db"

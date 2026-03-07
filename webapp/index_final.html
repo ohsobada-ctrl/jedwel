@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>صانع الجداول الذكي - Jedwel</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #8b5cf6;
+            --secondary: #3b82f6;
+            --bg: #0f172a;
+            --card-link: #1e293b;
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+            --success: #10b981;
+            --error: #ef4444;
+            --glass: rgba(255, 255, 255, 0.04);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            min-height: 100vh;
+            overflow-x: hidden;
+            background: radial-gradient(circle at top right, rgba(139, 92, 246, 0.15), transparent 400px),
+                radial-gradient(circle at bottom left, rgba(59, 130, 246, 0.15), transparent 400px);
+        }
+
+        /* Layout Structure */
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+        }
+
+        @media (max-width: 850px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Header Components */
+        .header {
+            text-align: center;
+            padding: 20px 0 40px;
+            grid-column: 1 / -1;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        /* Search Area */
+        .search-section {
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 25px;
+            height: fit-content;
+        }
+
+        .search-bar {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--glass-border);
+            padding: 15px 45px 15px 15px;
+            border-radius: 12px;
+            color: white;
+            font-size: 1rem;
+            margin-bottom: 20px;
+            outline: none;
+            transition: 0.3s;
+        }
+
+        .search-bar:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 15px rgba(139, 92, 246, 0.2);
+        }
+
+        /* Course List Items */
+        .course-list {
+            max-height: 500px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        .course-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .course-card:hover {
+            transform: scale(1.02);
+            background: rgba(255, 255, 255, 0.06);
+            border-color: var(--secondary);
+        }
+
+        .course-code {
+            font-weight: 600;
+            color: var(--primary);
+            font-size: 0.9rem;
+        }
+
+        .course-name {
+            font-size: 1.1rem;
+            margin: 5px 0;
+            display: block;
+        }
+
+        .course-meta {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            display: flex;
+            gap: 15px;
+        }
+
+        /* Schedule Visualization (The Grid) */
+        .preview-section {
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 25px;
+            position: sticky;
+            top: 20px;
+        }
+
+        .schedule-grid {
+            display: grid;
+            grid-template-columns: 80px repeat(5, 1fr);
+            gap: 8px;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .grid-header {
+            font-weight: 700;
+            font-size: 0.8rem;
+            color: var(--primary);
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .time-label {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            align-self: center;
+        }
+
+        .grid-cell {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            min-height: 50px;
+            border-radius: 8px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            transition: 0.3s;
+        }
+
+        .grid-cell.active {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+            border: none;
+            color: white;
+            padding: 5px;
+            font-weight: 600;
+        }
+
+        .grid-cell.conflict {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: var(--error);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.05);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        /* UI Enhancements */
+        .btn-generate {
+            width: 100%;
+            padding: 18px;
+            margin-top: 25px;
+            border-radius: 15px;
+            border: none;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 10px 25px -5px rgba(139, 92, 246, 0.4);
+            transition: 0.3s;
+        }
+
+        .btn-generate:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px -5px rgba(139, 92, 246, 0.6);
+        }
+
+        .badge-conflict {
+            background: var(--error);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            display: none;
+            position: absolute;
+            top: 10px;
+            left: 10px;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--glass-border);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary);
+        }
+
+        .selected-list {
+            margin-top: 30px;
+        }
+
+        .selected-item {
+            background: rgba(139, 92, 246, 0.1);
+            border: 1px solid var(--primary);
+            padding: 12px;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .remove-btn {
+            color: var(--error);
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 1.2rem;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <h1>Jedwel Smart Planner</h1>
+        <p style="color: var(--text-dim)">صمم جدولك الدراسي بلا تعارضات في دقائق</p>
+    </div>
+
+    <div class="container">
+        <!-- Search & Selection -->
+        <section class="search-section">
+            <div style="position: relative">
+                <input type="text" class="search-bar" placeholder="ابحث عن مادة أو رمز..." id="courseSearch">
+                <span style="position: absolute; right: 15px; top: 15px; color: var(--text-dim)">🔍</span>
+            </div>
+
+            <div class="course-list" id="courseList">
+                <!-- Courses will be injected here via JS -->
+            </div>
+
+            <div class="selected-list" id="selectedListContainer">
+                <h3 style="margin-bottom: 15px; color: var(--primary)">المواد المختارة:</h3>
+                <div id="selectedCourses"></div>
+            </div>
+        </section>
+
+        <!-- Visualization -->
+        <section class="preview-section">
+            <h3 style="margin-bottom: 5px">معاينة الجدول الدراسي</h3>
+            <p style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 15px">تأكد من عدم وجود تعارضات باللون
+                الأحمر</p>
+
+            <div class="schedule-grid">
+                <div class="grid-header"></div>
+                <div class="grid-header">الأحد</div>
+                <div class="grid-header">الإثنين</div>
+                <div class="grid-header">الثلاثاء</div>
+                <div class="grid-header">الأربعاء</div>
+                <div class="grid-header">الخميس</div>
+
+                <!-- Generating 6 time slots -->
+                <!-- 08:00 - 09:30 -->
+                <div class="time-label">08:00</div>
+                <div class="grid-cell" data-day="الأحد" data-slot="0"></div>
+                <div class="grid-cell" data-day="الإثنين" data-slot="0"></div>
+                <div class="grid-cell" data-day="الثلاثاء" data-slot="0"></div>
+                <div class="grid-cell" data-day="الإربعاء" data-slot="0"></div>
+                <div class="grid-cell" data-day="الخميس" data-slot="0"></div>
+
+                <!-- 09:30 - 11:00 -->
+                <div class="time-label">09:30</div>
+                <div class="grid-cell" data-day="الأحد" data-slot="1"></div>
+                <div class="grid-cell" data-day="الإثنين" data-slot="1"></div>
+                <div class="grid-cell" data-day="الثلاثاء" data-slot="1"></div>
+                <div class="grid-cell" data-day="الإربعاء" data-slot="1"></div>
+                <div class="grid-cell" data-day="الخميس" data-slot="1"></div>
+
+                <!-- 11:00 - 12:30 -->
+                <div class="time-label">11:00</div>
+                <div class="grid-cell" data-day="الأحد" data-slot="2"></div>
+                <div class="grid-cell" data-day="الإثنين" data-slot="2"></div>
+                <div class="grid-cell" data-day="الثلاثاء" data-slot="2"></div>
+                <div class="grid-cell" data-day="الإربعاء" data-slot="2"></div>
+                <div class="grid-cell" data-day="الخميس" data-slot="2"></div>
+
+                <!-- 12:30 - 14:00 -->
+                <div class="time-label">12:30</div>
+                <div class="grid-cell" data-day="الأحد" data-slot="3"></div>
+                <div class="grid-cell" data-day="الإثنين" data-slot="3"></div>
+                <div class="grid-cell" data-day="الثلاثاء" data-slot="3"></div>
+                <div class="grid-cell" data-day="الإربعاء" data-slot="3"></div>
+                <div class="grid-cell" data-day="الخميس" data-slot="3"></div>
+
+                <!-- 14:00 - 15:30 -->
+                <div class="time-label">14:00</div>
+                <div class="grid-cell" data-day="الأحد" data-slot="4"></div>
+                <div class="grid-cell" data-day="الإثنين" data-slot="4"></div>
+                <div class="grid-cell" data-day="الثلاثاء" data-slot="4"></div>
+                <div class="grid-cell" data-day="الإربعاء" data-slot="4"></div>
+                <div class="grid-cell" data-day="الخميس" data-slot="4"></div>
+
+                <!-- 15:30 - 17:00 -->
+                <div class="time-label">15:30</div>
+                <div class="grid-cell" data-day="الأحد" data-slot="5"></div>
+                <div class="grid-cell" data-day="الإثنين" data-slot="5"></div>
+                <div class="grid-cell" data-day="الثلاثاء" data-slot="5"></div>
+                <div class="grid-cell" data-day="الإربعاء" data-slot="5"></div>
+                <div class="grid-cell" data-day="الخميس" data-slot="5"></div>
+            </div>
+
+            <div id="examStatus" style="margin-top:20px; font-size: 0.9rem"></div>
+
+            <button class="btn-generate" id="finishBtn">✅ استخراج الجدول النهائي</button>
+        </section>
+    </div>
+
+    
+        <script>
+            window.allCourses = [{"code": "ITGS240", "name": "مقدمة في الذكاء الاصطناعي", "group": "A", "day": "السبت", "time": "08:00 - 09:30", "instructor": "أينور إدريس تربح", "room": "مدرج الهوني - مبني الكلية"}, {"code": "", "name": "غير معروف", "group": "1", "day": "السبت", "time": "08:00 - 09:30", "instructor": "أ. أحمد علي الهوني", "room": "معمل 2 - مبني الكلية الجديد"}, {"code": "ITWT420", "name": "القرصنة الأخلاقية", "group": "A", "day": "السبت", "time": "08:00 - 09:30", "instructor": "أ. أحمد علي الهوني", "room": "معمل 2 - مبني الكلية الجديد"}, {"code": "", "name": "غير معروف", "group": "1", "day": "السبت", "time": "08:00 - 09:30", "instructor": ".أ امل عبدالله الطربان", "room": "مدرج مالك بن نبي"}, {"code": "ITCY322", "name": "الهاكر الاخلاقي", "group": "A", "day": "السبت", "time": "08:00 - 09:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITMM122", "name": "رياضة 2", "group": "C", "day": "السبت", "time": "08:00 - 09:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITDA311", "name": "تنقيب البيانات", "group": "A", "day": "السبت", "time": "09:30 - 11:00", "instructor": "أينور إدريس تربح", "room": "قاعة 9"}, {"code": "", "name": "غير معروف", "group": "1", "day": "السبت", "time": "09:30 - 11:00", "instructor": "أ. غنى عماد الدين الويفاتي", "room": "مدرج مالك بن نبي"}, {"code": "ITGS219", "name": "التحليل العددي", "group": "A", "day": "السبت", "time": "09:30 - 11:00", "instructor": "أ. ملاك عبدالله ددش", "room": "مدرج الهوني - مبني الكلية"}, {"code": "", "name": "غير معروف", "group": "1", "day": "السبت", "time": "09:30 - 11:00", "instructor": "أينور إدريس تربح", "room": "قاعة 9"}, {"code": "ITGS122", "name": "مقدمة في البرمجة", "group": "C", "day": "السبت", "time": "09:30 - 11:00", "instructor": "رحاب عبدالله بن عبدالله", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"code": "", "name": "غير معروف", "group": "1", "day": "السبت", "time": "09:30 - 11:00", "instructor": "أ. أحمد علي الهوني", "room": "معمل 2 - مبني الكلية الجديد"}, {"code": "ITIS404", "name": "تنقيب البيانات -  الذكاء التجاري", "group": "A", "day": "السبت", "time": "09:30 - 11:00", "instructor": "أ. مروة ابراهيم عبدالهادي", "room": "قاعة 6"}, {"code": "", "name": "غير معروف", "group": "1", "day": "السبت", "time": "09:30 - 11:00", "instructor": "أينور إدريس تربح", "room": "قاعة 9"}, {"code": "ITMC301", "name": "المعالج الدقيق أي أر إم", "group": "A", "day": "السبت", "time": "09:30 - 11:00", "instructor": "أ. مروة ابراهيم عبدالهادي", "room": "قاعة 6"}, {"code": "", "name": "غير معروف", "group": "1", "day": "السبت", "time": "09:30 - 11:00", "instructor": ".أ امل عبدالله الطربان", "room": "البيروني 1"}, {"code": "ITWT415", "name": "نظم التطوير المتكاملة ", "group": "A", "day": "السبت", "time": "09:30 - 11:00", "instructor": ".أ.د محمد عبدالدائم محبوب", "room": "الخوارزمي 5"}, {"code": "", "name": "غير معروف", "group": "1", "day": "السبت", "time": "09:30 - 11:00", "instructor": "أ. مروة ابراهيم عبدالهادي", "room": "قاعة 6"}, {"code": "ITNT313", "name": "برمجة الشبكات", "group": "A", "day": "السبت", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITSE302", "name": "تنقيب البيانات", "group": "A", "day": "السبت", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITSE405", "name": "برمجة الشبكات", "group": "A", "day": "السبت", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITMM122", "name": "رياضة 2", "group": "D", "day": "السبت", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITIS323", "name": "البنية التحتية لنظم المعلومات", "group": "A", "day": "السبت", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITMC414", "name": "برمجة الشبكات", "group": "A", "day": "السبت", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITDA305", "name": "بحث واستلرجاع المعلومات", "group": "A", "day": "السبت", "time": "11:00 - 12:30", "instructor": ".أ.د محمد عبدالدائم محبوب", "room": "قاعة 5"}, {"code": "", "name": "غير معروف", "group": "1", "day": "السبت", "time": "11:00 - 12:30", "instructor": "أ. مروة ابراهيم عبدالهادي", "room": "مدرج الهوني - مبني الكلية"}, {"code": "ITGS226", "name": "مقدمة في برمجة الانترنت", "group": "D", "day": "السبت", "time": "11:00 - 12:30", "instructor": ".أ.د محمد عبدالدائم محبوب", "room": "قاعة 5"}, {"code": "", "name": "غير معروف", "group": "1", "day": "السبت", "time": "11:00 - 12:30", "instructor": "أ. غنى عماد الدين الويفاتي", "room": "قاعة 2"}, {"code": "ITIS401", "name": "بحث واسترجاع المعلومات", "group": "A", "day": "السبت", "time": "11:00 - 12:30", "instructor": "أ. ملاك عبدالله ددش", "room": "قاعة 7"}, {"code": "ITSE422", "name": "إعادة إستخدام البرمجيات", "group": "A", "day": "السبت", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITNT301", "name": "نمذجة وتقييم الاداء", "group": "A", "day": "السبت", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITGS213", "name": "مقدمة في هندسة البرمجيات", "group": "A", "day": "السبت", "time": "12:30 - 14:00", "instructor": "أ. مروى نوري صولة", "room": "مدرج مالك بن نبي"}, {"code": "", "name": "غير معروف", "group": "1", "day": "السبت", "time": "12:30 - 14:00", "instructor": "أ. غنى عماد الدين الويفاتي", "room": "البيروني 2"}, {"code": "ITGS219", "name": "التحليل العددي", "group": "B", "day": "السبت", "time": "12:30 - 14:00", "instructor": "أ. ملاك عبدالله ددش", "room": "مدرج الهوني - مبني الكلية"}, {"code": "", "name": "غير معروف", "group": "1", "day": "السبت", "time": "12:30 - 14:00", "instructor": ".أ حمدي أحمد جابر", "room": "البيروني 3"}, {"code": "ITGS122", "name": "مقدمة في البرمجة", "group": "B", "day": "السبت", "time": "12:30 - 14:00", "instructor": "أ.د أحمد أبورودس الكيلاني", "room": "قاعة 9"}, {"code": "", "name": "غير معروف", "group": "1", "day": "السبت", "time": "12:30 - 14:00", "instructor": "أ. ناجية خالد بن سعود", "room": "الخوارزمي 3"}, {"code": "ITGS302", "name": "نظم التشغيل", "group": "A", "day": "السبت", "time": "12:30 - 14:00", "instructor": "أ. مروة ابراهيم عبدالهادي", "room": "قاعة 6"}, {"code": "", "name": "غير معروف", "group": "1", "day": "السبت", "time": "12:30 - 14:00", "instructor": "أ. ناجية خالد بن سعود", "room": "الخوارزمي 3"}, {"code": "ITIS422", "name": "إدارة إستراتيجيات نظم المعلومات", "group": "A", "day": "السبت", "time": "12:30 - 14:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITNT412", "name": "تصميم وإدارة الشبكات", "group": "A", "day": "السبت", "time": "12:30 - 14:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITNT322", "name": "بروتوكولات وبرمجيات الشبكات", "group": "A", "day": "السبت", "time": "12:30 - 14:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITNT412", "name": "تصميم وإدارة الشبكات", "group": "B", "day": "السبت", "time": "12:30 - 14:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITGS213", "name": "مقدمة في هندسة البرمجيات", "group": "B", "day": "السبت", "time": "14:00 - 15:30", "instructor": "أ. مروى نوري صولة", "room": "مدرج مالك بن نبي"}, {"code": "", "name": "غير معروف", "group": "1", "day": "السبت", "time": "14:00 - 15:30", "instructor": "أ. احمد علي صمود", "room": "الخوارزمي 5"}, {"code": "ITAR121", "name": "لغة عربية 2", "group": "A", "day": "السبت", "time": "14:00 - 15:30", "instructor": ".أ حمدي أحمد جابر", "room": "البيروني 2"}, {"code": "", "name": "غير معروف", "group": "1", "day": "السبت", "time": "14:00 - 15:30", "instructor": "د. رمزي حميد القانوني", "room": "قاعة 3"}, {"code": "ITNT321", "name": "الشبكات المترامية", "group": "A", "day": "السبت", "time": "14:00 - 15:30", "instructor": "أ. ناجية خالد بن سعود", "room": "الخوارزمي 3"}, {"code": "", "name": "غير معروف", "group": "1", "day": "السبت", "time": "14:00 - 15:30", "instructor": "أ. ناجية خالد بن سعود", "room": "الخوارزمي 3"}, {"code": "ITWT500", "name": " مشروع التخرج", "group": "A", "day": "السبت", "time": "14:00 - 15:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITNT414", "name": "الحوسبة السحابية", "group": "A", "day": "السبت", "time": "14:00 - 15:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITDA401", "name": "الحوسبة السحابية", "group": "A", "day": "السبت", "time": "14:00 - 15:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITAR111", "name": "لغة عربية 1", "group": "A", "day": "السبت", "time": "15:30 - 17:00", "instructor": "أ. احمد علي صمود", "room": "البيروني 1"}, {"code": "ITGS211", "name": "البرمجة الشيئية", "group": "A", "day": "الأحد", "time": "08:00 - 09:30", "instructor": "محمد فؤاد البوعيشي", "room": "مدرج مالك بن نبي"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الأحد", "time": "08:00 - 09:30", "instructor": "أ. حسن علي ابراهيم", "room": "البيروني 3"}, {"code": "ITSE312", "name": "قواعد البيانات المتقدمة", "group": "A", "day": "الأحد", "time": "08:00 - 09:30", "instructor": "سعد اعمار الذيب", "room": "مدرج الهوني - مبني الكلية"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الأحد", "time": "08:00 - 09:30", "instructor": "أ. هديل رافت الجربي", "room": "البيروني 2"}, {"code": "ITGS226", "name": "مقدمة في برمجة الانترنت", "group": "B", "day": "الأحد", "time": "08:00 - 09:30", "instructor": "أ.د حنان الطاهر الداقيز", "room": "قاعة 9"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الأحد", "time": "08:00 - 09:30", "instructor": "د. عبدالناصر عبدالحميد ضياف", "room": "قاعة 3"}, {"code": "ITGS303", "name": "إدارة المشاريع", "group": "A", "day": "الأحد", "time": "08:00 - 09:30", "instructor": "د. إدريس عبدالهادي غميض", "room": "قاعة 7"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الأحد", "time": "08:00 - 09:30", "instructor": "أ. فاطمه علي بن الاشهر", "room": "قاعة 2"}, {"code": "ITIS412", "name": "الأمن وإدارة المخاطر", "group": "A", "day": "الأحد", "time": "08:00 - 09:30", "instructor": "أ. حسن علي ابراهيم", "room": "البيروني 3"}, {"code": "ITWT321", "name": "تصميم البرمجيات الشيئية لتطبيقات الانترنت ", "group": "A", "day": "الأحد", "time": "08:00 - 09:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITNT411", "name": "الأنظمة الموزعة", "group": "A", "day": "الأحد", "time": "08:00 - 09:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITSE423", "name": "البرمجة المرئية", "group": "A", "day": "الأحد", "time": "08:00 - 09:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITIS325", "name": "قواعد البيانات المتقدمة", "group": "A", "day": "الأحد", "time": "08:00 - 09:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITDA322", "name": "تصور البيانات", "group": "A", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "د. يوسف محمد أبوستة", "room": "قاعة 9"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "أ. ناهد فتحي فرح", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"code": "ITMC421", "name": "أساسيات الحوسبة في كل مكان", "group": "A", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "د. محمد احمد مغيدر", "room": "قاعة 1 "}, {"code": "", "name": "غير معروف", "group": "1", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "محمد فؤاد البوعيشي", "room": "مدرج مالك بن نبي"}, {"code": "ITMC323", "name": "تطوير التطبيقات المتعددة المنصات", "group": "A", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "أ. هديل رافت الجربي", "room": "البيروني 2"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "أ. وفاء حسين المصباحي", "room": "مدرج الهوني - مبني الكلية"}, {"code": "ITGS211", "name": "البرمجة الشيئية", "group": "B", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "أ. منار سامي عريف", "room": "البيروني 3"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "أ. أحمد علي الهوني", "room": "البيروني 1"}, {"code": "ITGS303", "name": "إدارة المشاريع", "group": "B", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "أ.د حنان الطاهر الداقيز", "room": "قاعة 5"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "د. عبدالناصر عبدالحميد ضياف", "room": "قاعة 3"}, {"code": "ITGS226", "name": "مقدمة في برمجة الانترنت", "group": "A", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "د. عبدالناصر عبدالحميد ضياف", "room": "قاعة 3"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "د. عبدالناصر عبدالحميد ضياف", "room": "قاعة 3"}, {"code": "ITGS113", "name": "الحلول التقنية", "group": "A", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "سعد اعمار الذيب", "room": "الخوارزمي 4"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "د. رمزي حميد القانوني", "room": "الخوارزمي 4"}, {"code": "ITGS122", "name": "مقدمة في البرمجة", "group": "A", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "د. محمد احمد مغيدر", "room": "قاعة 1 "}, {"code": "", "name": "غير معروف", "group": "1", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "د. إدريس عبدالهادي غميض", "room": "قاعة 7"}, {"code": "ITIS421", "name": "النظم المؤسساتية", "group": "A", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "أ. فاطمه علي بن الاشهر", "room": "قاعة 2"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "د. إدريس عبدالهادي غميض", "room": "قاعة 7"}, {"code": "ITWT325", "name": "برمجة الشبكات وخدمات الويب", "group": "A", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "د. رمزي حميد القانوني", "room": "الخوارزمي 4"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "أ.د عزالدين محمد السلامي", "room": "الخوارزمي 1"}, {"code": "ITWT320", "name": "برمجة الخادم والعميل ", "group": "A", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "أ. ناهد فتحي فرح", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"code": "ITWT411", "name": "خدمات الإنترنت ", "group": "A", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITWT307", "name": "الحوسبة السحابية", "group": "A", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITCY324", "name": "الحوسبة السحابية", "group": "A", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITSE304", "name": "برمجة التطبيقات الجوالة", "group": "A", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITNT304", "name": "السياسة الأمنية", "group": "A", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITSE311", "name": "تحليل متطلبات برمجيات", "group": "A", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITMC308", "name": "إجراءات ولوائح الآمان", "group": "A", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITMC422", "name": "الحوسبة السحابية", "group": "A", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITCY422", "name": "مبادي التحليل الجنائي الرقمي", "group": "A", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITNT403", "name": "اساسيات الحوسبة فى كل مكان", "group": "A", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITDA223", "name": "الاحصاء والاحتمالات لعلم البيانات", "group": "A", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "د. عادل علي أوحيدة", "room": "قاعة 9"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "د. محمد احمد مغيدر", "room": "قاعة 1 "}, {"code": "ITMC311", "name": "تطوير التطبيقات المتنقلة", "group": "A", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "د. هالة منصور الشاعرى", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "أ. حسن علي ابراهيم", "room": "قاعة 2"}, {"code": "ITMC412", "name": "شبكات المنطقة الشخصية", "group": "A", "day": "الأحد", "time": "11:00 - 12:30", "instructor": ".أ حمدي أحمد جابر", "room": "البيروني 2"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "أ. منار سامي عريف", "room": "مدرج مالك بن نبي"}, {"code": "ITSE411", "name": "تصميم وهيكلة البرمجيات", "group": "A", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "أ. مي مفتاح البعباع", "room": "مدرج الهوني - مبني الكلية"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "أ. هديل رافت الجربي", "room": "قاعة 5"}, {"code": "ITGS302", "name": "نظم التشغيل", "group": "A", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "أ. مروة مسعود خليفة", "room": "الخوارزمي 2"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "أ. أحمد علي الهوني", "room": "معمل 2 - مبني الكلية الجديد"}, {"code": "ITGS215", "name": "مقدمة في شبكات الحاسوب", "group": "A", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "أ. وفاء حسين المصباحي", "room": "الخوارزمي 4"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "سعد اعمار الذيب", "room": "قاعة 3"}, {"code": "ITGS301", "name": "تصميم وتحليل الخوارزميات", "group": "A", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "د. هالة منصور الشاعرى", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "أ. وفاء حسين المصباحي", "room": "الخوارزمي 4"}, {"code": "ITDA402", "name": "ذكاء الاعمال", "group": "A", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "أ. أحمد علي الهوني", "room": "معمل 2 - مبني الكلية الجديد"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "أ.د عزالدين محمد السلامي", "room": "الخوارزمي 1"}, {"code": "ITGS304", "name": "كتابة التقارير العلمية - لغة انجليزية ", "group": "A", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITWT420", "name": "القرصنة الأخلاقية", "group": "A", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITWT304", "name": "التجارة الإلكترونية", "group": "A", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITWT314", "name": "امن الانترنث", "group": "A", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITNT401", "name": "شبكات المنطقة الشخصية", "group": "A", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITMC304", "name": "التجارة المتنقلة", "group": "A", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITCY322", "name": "الهاكر الاخلاقي", "group": "A", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITCY414", "name": "مقدمة في حوكمة الامن السيبرانى", "group": "A", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITDA403", "name": "نظرية الألعاب", "group": "A", "day": "الأحد", "time": "12:30 - 14:00", "instructor": "د. يوسف محمد أبوستة", "room": "قاعة 5"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الأحد", "time": "12:30 - 14:00", "instructor": "أ. محمد معتوق الكوم", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"code": "ITMC411", "name": "الأمن في الحوسبة المتنقلة", "group": "A", "day": "الأحد", "time": "12:30 - 14:00", "instructor": "أ. مي مفتاح البعباع", "room": "مدرج الهوني - مبني الكلية"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الأحد", "time": "12:30 - 14:00", "instructor": "أ.د أحمد أبورودس الكيلاني", "room": "قاعة 9"}, {"code": "ITGS301", "name": "تصميم وتحليل الخوارزميات", "group": "B", "day": "الأحد", "time": "12:30 - 14:00", "instructor": "أ. مروة مسعود خليفة", "room": "الخوارزمي 2"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الأحد", "time": "12:30 - 14:00", "instructor": "أ. وفاء حسين المصباحي", "room": "الخوارزمي 4"}, {"code": "ITIS422", "name": "إدارة إستراتيجيات نظم المعلومات", "group": "A", "day": "الأحد", "time": "12:30 - 14:00", "instructor": "أ. وفاء حسين المصباحي", "room": "الخوارزمي 4"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الأحد", "time": "12:30 - 14:00", "instructor": "أ. وفاء حسين المصباحي", "room": "الخوارزمي 4"}, {"code": "ITGS304", "name": "كتابة التقارير العلمية - لغة انجليزية ", "group": "B", "day": "الأحد", "time": "12:30 - 14:00", "instructor": ".أ حمدي أحمد جابر", "room": "مدرج مالك بن نبي"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الأحد", "time": "12:30 - 14:00", "instructor": "أ. بيرم علي زرتي", "room": "قاعة 2"}, {"code": "ITWT312", "name": "أسس تصميم الانظمة التفاعلية", "group": "A", "day": "الأحد", "time": "12:30 - 14:00", "instructor": "أ. محمد معتوق الكوم", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الأحد", "time": "12:30 - 14:00", "instructor": ".أ حمدي أحمد جابر", "room": "مدرج مالك بن نبي"}, {"code": "ITWT315", "name": "التفاعل بين الإنسان والحاسوب", "group": "A", "day": "الأحد", "time": "12:30 - 14:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITWT322", "name": "تصميم واجهات المستخدم ", "group": "A", "day": "الأحد", "time": "12:30 - 14:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITNT321", "name": "الشبكات المترامية", "group": "A", "day": "الأحد", "time": "12:30 - 14:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITSE321", "name": "بناء البرمجيات", "group": "A", "day": "الأحد", "time": "12:30 - 14:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITCY421", "name": "ألامن في الحوسبة المتنفلة", "group": "A", "day": "الأحد", "time": "12:30 - 14:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITWT309", "name": "الشبكات المترامية", "group": "A", "day": "الأحد", "time": "12:30 - 14:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITSE424", "name": "أنماط تصميم البرمجيات", "group": "A", "day": "الأحد", "time": "14:00 - 15:30", "instructor": "أ. مي مفتاح البعباع", "room": "قاعة 2"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الأحد", "time": "14:00 - 15:30", "instructor": "د. محمد مفتاح الرايس", "room": "الخوارزمي 1"}, {"code": "ITNT324", "name": "الإتصالات اللاسلكية والمحمولة", "group": "A", "day": "الأحد", "time": "14:00 - 15:30", "instructor": "د. محمد مفتاح الرايس", "room": "الخوارزمي 1"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الأحد", "time": "14:00 - 15:30", "instructor": "د. محمد مفتاح الرايس", "room": "الخوارزمي 1"}, {"code": "ITCY321", "name": "الشبكات اللاسلكية", "group": "A", "day": "الأحد", "time": "14:00 - 15:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITMC312", "name": "مبادئ  شبكات  اللاسلكية  المتنقلة", "group": "A", "day": "الأحد", "time": "14:00 - 15:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITEL111", "name": "لغة انجليزية 1", "group": "A", "day": "الأحد", "time": "15:30 - 17:00", "instructor": "أ. احمد علي صمود", "room": "البيروني 1"}, {"code": "ITDA323", "name": "تعلم الآلة", "group": "A", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": "د. محمد علي ابراهيم الطاهر", "room": "قاعة 5"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": ".أ امل عبدالله الطربان", "room": "قاعة 9"}, {"code": "ITDA314", "name": "الجبر الخطي", "group": "A", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": "رحاب عبدالله بن عبدالله", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": "أينور إدريس تربح", "room": "البيروني 1"}, {"code": "ITMC313", "name": "نظم تشغيل الأجهزة  المتنقلة", "group": "A", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": "محمد فؤاد البوعيشي", "room": "مدرج مالك بن نبي"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": "سعد اعمار الذيب", "room": "مدرج الهوني - مبني الكلية"}, {"code": "ITGS240", "name": "مقدمة في الذكاء الاصطناعي", "group": "B", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": "أ. مي مفتاح البعباع", "room": "البيروني 3"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": ".أ اريج سمير امبارك", "room": "الخوارزمي 1"}, {"code": "ITGS211", "name": "البرمجة الشيئية", "group": "A", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": "أ. فاطمة علي منير", "room": "قاعة 3"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": ".أ امنة محمد قريش", "room": "الخوارزمي 2"}, {"code": "ITGS226", "name": "مقدمة في برمجة الانترنت", "group": "B", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": ".د عبدالحميد الفلاح الواعر", "room": "قاعة 2"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": "د. عبدالسلام الفيتوري النويصري", "room": "الخوارزمي 1"}, {"code": "ITGS301", "name": "تصميم وتحليل الخوارزميات", "group": "A", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": ".د عبدالحميد الفلاح الواعر", "room": "قاعة 2"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": "د. محمد عبدالسلام عزاقة", "room": "قاعة 6"}, {"code": "ITGS217", "name": "التراكيب المنفصلة", "group": "A", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": "أ. ناجية خالد بن سعود", "room": "معمل الشبكات - مبني الكلية الجديد"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": "د. محمد عبدالسلام عزاقة", "room": "قاعة 6"}, {"code": "ITWT311", "name": "برمجة الإنترنت المتقدمة ", "group": "A", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": "رحاب عبدالله بن عبدالله", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"code": "ITMM122", "name": "رياضة 2", "group": "A", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITSE412", "name": "برمجة الانترنت المتقدمة", "group": "A", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITSE408", "name": "تطوير تطبيقات الإنترنت", "group": "A", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITCY301", "name": "برمجة الانترنت المتقدمة", "group": "A", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITNT314", "name": "خورازميات و بروتوكولات التشفير", "group": "A", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITNT412", "name": "تصميم وإدارة الشبكات", "group": "A", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITSE306", "name": "التشفير وأمن المعلومات", "group": "A", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITSE308", "name": "نظم تشغيل الأجهزة المتنقلة", "group": "A", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITDA311", "name": "تنقيب البيانات", "group": "A", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "أينور إدريس تربح", "room": "أينور إدريس تربح"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "أ. مي مفتاح البعباع", "room": "الخوارزمي 1"}, {"code": "ITGS301", "name": "تصميم وتحليل الخوارزميات", "group": "B", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "د. محمد عبدالسلام عزاقة", "room": "مدرج مالك بن نبي"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": ".أ اريج سمير امبارك", "room": "مدرج الهوني - مبني الكلية"}, {"code": "ITGS126", "name": "تصميم الدوائر المنطقية", "group": "A", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "سناء بشير دغمان", "room": "البيروني 1"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "أينور إدريس تربح", "room": "قاعة 9"}, {"code": "ITGS217", "name": "التراكيب المنفصلة", "group": "B", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": ".أ امنة محمد قريش", "room": "الخوارزمي 2"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "أ. فاطمة علي منير", "room": "قاعة 3"}, {"code": "ITGS223", "name": "معمارية الحاسوب", "group": "A", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "محمد فؤاد البوعيشي", "room": "الخوارزمي 4"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "سعد اعمار الذيب", "room": "الخوارزمي 5"}, {"code": "ITIS404", "name": "تنقيب البيانات -  الذكاء التجاري", "group": "A", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "أ. ناجية خالد بن سعود", "room": "قاعة 1 "}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "أ. مروة ابراهيم عبدالهادي", "room": "قاعة 6"}, {"code": "ITMM122", "name": "رياضة 2", "group": "B", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "د. عبدالباسط الهادي التهامي", "room": "البيروني 3"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "أينور إدريس تربح", "room": "قاعة 9"}, {"code": "ITWT422", "name": "تطوير تطبيقات الإنترنت المتنقل", "group": "A", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "أ. مروة ابراهيم عبدالهادي", "room": "قاعة 6"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "د. خالد البشير الربيعي", "room": "البيروني 2"}, {"code": "ITWT301", "name": "التنقيب في البيانات", "group": "A", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "أ. ناجية خالد بن سعود", "room": "قاعة 1 "}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "أ. مروة ابراهيم عبدالهادي", "room": "قاعة 6"}, {"code": "ITWT314", "name": "امن الانترنث", "group": "A", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITNT414", "name": "الحوسبة السحابية", "group": "A", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITNT313", "name": "برمجة الشبكات", "group": "A", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITGS215", "name": "مقدمة في شبكات الحاسوب", "group": "B", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITSE302", "name": "تنقيب البيانات", "group": "A", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITSE405", "name": "برمجة الشبكات", "group": "A", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITCY403", "name": "الذكاء الاصطناعي والامن السيبراني (لغة الالة)", "group": "A", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITDA401", "name": "الحوسبة السحابية", "group": "A", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITMC414", "name": "برمجة الشبكات", "group": "A", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITDA321", "name": "البيانات الضخمة", "group": "A", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": "أ. فاطمة بشير القاضي", "room": "قاعة 9"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": "أ. ابتسام عبدالسلام العاشوري", "room": "قاعة 5"}, {"code": "ITDA312", "name": "هندسة البيانات", "group": "A", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": ".أ اريج سمير امبارك", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": "أ. مروة ابراهيم عبدالهادي", "room": "مدرج الهوني - مبني الكلية"}, {"code": "ITMC321", "name": "تصميم التفاعلي في الاجهزة  المتنقلة", "group": "A", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": "سناء بشير دغمان", "room": "البيروني 1"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": "د. امنة علي محمد", "room": "مدرج مالك بن نبي"}, {"code": "ITGS226", "name": "مقدمة في برمجة الانترنت", "group": "D", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": "د. رمزي حميد القانوني", "room": "الخوارزمي 1"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": ".أ محمد على وهيبة", "room": "البيروني 2"}, {"code": "ITGS223", "name": "معمارية الحاسوب", "group": "B", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": "د. رمزي حميد القانوني", "room": "قاعة 3"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": "د. رمزي حميد القانوني", "room": "قاعة 3"}, {"code": "ITGS220", "name": "تراكيب البيانات", "group": "C", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": "محمد فؤاد البوعيشي", "room": "الخوارزمي 4"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": ".أ.د محمود غيث الجديد", "room": "قاعة 2"}, {"code": "ITGS226", "name": "مقدمة في برمجة الانترنت", "group": "C", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": "د. عبدالباسط الهادي التهامي", "room": "قاعة 6"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": "رحاب عبدالله بن عبدالله", "room": "البيروني 3"}, {"code": "ITGS219", "name": "التحليل العددي", "group": "C", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": ".أ.د محمد عبدالدائم محبوب", "room": "الخوارزمي 5"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": "د. خالد البشير الربيعي", "room": "الخوارزمي 3"}, {"code": "ITWT324", "name": "تطوير أنظمة الصوت والصورة ", "group": "A", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": "أ. ناجية خالد بن سعود", "room": "معمل الشبكات - مبني الكلية الجديد"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": "د. رمزي حميد القانوني", "room": "قاعة 3"}, {"code": "ITMC402", "name": "الوسائط المتعددة المتنقلة", "group": "A", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITWT302", "name": "استرجاع المعلومات", "group": "A", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITSE322", "name": "لغة برمجة الحديثة - جافا متقدمة", "group": "A", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITNT311", "name": "اتصال بيانات", "group": "A", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITGS113", "name": "الحلول التقنية", "group": "B", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITIS323", "name": "البنية التحتية لنظم المعلومات", "group": "A", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITCY312", "name": "بروتوكولات وبرمجيات الشبكات", "group": "A", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITNT412", "name": "تصميم وإدارة الشبكات", "group": "B", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITIS324", "name": "نظم الوسائط المتعددة", "group": "A", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITDA306", "name": "مقدمة إلى نظام لينكس", "group": "A", "day": "الإثنين", "time": "12:30 - 14:00", "instructor": ".أ.د محمد عبدالدائم محبوب", "room": "قاعة 5"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإثنين", "time": "12:30 - 14:00", "instructor": "أ. محمد علي وهيبة", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"code": "ITMC322", "name": "قواعد البيانات المتنقلة وغير متجانسة", "group": "A", "day": "الإثنين", "time": "12:30 - 14:00", "instructor": ".أ حمدي أحمد جابر", "room": "الخوارزمي 1"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإثنين", "time": "12:30 - 14:00", "instructor": "د. امنة علي محمد", "room": "مدرج مالك بن نبي"}, {"code": "ITGS224", "name": "امن المعلومات", "group": "B", "day": "الإثنين", "time": "12:30 - 14:00", "instructor": "أ. ابتسام عبدالسلام العاشوري", "room": "مدرج الهوني - مبني الكلية"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإثنين", "time": "12:30 - 14:00", "instructor": "أ. فاطمة بشير القاضي", "room": "البيروني 1"}, {"code": "ITGS220", "name": "تراكيب البيانات", "group": "B", "day": "الإثنين", "time": "12:30 - 14:00", "instructor": "د. عبدالمنعم عمر الاسود", "room": "قاعة 2"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإثنين", "time": "12:30 - 14:00", "instructor": "أ. محمد علي وهيبة", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"code": "ITGS228", "name": "مقدمة في قواعد البيانات", "group": "A", "day": "الإثنين", "time": "12:30 - 14:00", "instructor": "أ. مروة ابراهيم عبدالهادي", "room": "قاعة 6"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإثنين", "time": "12:30 - 14:00", "instructor": "د. عبدالباسط الهادي التهامي", "room": "الخوارزمي 3"}, {"code": "ITGS242", "name": "مقدمة في علم البيانات", "group": "B", "day": "الإثنين", "time": "12:30 - 14:00", "instructor": "أ. حسن علي ابراهيم", "room": "قاعة 2"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإثنين", "time": "12:30 - 14:00", "instructor": "د. خالد البشير الربيعي", "room": "الخوارزمي 4"}, {"code": "ITSE413", "name": "التفاعل بين الإنسان والحاسوب", "group": "A", "day": "الإثنين", "time": "12:30 - 14:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITCY323", "name": "قواعد البيانات المتقدمة", "group": "A", "day": "الإثنين", "time": "12:30 - 14:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITNT322", "name": "بروتوكولات وبرمجيات الشبكات", "group": "A", "day": "الإثنين", "time": "12:30 - 14:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITNT422", "name": "شبكات السرعات العالية - الألياف البصرية", "group": "A", "day": "الإثنين", "time": "12:30 - 14:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITCY412", "name": "مقدمة في أمن البرمجيات", "group": "A", "day": "الإثنين", "time": "12:30 - 14:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITCY411", "name": "أمن وطرق الدفاع بالشبكات", "group": "A", "day": "الإثنين", "time": "12:30 - 14:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITGS224", "name": "امن المعلومات", "group": "A", "day": "الإثنين", "time": "14:00 - 15:30", "instructor": ".أ حمدي أحمد جابر", "room": "البيروني 1"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإثنين", "time": "14:00 - 15:30", "instructor": "د. امنة علي محمد", "room": "مدرج مالك بن نبي"}, {"code": "ITGS220", "name": "تراكيب البيانات", "group": "A", "day": "الإثنين", "time": "14:00 - 15:30", "instructor": "أ. مي مفتاح البعباع", "room": "قاعة 2"}, {"code": "ITSE424", "name": "أنماط تصميم البرمجيات", "group": "A", "day": "الإثنين", "time": "14:00 - 15:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITEL121", "name": "لغة انجليزية 2", "group": "A", "day": "الإثنين", "time": "15:30 - 17:00", "instructor": "أ. احمد علي صمود", "room": "البيروني 1"}, {"code": "ITGS303", "name": "إدارة المشاريع", "group": "A", "day": "الثلاثاء", "time": "08:00 - 09:30", "instructor": "أ. هديل رافت الجربي", "room": "أ. هديل رافت الجربي"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الثلاثاء", "time": "08:00 - 09:30", "instructor": "أ. مريم ابوعجيله مساعد", "room": "البيروني 1"}, {"code": "ITGS111", "name": "مقدمة في تقنية المعلومات", "group": "A", "day": "الثلاثاء", "time": "08:00 - 09:30", "instructor": "أ.د حنان الطاهر الداقيز", "room": "قاعة 9"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الثلاثاء", "time": "08:00 - 09:30", "instructor": "أ. أحمد علي الهوني", "room": "معمل 2 - مبني الكلية الجديد"}, {"code": "ITIS313", "name": "إدارة البيانات والمعلومات", "group": "A", "day": "الثلاثاء", "time": "08:00 - 09:30", "instructor": "د. عبدالناصر عبدالحميد ضياف", "room": "قاعة 3"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الثلاثاء", "time": "08:00 - 09:30", "instructor": "د. عبدالناصر عبدالحميد ضياف", "room": "قاعة 3"}, {"code": "ITWT303", "name": "مقدمة في رسوم الحاسب الآلي ", "group": "A", "day": "الثلاثاء", "time": "08:00 - 09:30", "instructor": "د. عبدالناصر عبدالحميد ضياف", "room": "قاعة 3"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الثلاثاء", "time": "08:00 - 09:30", "instructor": "محمد فؤاد البوعيشي", "room": "الخوارزمي 4"}, {"code": "ITWT325", "name": "برمجة الشبكات وخدمات الويب", "group": "A", "day": "الثلاثاء", "time": "08:00 - 09:30", "instructor": "أ. بيرم علي زرتي", "room": "الخوارزمي 1"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الثلاثاء", "time": "08:00 - 09:30", "instructor": "أ. علياء مفتاح علي", "room": "قاعة 2"}, {"code": "ITWT320", "name": "برمجة الخادم والعميل ", "group": "A", "day": "الثلاثاء", "time": "08:00 - 09:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITWT411", "name": "خدمات الإنترنت ", "group": "A", "day": "الثلاثاء", "time": "08:00 - 09:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITWT301", "name": "التنقيب في البيانات", "group": "A", "day": "الثلاثاء", "time": "08:00 - 09:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITSE321", "name": "بناء البرمجيات", "group": "A", "day": "الثلاثاء", "time": "08:00 - 09:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITSE421", "name": "جودة واختبار البرمجيات", "group": "A", "day": "الثلاثاء", "time": "08:00 - 09:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITDA314", "name": "الجبر الخطي", "group": "A", "day": "الثلاثاء", "time": "09:30 - 11:00", "instructor": ".أ امل عبدالله الطربان", "room": ".أ امل عبدالله الطربان"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الثلاثاء", "time": "09:30 - 11:00", "instructor": "أ. منار سامي عريف", "room": "قاعة 1 "}, {"code": "ITMC413", "name": "الشبكات الاجتماعية", "group": "A", "day": "الثلاثاء", "time": "09:30 - 11:00", "instructor": "محمد فؤاد البوعيشي", "room": "مدرج مالك بن نبي"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الثلاثاء", "time": "09:30 - 11:00", "instructor": "أ. هديل رافت الجربي", "room": "البيروني 2"}, {"code": "ITGS211", "name": "البرمجة الشيئية", "group": "B", "day": "الثلاثاء", "time": "09:30 - 11:00", "instructor": "أ. أحمد علي الهوني", "room": "البيروني 1"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الثلاثاء", "time": "09:30 - 11:00", "instructor": "أ. مريم ابوعجيله مساعد", "room": "البيروني 3"}, {"code": "ITGS303", "name": "إدارة المشاريع", "group": "B", "day": "الثلاثاء", "time": "09:30 - 11:00", "instructor": "أ. ريما الشيباني سعد", "room": "البيروني 1"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الثلاثاء", "time": "09:30 - 11:00", "instructor": "د. عبدالناصر عبدالحميد ضياف", "room": "قاعة 3"}, {"code": "ITGS122", "name": "مقدمة في البرمجة", "group": "A", "day": "الثلاثاء", "time": "09:30 - 11:00", "instructor": "رحاب عبدالله بن عبدالله", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الثلاثاء", "time": "09:30 - 11:00", "instructor": "أ. علياء مفتاح علي", "room": "قاعة 2"}, {"code": "ITGS111", "name": "مقدمة في تقنية المعلومات", "group": "B", "day": "الثلاثاء", "time": "09:30 - 11:00", "instructor": "أ. منار سامي عريف", "room": "قاعة 1 "}, {"code": "", "name": "غير معروف", "group": "1", "day": "الثلاثاء", "time": "09:30 - 11:00", "instructor": "أ.د عزالدين محمد السلامي", "room": "الخوارزمي 1"}, {"code": "ITGS126", "name": "تصميم الدوائر المنطقية", "group": "C", "day": "الثلاثاء", "time": "09:30 - 11:00", "instructor": "د. خالد البشير الربيعي", "room": "الخوارزمي 2"}, {"code": "ITWT313", "name": "قواعد البيانات المتقدمة", "group": "A", "day": "الثلاثاء", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITMC301", "name": "المعالج الدقيق أي أر إم", "group": "A", "day": "الثلاثاء", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITSE414", "name": "أخلاقيات هندسة البرمجيات", "group": "A", "day": "الثلاثاء", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITSE409", "name": "الشبكات الاجتماعية", "group": "A", "day": "الثلاثاء", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITCY422", "name": "مبادي التحليل الجنائي الرقمي", "group": "A", "day": "الثلاثاء", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITCY401", "name": "نظام تشغيل لينيكس", "group": "A", "day": "الثلاثاء", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITDA223", "name": "الاحصاء والاحتمالات لعلم البيانات", "group": "A", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "د. عادل علي أوحيدة", "room": "د. عادل علي أوحيدة"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "د. يوسف محمد أبوستة", "room": "قاعة 5"}, {"code": "ITDA403", "name": "نظرية الألعاب", "group": "A", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "د. هالة منصور الشاعرى", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "أ. غنى عماد الدين الويفاتي", "room": "الخوارزمي 5"}, {"code": "ITMC412", "name": "شبكات المنطقة الشخصية", "group": "A", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "أ. حسن علي ابراهيم", "room": "قاعة 7"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "أ. منار سامي عريف", "room": "قاعة 6"}, {"code": "ITGS219", "name": "التحليل العددي", "group": "A", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "أ. ابتسام عبدالسلام العاشوري", "room": "البيروني 3"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "أ. فاطمة بشير القاضي", "room": "الخوارزمي 1"}, {"code": "ITSE411", "name": "تصميم وهيكلة البرمجيات", "group": "A", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "أ. علياء مفتاح علي", "room": "مدرج مالك بن نبي"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "أ. هديل رافت الجربي", "room": "الخوارزمي 3"}, {"code": "ITGS215", "name": "مقدمة في شبكات الحاسوب", "group": "A", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "د. هالة منصور الشاعرى", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "أ. ريما الشيباني سعد", "room": "مدرج الهوني - مبني الكلية"}, {"code": "ITGS228", "name": "مقدمة في قواعد البيانات", "group": "B", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "أ. مريم ابوعجيله مساعد", "room": "الخوارزمي 2"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "أ. هديل رافت الجربي", "room": "الخوارزمي 3"}, {"code": "ITGS242", "name": "مقدمة في علم البيانات", "group": "A", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "د. خالد البشير الربيعي", "room": "البيروني 2"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "أ.د عزالدين محمد السلامي", "room": "قاعة 5"}, {"code": "ITGS213", "name": "مقدمة في هندسة البرمجيات", "group": "C", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITIS411", "name": "البنيان المؤسساتي", "group": "A", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITNT401", "name": "شبكات المنطقة الشخصية", "group": "A", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITNT421", "name": "جودة خدمات الشبكات", "group": "A", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITNT312", "name": "الشبكات المحلية", "group": "A", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITCY302", "name": "البنيان المؤسساتي", "group": "A", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITCY411", "name": "أمن وطرق الدفاع بالشبكات", "group": "A", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITCY414", "name": "مقدمة في حوكمة الامن السيبرانى", "group": "A", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITDA308", "name": "قواعد البيانات غير المتجاسة", "group": "A", "day": "الثلاثاء", "time": "12:30 - 14:00", "instructor": "د. يوسف محمد أبوستة", "room": "قاعة 9"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الثلاثاء", "time": "12:30 - 14:00", "instructor": "أ. حسن علي ابراهيم", "room": "قاعة 7"}, {"code": "ITSE312", "name": "قواعد البيانات المتقدمة", "group": "A", "day": "الثلاثاء", "time": "12:30 - 14:00", "instructor": "أ. غنى عماد الدين الويفاتي", "room": "البيروني 2"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الثلاثاء", "time": "12:30 - 14:00", "instructor": "أ. ابتسام عبدالسلام العاشوري", "room": "قاعة 1 "}, {"code": "ITGS219", "name": "التحليل العددي", "group": "B", "day": "الثلاثاء", "time": "12:30 - 14:00", "instructor": "أ. ريما الشيباني سعد", "room": "مدرج الهوني - مبني الكلية"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الثلاثاء", "time": "12:30 - 14:00", "instructor": "أ. فاطمة بشير القاضي", "room": "قاعة 5"}, {"code": "ITGS228", "name": "مقدمة في قواعد البيانات", "group": "A", "day": "الثلاثاء", "time": "12:30 - 14:00", "instructor": "محمد فؤاد البوعيشي", "room": "الخوارزمي 4"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الثلاثاء", "time": "12:30 - 14:00", "instructor": ".أ حمدي أحمد جابر", "room": "مدرج مالك بن نبي"}, {"code": "ITGS126", "name": "تصميم الدوائر المنطقية", "group": "B", "day": "الثلاثاء", "time": "12:30 - 14:00", "instructor": "أ. بيرم علي زرتي", "room": "قاعة 2"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الثلاثاء", "time": "12:30 - 14:00", "instructor": "أ. حسن علي ابراهيم", "room": "قاعة 7"}, {"code": "ITIS406", "name": "أنظمة دعم القرار", "group": "A", "day": "الثلاثاء", "time": "12:30 - 14:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITWT302", "name": "استرجاع المعلومات", "group": "A", "day": "الثلاثاء", "time": "12:30 - 14:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITWT309", "name": "الشبكات المترامية", "group": "A", "day": "الثلاثاء", "time": "12:30 - 14:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITSE305", "name": "مواضيع مختارة", "group": "A", "day": "الثلاثاء", "time": "12:30 - 14:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITIS325", "name": "قواعد البيانات المتقدمة", "group": "A", "day": "الثلاثاء", "time": "12:30 - 14:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITSE422", "name": "إعادة إستخدام البرمجيات", "group": "A", "day": "الثلاثاء", "time": "14:00 - 15:30", "instructor": "أ. غنى عماد الدين الويفاتي", "room": "أ. غنى عماد الدين الويفاتي"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الثلاثاء", "time": "14:00 - 15:30", "instructor": "د. محمد مفتاح الرايس", "room": "الخوارزمي 1"}, {"code": "ITNT324", "name": "الإتصالات اللاسلكية والمحمولة", "group": "A", "day": "الثلاثاء", "time": "14:00 - 15:30", "instructor": "د. محمد مفتاح الرايس", "room": "الخوارزمي 1"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الثلاثاء", "time": "14:00 - 15:30", "instructor": "د. محمد مفتاح الرايس", "room": "الخوارزمي 1"}, {"code": "ITCY321", "name": "الشبكات اللاسلكية", "group": "A", "day": "الثلاثاء", "time": "14:00 - 15:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITMC312", "name": "مبادئ  شبكات  اللاسلكية  المتنقلة", "group": "A", "day": "الثلاثاء", "time": "14:00 - 15:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITPH111", "name": "الفيزياء الالكترونية والمغناطيسية", "group": "A", "day": "الثلاثاء", "time": "15:30 - 17:00", "instructor": "أ. احمد علي صمود", "room": "البيروني 1"}, {"code": "ITDA323", "name": "تعلم الآلة", "group": "A", "day": "الإربعاء", "time": "08:00 - 09:30", "instructor": "د. محمد علي ابراهيم الطاهر", "room": "د. محمد علي ابراهيم الطاهر"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإربعاء", "time": "08:00 - 09:30", "instructor": "رحاب عبدالله بن عبدالله", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"code": "ITMC313", "name": "نظم تشغيل الأجهزة  المتنقلة", "group": "A", "day": "الإربعاء", "time": "08:00 - 09:30", "instructor": "أ. مروى نوري صولة", "room": "مدرج مالك بن نبي"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإربعاء", "time": "08:00 - 09:30", "instructor": "أ. وفاء حسين المصباحي", "room": "مدرج الهوني - مبني الكلية"}, {"code": "ITGS213", "name": "مقدمة في هندسة البرمجيات", "group": "A", "day": "الإربعاء", "time": "08:00 - 09:30", "instructor": "أ. مريم ابوعجيله مساعد", "room": "البيروني 1"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإربعاء", "time": "08:00 - 09:30", "instructor": "أ.د حنان الطاهر الداقيز", "room": "قاعة 9"}, {"code": "ITGS226", "name": "مقدمة في برمجة الانترنت", "group": "A", "day": "الإربعاء", "time": "08:00 - 09:30", "instructor": "أ. فاطمة علي منير", "room": "قاعة 3"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإربعاء", "time": "08:00 - 09:30", "instructor": "د. إدريس عبدالهادي غميض", "room": "قاعة 7"}, {"code": "ITGS111", "name": "مقدمة في تقنية المعلومات", "group": "A", "day": "الإربعاء", "time": "08:00 - 09:30", "instructor": "د. محمد عبدالسلام عزاقة", "room": "قاعة 6"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإربعاء", "time": "08:00 - 09:30", "instructor": "أ. فاطمه علي بن الاشهر", "room": "قاعة 2"}, {"code": "ITIS412", "name": "الأمن وإدارة المخاطر", "group": "A", "day": "الإربعاء", "time": "08:00 - 09:30", "instructor": ".أ امل عبدالله الطربان", "room": "البيروني 2"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإربعاء", "time": "08:00 - 09:30", "instructor": "د. خالد البشير الربيعي", "room": "الخوارزمي 1"}, {"code": "ITWT311", "name": "برمجة الإنترنت المتقدمة ", "group": "A", "day": "الإربعاء", "time": "08:00 - 09:30", "instructor": "د. محمد عبدالسلام عزاقة", "room": "قاعة 6"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإربعاء", "time": "08:00 - 09:30", "instructor": "رحاب عبدالله بن عبدالله", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"code": "ITNT411", "name": "الأنظمة الموزعة", "group": "A", "day": "الإربعاء", "time": "08:00 - 09:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITNT314", "name": "خورازميات و بروتوكولات التشفير", "group": "A", "day": "الإربعاء", "time": "08:00 - 09:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITSE423", "name": "البرمجة المرئية", "group": "A", "day": "الإربعاء", "time": "08:00 - 09:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITMM122", "name": "رياضة 2", "group": "C", "day": "الإربعاء", "time": "08:00 - 09:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITCY312", "name": "بروتوكولات وبرمجيات الشبكات", "group": "A", "day": "الإربعاء", "time": "08:00 - 09:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITSE306", "name": "التشفير وأمن المعلومات", "group": "A", "day": "الإربعاء", "time": "08:00 - 09:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITSE308", "name": "نظم تشغيل الأجهزة المتنقلة", "group": "A", "day": "الإربعاء", "time": "08:00 - 09:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITMC421", "name": "أساسيات الحوسبة في كل مكان", "group": "A", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "أ. ناهد فتحي فرح", "room": "أ. ناهد فتحي فرح"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "د. محمد احمد مغيدر", "room": "قاعة 1 "}, {"code": "ITMC323", "name": "تطوير التطبيقات المتعددة المنصات", "group": "A", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "أ. مروى نوري صولة", "room": "مدرج مالك بن نبي"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "د. محمد عبدالسلام عزاقة", "room": "مدرج الهوني - مبني الكلية"}, {"code": "ITGS213", "name": "مقدمة في هندسة البرمجيات", "group": "B", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "د. امنة علي محمد", "room": "البيروني 3"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "أ.د حنان الطاهر الداقيز", "room": "قاعة 5"}, {"code": "ITGS126", "name": "تصميم الدوائر المنطقية", "group": "A", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "أ. فاطمة علي منير", "room": "قاعة 3"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "أ. أحمد علي الهوني", "room": "معمل 2 - مبني الكلية الجديد"}, {"code": "ITGS220", "name": "تراكيب البيانات", "group": "B", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "أ. وفاء حسين المصباحي", "room": "الخوارزمي 4"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "أ. وفاء حسين المصباحي", "room": "الخوارزمي 4"}, {"code": "ITIS421", "name": "النظم المؤسساتية", "group": "A", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "أ. فاطمة علي منير", "room": "قاعة 3"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "د. محمد احمد مغيدر", "room": "قاعة 1 "}, {"code": "ITWT413", "name": "تطوير تطبيقات الإنترنت ", "group": "A", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "د. إدريس عبدالهادي غميض", "room": "قاعة 7"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "د. عبدالباسط الهادي التهامي", "room": "البيروني 2"}, {"code": "ITWT303", "name": "مقدمة في رسوم الحاسب الآلي ", "group": "A", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "أ. مريم ابوعجيله مساعد", "room": "الخوارزمي 1"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "أ. فاطمه علي بن الاشهر", "room": "قاعة 2"}, {"code": "ITWT304", "name": "التجارة الإلكترونية", "group": "A", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "د. إدريس عبدالهادي غميض", "room": "قاعة 7"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": ".أ امل عبدالله الطربان", "room": "البيروني 1"}, {"code": "ITMC304", "name": "التجارة المتنقلة", "group": "A", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "د. خالد البشير الربيعي", "room": "الخوارزمي 2"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "أ. ناهد فتحي فرح", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"code": "ITCY413", "name": "تطوير تطبيقات الانترنت", "group": "A", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITSE304", "name": "برمجة التطبيقات الجوالة", "group": "A", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITNT304", "name": "السياسة الأمنية", "group": "A", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITGS215", "name": "مقدمة في شبكات الحاسوب", "group": "B", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITNT312", "name": "الشبكات المحلية", "group": "A", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITSE311", "name": "تحليل متطلبات برمجيات", "group": "A", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITMC308", "name": "إجراءات ولوائح الآمان", "group": "A", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITMM122", "name": "رياضة 2", "group": "D", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITCY401", "name": "نظام تشغيل لينيكس", "group": "A", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITNT403", "name": "اساسيات الحوسبة فى كل مكان", "group": "A", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITDA306", "name": "مقدمة إلى نظام لينكس", "group": "A", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": ".أ.د محمد عبدالدائم محبوب", "room": ".أ.د محمد عبدالدائم محبوب"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": "د. محمد احمد مغيدر", "room": "قاعة 1 "}, {"code": "ITMC311", "name": "تطوير التطبيقات المتنقلة", "group": "A", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": "أ. محمد معتوق الكوم", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": "أ. مريم ابوعجيله مساعد", "room": "البيروني 3"}, {"code": "ITMC411", "name": "الأمن في الحوسبة المتنقلة", "group": "A", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": "د. امنة علي محمد", "room": "مدرج مالك بن نبي"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": "د. رمزي حميد القانوني", "room": "الخوارزمي 1"}, {"code": "ITGS111", "name": "مقدمة في تقنية المعلومات", "group": "B", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": "أ. فاطمة بشير القاضي", "room": "البيروني 1"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": "د. رمزي حميد القانوني", "room": "قاعة 3"}, {"code": "ITGS220", "name": "تراكيب البيانات", "group": "C", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": "د. رمزي حميد القانوني", "room": "قاعة 3"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": "أ. وفاء حسين المصباحي", "room": "الخوارزمي 4"}, {"code": "ITGS226", "name": "مقدمة في برمجة الانترنت", "group": "C", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": "أ. وفاء حسين المصباحي", "room": "الخوارزمي 4"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": "أ. وفاء حسين المصباحي", "room": "الخوارزمي 4"}, {"code": "ITGS242", "name": "مقدمة في علم البيانات", "group": "A", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": ".أ.د محمود غيث الجديد", "room": "قاعة 2"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": "أ. محمد معتوق الكوم", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"code": "ITWT324", "name": "تطوير أنظمة الصوت والصورة ", "group": "A", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": "د. عبدالباسط الهادي التهامي", "room": "قاعة 6"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": "د. خالد البشير الربيعي", "room": "البيروني 2"}, {"code": "ITMC402", "name": "الوسائط المتعددة المتنقلة", "group": "A", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": "د. رمزي حميد القانوني", "room": "قاعة 3"}, {"code": "ITWT312", "name": "أسس تصميم الانظمة التفاعلية", "group": "A", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITWT315", "name": "التفاعل بين الإنسان والحاسوب", "group": "A", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITWT322", "name": "تصميم واجهات المستخدم ", "group": "A", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITSE322", "name": "لغة برمجة الحديثة - جافا متقدمة", "group": "A", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITCY421", "name": "ألامن في الحوسبة المتنفلة", "group": "A", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITNT311", "name": "اتصال بيانات", "group": "A", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITCY403", "name": "الذكاء الاصطناعي والامن السيبراني (لغة الالة)", "group": "A", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITIS324", "name": "نظم الوسائط المتعددة", "group": "A", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITDA305", "name": "بحث واستلرجاع المعلومات", "group": "A", "day": "الإربعاء", "time": "12:30 - 14:00", "instructor": ".أ.د محمد عبدالدائم محبوب", "room": ".أ.د محمد عبدالدائم محبوب"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإربعاء", "time": "12:30 - 14:00", "instructor": ".أ حمدي أحمد جابر", "room": "البيروني 3"}, {"code": "ITGS224", "name": "امن المعلومات", "group": "B", "day": "الإربعاء", "time": "12:30 - 14:00", "instructor": "د. امنة علي محمد", "room": "مدرج مالك بن نبي"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإربعاء", "time": "12:30 - 14:00", "instructor": "أ. فاطمة بشير القاضي", "room": "البيروني 1"}, {"code": "ITGS220", "name": "تراكيب البيانات", "group": "A", "day": "الإربعاء", "time": "12:30 - 14:00", "instructor": ".أ.د محمد عبدالدائم محبوب", "room": "قاعة 5"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإربعاء", "time": "12:30 - 14:00", "instructor": "أ. أحمد علي الهوني", "room": "معمل 2 - مبني الكلية الجديد"}, {"code": "ITGS242", "name": "مقدمة في علم البيانات", "group": "B", "day": "الإربعاء", "time": "12:30 - 14:00", "instructor": "سعد اعمار الذيب", "room": "الخوارزمي 4"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإربعاء", "time": "12:30 - 14:00", "instructor": "د. عبدالمنعم عمر الاسود", "room": "قاعة 2"}, {"code": "ITIS401", "name": "بحث واسترجاع المعلومات", "group": "A", "day": "الإربعاء", "time": "12:30 - 14:00", "instructor": "د. رمزي حميد القانوني", "room": "الخوارزمي 4"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الإربعاء", "time": "12:30 - 14:00", "instructor": "د. عبدالباسط الهادي التهامي", "room": "الخوارزمي 3"}, {"code": "ITWT415", "name": "نظم التطوير المتكاملة ", "group": "A", "day": "الإربعاء", "time": "12:30 - 14:00", "instructor": "د. رمزي حميد القانوني", "room": "الخوارزمي 4"}, {"code": "ITWT307", "name": "الحوسبة السحابية", "group": "A", "day": "الإربعاء", "time": "12:30 - 14:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITSE413", "name": "التفاعل بين الإنسان والحاسوب", "group": "A", "day": "الإربعاء", "time": "12:30 - 14:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITCY324", "name": "الحوسبة السحابية", "group": "A", "day": "الإربعاء", "time": "12:30 - 14:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITNT422", "name": "شبكات السرعات العالية - الألياف البصرية", "group": "A", "day": "الإربعاء", "time": "12:30 - 14:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITMC422", "name": "الحوسبة السحابية", "group": "A", "day": "الإربعاء", "time": "12:30 - 14:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITGS224", "name": "امن المعلومات", "group": "A", "day": "الإربعاء", "time": "14:00 - 15:30", "instructor": ".أ حمدي أحمد جابر", "room": ".أ حمدي أحمد جابر"}, {"code": "ITST111", "name": "مبادئ الاحصاء والاحتمالات", "group": "A", "day": "الإربعاء", "time": "15:30 - 17:00", "instructor": "أ. احمد علي صمود", "room": "البيروني 1"}, {"code": "ITMC321", "name": "تصميم التفاعلي في الاجهزة  المتنقلة", "group": "A", "day": "الخميس", "time": "08:00 - 09:30", "instructor": ".أ اريج سمير امبارك", "room": ".أ اريج سمير امبارك"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الخميس", "time": "08:00 - 09:30", "instructor": "أينور إدريس تربح", "room": "البيروني 1"}, {"code": "ITGS240", "name": "مقدمة في الذكاء الاصطناعي", "group": "A", "day": "الخميس", "time": "08:00 - 09:30", "instructor": "أ. علياء مفتاح علي", "room": "مدرج الهوني - مبني الكلية"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الخميس", "time": "08:00 - 09:30", "instructor": "أ.د حنان الطاهر الداقيز", "room": "قاعة 9"}, {"code": "ITGS213", "name": "مقدمة في هندسة البرمجيات", "group": "C", "day": "الخميس", "time": "08:00 - 09:30", "instructor": "أ. هديل رافت الجربي", "room": "قاعة 5"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الخميس", "time": "08:00 - 09:30", "instructor": "أ. فاطمة علي منير", "room": "الخوارزمي 4"}, {"code": "ITIS313", "name": "إدارة البيانات والمعلومات", "group": "A", "day": "الخميس", "time": "08:00 - 09:30", "instructor": ".أ امنة محمد قريش", "room": "الخوارزمي 2"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الخميس", "time": "08:00 - 09:30", "instructor": "د. عبدالناصر عبدالحميد ضياف", "room": "قاعة 3"}, {"code": "ITDA402", "name": "ذكاء الاعمال", "group": "A", "day": "الخميس", "time": "08:00 - 09:30", "instructor": ".د عبدالحميد الفلاح الواعر", "room": "قاعة 2"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الخميس", "time": "08:00 - 09:30", "instructor": ".د عبدالحميد الفلاح الواعر", "room": "قاعة 2"}, {"code": "ITWT413", "name": "تطوير تطبيقات الإنترنت ", "group": "A", "day": "الخميس", "time": "08:00 - 09:30", "instructor": "أ. فاطمة علي منير", "room": "الخوارزمي 4"}, {"code": "ITMM122", "name": "رياضة 2", "group": "A", "day": "الخميس", "time": "08:00 - 09:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITWT321", "name": "تصميم البرمجيات الشيئية لتطبيقات الانترنت ", "group": "A", "day": "الخميس", "time": "08:00 - 09:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITSE412", "name": "برمجة الانترنت المتقدمة", "group": "A", "day": "الخميس", "time": "08:00 - 09:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITCY301", "name": "برمجة الانترنت المتقدمة", "group": "A", "day": "الخميس", "time": "08:00 - 09:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITCY413", "name": "تطوير تطبيقات الانترنت", "group": "A", "day": "الخميس", "time": "08:00 - 09:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITDA308", "name": "قواعد البيانات غير المتجاسة", "group": "A", "day": "الخميس", "time": "09:30 - 11:00", "instructor": "د. يوسف محمد أبوستة", "room": "د. يوسف محمد أبوستة"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الخميس", "time": "09:30 - 11:00", "instructor": "أينور إدريس تربح", "room": "البيروني 1"}, {"code": "ITGS240", "name": "مقدمة في الذكاء الاصطناعي", "group": "B", "day": "الخميس", "time": "09:30 - 11:00", "instructor": "أ. منار سامي عريف", "room": "البيروني 3"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الخميس", "time": "09:30 - 11:00", "instructor": ".أ اريج سمير امبارك", "room": "الخوارزمي 1"}, {"code": "ITGS113", "name": "الحلول التقنية", "group": "A", "day": "الخميس", "time": "09:30 - 11:00", "instructor": "سناء بشير دغمان", "room": "مدرج الهوني - مبني الكلية"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الخميس", "time": "09:30 - 11:00", "instructor": "أ. ريما الشيباني سعد", "room": "البيروني 1"}, {"code": "ITGS217", "name": "التراكيب المنفصلة", "group": "A", "day": "الخميس", "time": "09:30 - 11:00", "instructor": "أ. هديل رافت الجربي", "room": "قاعة 5"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الخميس", "time": "09:30 - 11:00", "instructor": "د. عبدالناصر عبدالحميد ضياف", "room": "قاعة 3"}, {"code": "ITGS223", "name": "معمارية الحاسوب", "group": "A", "day": "الخميس", "time": "09:30 - 11:00", "instructor": "أ. مروة مسعود خليفة", "room": "البيروني 2"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الخميس", "time": "09:30 - 11:00", "instructor": ".أ امنة محمد قريش", "room": "الخوارزمي 2"}, {"code": "ITGS126", "name": "تصميم الدوائر المنطقية", "group": "C", "day": "الخميس", "time": "09:30 - 11:00", "instructor": "أ. فاطمة علي منير", "room": "الخوارزمي 4"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الخميس", "time": "09:30 - 11:00", "instructor": "أ. علياء مفتاح علي", "room": "قاعة 2"}, {"code": "ITIS411", "name": "البنيان المؤسساتي", "group": "A", "day": "الخميس", "time": "09:30 - 11:00", "instructor": "أ. ملاك عبدالله ددش", "room": "قاعة 7"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الخميس", "time": "09:30 - 11:00", "instructor": "أ. هديل رافت الجربي", "room": "الخوارزمي 3"}, {"code": "ITWT313", "name": "قواعد البيانات المتقدمة", "group": "A", "day": "الخميس", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITGS304", "name": "كتابة التقارير العلمية - لغة انجليزية ", "group": "A", "day": "الخميس", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITMM122", "name": "رياضة 2", "group": "B", "day": "الخميس", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITWT422", "name": "تطوير تطبيقات الإنترنت المتنقل", "group": "A", "day": "الخميس", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITSE421", "name": "جودة واختبار البرمجيات", "group": "A", "day": "الخميس", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITNT301", "name": "نمذجة وتقييم الاداء", "group": "A", "day": "الخميس", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITCY302", "name": "البنيان المؤسساتي", "group": "A", "day": "الخميس", "time": "09:30 - 11:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITDA321", "name": "البيانات الضخمة", "group": "A", "day": "الخميس", "time": "11:00 - 12:30", "instructor": "أ. فاطمة بشير القاضي", "room": "أ. فاطمة بشير القاضي"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الخميس", "time": "11:00 - 12:30", "instructor": "أ. ابتسام عبدالسلام العاشوري", "room": "قاعة 5"}, {"code": "ITDA312", "name": "هندسة البيانات", "group": "A", "day": "الخميس", "time": "11:00 - 12:30", "instructor": "أ. منار سامي عريف", "room": "قاعة 1 "}, {"code": "", "name": "غير معروف", "group": "1", "day": "الخميس", "time": "11:00 - 12:30", "instructor": "أ. ملاك عبدالله ددش", "room": "مدرج مالك بن نبي"}, {"code": "ITMC413", "name": "الشبكات الاجتماعية", "group": "A", "day": "الخميس", "time": "11:00 - 12:30", "instructor": ".أ اريج سمير امبارك", "room": "الخوارزمي 1"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الخميس", "time": "11:00 - 12:30", "instructor": "سناء بشير دغمان", "room": "مدرج الهوني - مبني الكلية"}, {"code": "ITGS122", "name": "مقدمة في البرمجة", "group": "C", "day": "الخميس", "time": "11:00 - 12:30", "instructor": ".أ محمد على وهيبة", "room": "البيروني 2"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الخميس", "time": "11:00 - 12:30", "instructor": "أ. مروة مسعود خليفة", "room": "الخوارزمي 2"}, {"code": "ITGS217", "name": "التراكيب المنفصلة", "group": "B", "day": "الخميس", "time": "11:00 - 12:30", "instructor": "أ. ريما الشيباني سعد", "room": "مدرج مالك بن نبي"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الخميس", "time": "11:00 - 12:30", "instructor": "أ. علياء مفتاح علي", "room": "قاعة 2"}, {"code": "ITGS223", "name": "معمارية الحاسوب", "group": "B", "day": "الخميس", "time": "11:00 - 12:30", "instructor": "أ. منار سامي عريف", "room": "قاعة 1 "}, {"code": "", "name": "غير معروف", "group": "1", "day": "الخميس", "time": "11:00 - 12:30", "instructor": "رحاب عبدالله بن عبدالله", "room": "البيروني 1"}, {"code": "ITGS219", "name": "التحليل العددي", "group": "C", "day": "الخميس", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITGS304", "name": "كتابة التقارير العلمية - لغة انجليزية ", "group": "B", "day": "الخميس", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITNT421", "name": "جودة خدمات الشبكات", "group": "A", "day": "الخميس", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITSE414", "name": "أخلاقيات هندسة البرمجيات", "group": "A", "day": "الخميس", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITSE409", "name": "الشبكات الاجتماعية", "group": "A", "day": "الخميس", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITGS113", "name": "الحلول التقنية", "group": "B", "day": "الخميس", "time": "11:00 - 12:30", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITDA322", "name": "تصور البيانات", "group": "A", "day": "الخميس", "time": "12:30 - 14:00", "instructor": "د. يوسف محمد أبوستة", "room": "د. يوسف محمد أبوستة"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الخميس", "time": "12:30 - 14:00", "instructor": "أ. محمد علي وهيبة", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"code": "ITMC322", "name": "قواعد البيانات المتنقلة وغير متجانسة", "group": "A", "day": "الخميس", "time": "12:30 - 14:00", "instructor": "أ. ملاك عبدالله ددش", "room": "مدرج الهوني - مبني الكلية"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الخميس", "time": "12:30 - 14:00", "instructor": "أ. ابتسام عبدالسلام العاشوري", "room": "مدرج مالك بن نبي"}, {"code": "ITGS122", "name": "مقدمة في البرمجة", "group": "B", "day": "الخميس", "time": "12:30 - 14:00", "instructor": "أ. ريما الشيباني سعد", "room": "البيروني 1"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الخميس", "time": "12:30 - 14:00", "instructor": "أ. فاطمة بشير القاضي", "room": "قاعة 5"}, {"code": "ITGS228", "name": "مقدمة في قواعد البيانات", "group": "B", "day": "الخميس", "time": "12:30 - 14:00", "instructor": "أ. محمد علي وهيبة", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"code": "", "name": "غير معروف", "group": "1", "day": "الخميس", "time": "12:30 - 14:00", "instructor": "أ. بيرم علي زرتي", "room": "قاعة 2"}, {"code": "ITGS126", "name": "تصميم الدوائر المنطقية", "group": "B", "day": "الخميس", "time": "12:30 - 14:00", "instructor": "أ. حسن علي ابراهيم", "room": "قاعة 2"}, {"code": "ITIS406", "name": "أنظمة دعم القرار", "group": "A", "day": "الخميس", "time": "12:30 - 14:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITCY323", "name": "قواعد البيانات المتقدمة", "group": "A", "day": "الخميس", "time": "12:30 - 14:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITSE305", "name": "مواضيع مختارة", "group": "A", "day": "الخميس", "time": "12:30 - 14:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITCY412", "name": "مقدمة في أمن البرمجيات", "group": "A", "day": "الخميس", "time": "12:30 - 14:00", "instructor": "غير محدد", "room": "غير محدد"}, {"code": "ITSE408", "name": "تطوير تطبيقات الإنترنت", "group": "A", "day": "الخميس", "time": "14:00 - 15:30", "instructor": "د. عبدالسلام الفيتوري النويصري", "room": "د. عبدالسلام الفيتوري النويصري"}];
+            window.allExams = [{"code": "ITGS301", "name": "تصميم وتحليل الخوارزميات", "exam_day": "(1) السبت (2026-06-20)", "exam_period": "الفترة الاولى"}, {"code": "ITNT304", "name": "السياسة الأمنية", "exam_day": "(1) السبت (2026-06-20)", "exam_period": "الفترة الاولى"}, {"code": "ITGS220", "name": "تراكيب البيانات", "exam_day": "(1) السبت (2026-06-20)", "exam_period": "الفترة الاولى"}, {"code": "ITSE423", "name": "البرمجة المرئية", "exam_day": "(1) السبت (2026-06-20)", "exam_period": "الفترة الثانية"}, {"code": "ITMC308", "name": "إجراءات ولوائح الآمان", "exam_day": "(1) السبت (2026-06-20)", "exam_period": "الفترة الثانية"}, {"code": "ITIS323", "name": "البنية التحتية لنظم المعلومات", "exam_day": "(1) السبت (2026-06-20)", "exam_period": "الفترة الثانية"}, {"code": "ITCY411", "name": "أمن وطرق الدفاع بالشبكات", "exam_day": "(1) السبت (2026-06-20)", "exam_period": "الفترة الثانية"}, {"code": "ITGS304", "name": "كتابة التقارير العلمية - لغة انجليزية", "exam_day": "(1) السبت (2026-06-20)", "exam_period": "الفترة الثانية"}, {"code": "ITWT320", "name": "برمجة الخادم والعميل", "exam_day": "(1) السبت (2026-06-20)", "exam_period": "الفترة الثالثة"}, {"code": "ITWT325", "name": "برمجة الشبكات وخدمات الويب", "exam_day": "(1) السبت (2026-06-20)", "exam_period": "الفترة الثالثة"}, {"code": "ITNT421", "name": "جودة خدمات الشبكات", "exam_day": "(1) السبت (2026-06-20)", "exam_period": "الفترة الثالثة"}, {"code": "ITGS213", "name": "مقدمة في هندسة البرمجيات", "exam_day": "(2) الأحد (2026-06-21)", "exam_period": "الفترة الاولى"}, {"code": "ITGS303", "name": "إدارة المشاريع", "exam_day": "(2) الأحد (2026-06-21)", "exam_period": "الفترة الثانية"}, {"code": "ITWT415", "name": "نظم التطوير المتكاملة", "exam_day": "(2) الأحد (2026-06-21)", "exam_period": "الفترة الثالثة"}, {"code": "ITMC313", "name": "نظم تشغيل الأجهزة المتنقلة", "exam_day": "(2) الأحد (2026-06-21)", "exam_period": "الفترة الثالثة"}, {"code": "ITMC411", "name": "الأمن في الحوسبة المتنقلة", "exam_day": "(2) الأحد (2026-06-21)", "exam_period": "الفترة الثالثة"}, {"code": "ITSE305", "name": "مواضيع مختارة", "exam_day": "(2) الأحد (2026-06-21)", "exam_period": "الفترة الثالثة"}, {"code": "ITDA402", "name": "ذكاء الاعمال", "exam_day": "(2) الأحد (2026-06-21)", "exam_period": "الفترة الثالثة"}, {"code": "ITSE308", "name": "نظم تشغيل الأجهزة المتنقلة", "exam_day": "(2) الأحد (2026-06-21)", "exam_period": "الفترة الثالثة"}, {"code": "ITNT301", "name": "نمذجة وتقييم الاداء", "exam_day": "(2) الأحد (2026-06-21)", "exam_period": "الفترة الثالثة"}, {"code": "ITGS211", "name": "البرمجة الشيئية", "exam_day": "(3) الإثنين (2026-06-22)", "exam_period": "الفترة الاولى"}, {"code": "ITMC414", "name": "برمجة الشبكات", "exam_day": "(3) الإثنين (2026-06-22)", "exam_period": "الفترة الاولى"}, {"code": "ITIS406", "name": "أنظمة دعم القرار", "exam_day": "(3) الإثنين (2026-06-22)", "exam_period": "الفترة الاولى"}, {"code": "ITSE405", "name": "برمجة الشبكات", "exam_day": "(3) الإثنين (2026-06-22)", "exam_period": "الفترة الاولى"}, {"code": "ITGS111", "name": "مقدمة في تقنية المعلومات", "exam_day": "(3) الإثنين (2026-06-22)", "exam_period": "الفترة الاولى"}, {"code": "ITNT313", "name": "برمجة الشبكات", "exam_day": "(3) الإثنين (2026-06-22)", "exam_period": "الفترة الاولى"}, {"code": "ITWT307", "name": "الحوسبة السحابية", "exam_day": "(3) الإثنين (2026-06-22)", "exam_period": "الفترة الثانية"}, {"code": "ITGS122", "name": "مقدمة في البرمجة", "exam_day": "(3) الإثنين (2026-06-22)", "exam_period": "الفترة الثانية"}, {"code": "ITMC422", "name": "الحوسبة السحابية", "exam_day": "(3) الإثنين (2026-06-22)", "exam_period": "الفترة الثانية"}, {"code": "ITDA306", "name": "مقدمة إلى نظام لينكس", "exam_day": "(3) الإثنين (2026-06-22)", "exam_period": "الفترة الثانية"}, {"code": "ITSE412", "name": "برمجة الانترنت المتقدمة", "exam_day": "(3) الإثنين (2026-06-22)", "exam_period": "الفترة الثانية"}, {"code": "ITGS242", "name": "مقدمة في علم البيانات", "exam_day": "(3) الإثنين (2026-06-22)", "exam_period": "الفترة الثانية"}, {"code": "ITWT312", "name": "أسس تصميم الانظمة التفاعلية", "exam_day": "(3) الإثنين (2026-06-22)", "exam_period": "الفترة الثالثة"}, {"code": "ITWT315", "name": "التفاعل بين الإنسان والحاسوب", "exam_day": "(3) الإثنين (2026-06-22)", "exam_period": "الفترة الثالثة"}, {"code": "ITWT322", "name": "تصميم واجهات المستخدم", "exam_day": "(3) الإثنين (2026-06-22)", "exam_period": "الفترة الثالثة"}, {"code": "ITSE408", "name": "تطوير تطبيقات الإنترنت", "exam_day": "(3) الإثنين (2026-06-22)", "exam_period": "الفترة الثالثة"}, {"code": "ITGS302", "name": "نظم التشغيل", "exam_day": "(4) الثلاثاء (2026-06-23)", "exam_period": "الفترة الاولى"}, {"code": "ITNT414", "name": "الحوسبة السحابية", "exam_day": "(4) الثلاثاء (2026-06-23)", "exam_period": "الفترة الاولى"}, {"code": "ITDA401", "name": "الحوسبة السحابية", "exam_day": "(4) الثلاثاء (2026-06-23)", "exam_period": "الفترة الاولى"}, {"code": "ITWT303", "name": "مقدمة في رسوم الحاسب الآلي", "exam_day": "(4) الثلاثاء (2026-06-23)", "exam_period": "الفترة الثانية"}, {"code": "ITGS223", "name": "معمارية الحاسوب", "exam_day": "(4) الثلاثاء (2026-06-23)", "exam_period": "الفترة الثانية"}, {"code": "ITGS126", "name": "تصميم الدوائر المنطقية", "exam_day": "(4) الثلاثاء (2026-06-23)", "exam_period": "الفترة الثانية"}, {"code": "ITWT324", "name": "تطوير أنظمة الصوت والصورة", "exam_day": "(4) الثلاثاء (2026-06-23)", "exam_period": "الفترة الثالثة"}, {"code": "ITMC402", "name": "الوسائط المتعددة المتنقلة", "exam_day": "(4) الثلاثاء (2026-06-23)", "exam_period": "الفترة الثالثة"}, {"code": "ITSE411", "name": "تصميم وهيكلة البرمجيات", "exam_day": "(4) الثلاثاء (2026-06-23)", "exam_period": "الفترة الثالثة"}, {"code": "ITIS324", "name": "نظم الوسائط المتعددة", "exam_day": "(4) الثلاثاء (2026-06-23)", "exam_period": "الفترة الثالثة"}, {"code": "ITGS228", "name": "مقدمة في قواعد البيانات", "exam_day": "(5) الإربعاء (2026-02-27)", "exam_period": "الفترة الاولى"}, {"code": "ITMC312", "name": "مبادئ شبكات اللاسلكية المتنقلة", "exam_day": "(5) الإربعاء (2026-02-27)", "exam_period": "الفترة الاولى"}, {"code": "ITDA403", "name": "نظرية الألعاب", "exam_day": "(5) الإربعاء (2026-02-27)", "exam_period": "الفترة الاولى"}, {"code": "ITDA223", "name": "الاحصاء والاحتمالات لعلم البيانات", "exam_day": "(5) الإربعاء (2026-02-27)", "exam_period": "الفترة الاولى"}, {"code": "ITNT324", "name": "الإتصالات اللاسلكية والمحمولة", "exam_day": "(5) الإربعاء (2026-02-27)", "exam_period": "الفترة الاولى"}, {"code": "ITCY414", "name": "مقدمة في حوكمة الامن السيبرانى", "exam_day": "(5) الإربعاء (2026-02-27)", "exam_period": "الفترة الثانية"}, {"code": "ITGS217", "name": "التراكيب المنفصلة", "exam_day": "(5) الإربعاء (2026-02-27)", "exam_period": "الفترة الثانية"}, {"code": "ITWT311", "name": "برمجة الإنترنت المتقدمة", "exam_day": "(5) الإربعاء (2026-02-27)", "exam_period": "الفترة الثالثة"}, {"code": "ITWT411", "name": "خدمات الإنترنت", "exam_day": "(5) الإربعاء (2026-02-27)", "exam_period": "الفترة الثالثة"}, {"code": "ITMC412", "name": "شبكات المنطقة الشخصية", "exam_day": "(5) الإربعاء (2026-02-27)", "exam_period": "الفترة الثالثة"}, {"code": "ITNT401", "name": "شبكات المنطقة الشخصية", "exam_day": "(5) الإربعاء (2026-02-27)", "exam_period": "الفترة الثالثة"}, {"code": "ITSE312", "name": "قواعد البيانات المتقدمة", "exam_day": "(5) الإربعاء (2026-02-27)", "exam_period": "الفترة الثالثة"}, {"code": "ITIS325", "name": "قواعد البيانات المتقدمة", "exam_day": "(5) الإربعاء (2026-02-27)", "exam_period": "الفترة الثالثة"}, {"code": "ITGS224", "name": "امن المعلومات", "exam_day": "(6) الخميس (2026-06-25)", "exam_period": "الفترة الاولى"}, {"code": "ITIS412", "name": "الأمن وإدارة المخاطر", "exam_day": "(6) الخميس (2026-06-25)", "exam_period": "الفترة الاولى"}, {"code": "ITNT322", "name": "بروتوكولات وبرمجيات الشبكات", "exam_day": "(6) الخميس (2026-06-25)", "exam_period": "الفترة الاولى"}, {"code": "ITGS215", "name": "مقدمة في شبكات الحاسوب", "exam_day": "(6) الخميس (2026-06-25)", "exam_period": "الفترة الثانية"}, {"code": "ITSE421", "name": "جودة واختبار البرمجيات", "exam_day": "(6) الخميس (2026-06-25)", "exam_period": "الفترة الثانية"}, {"code": "ITCY312", "name": "بروتوكولات وبرمجيات الشبكات", "exam_day": "(6) الخميس (2026-06-25)", "exam_period": "الفترة الثانية"}, {"code": "ITWT422", "name": "تطوير تطبيقات الإنترنت المتنقل", "exam_day": "(6) الخميس (2026-06-25)", "exam_period": "الفترة الثالثة"}, {"code": "ITMC321", "name": "تصميم التفاعلي في الاجهزة المتنقلة", "exam_day": "(6) الخميس (2026-06-25)", "exam_period": "الفترة الثالثة"}, {"code": "ITNT321", "name": "الشبكات المترامية", "exam_day": "(7) السبت (2026-06-27)", "exam_period": "الفترة الاولى"}, {"code": "ITGS113", "name": "الحلول التقنية", "exam_day": "(7) السبت (2026-06-27)", "exam_period": "الفترة الاولى"}, {"code": "ITGS226", "name": "مقدمة في برمجة الانترنت", "exam_day": "(7) السبت (2026-06-27)", "exam_period": "الفترة الثانية"}, {"code": "ITNT312", "name": "الشبكات المحلية", "exam_day": "(7) السبت (2026-06-27)", "exam_period": "الفترة الثانية"}, {"code": "ITWT321", "name": "تصميم البرمجيات الشيئية لتطبيقات الانترنت", "exam_day": "(7) السبت (2026-06-27)", "exam_period": "الفترة الثالثة"}, {"code": "ITMC322", "name": "قواعد البيانات المتنقلة وغير متجانسة", "exam_day": "(7) السبت (2026-06-27)", "exam_period": "الفترة الثالثة"}, {"code": "ITSE422", "name": "إعادة إستخدام البرمجيات", "exam_day": "(7) السبت (2026-06-27)", "exam_period": "الفترة الثالثة"}, {"code": "ITSE321", "name": "بناء البرمجيات", "exam_day": "(7) السبت (2026-06-27)", "exam_period": "الفترة الثالثة"}, {"code": "ITDA322", "name": "تصور البيانات", "exam_day": "(7) السبت (2026-06-27)", "exam_period": "الفترة الثالثة"}, {"code": "ITNT412", "name": "تصميم وإدارة الشبكات", "exam_day": "(7) السبت (2026-06-27)", "exam_period": "الفترة الثالثة"}, {"code": "ITGS240", "name": "مقدمة في الذكاء الاصطناعي", "exam_day": "(7) السبت (2026-06-27)", "exam_period": "الفترة الثالثة"}, {"code": "ITIS413", "name": "مقدمة في الذكاء الاصطناعي", "exam_day": "(7) السبت (2026-06-27)", "exam_period": "الفترة الثالثة"}, {"code": "ITWT309", "name": "الشبكات المترامية", "exam_day": "(8) الأحد (2026-06-28)", "exam_period": "الفترة الاولى"}, {"code": "ITIS422", "name": "إدارة إستراتيجيات نظم المعلومات", "exam_day": "(8) الأحد (2026-06-28)", "exam_period": "الفترة الاولى"}, {"code": "ITIS326", "name": "تحليل وتصميم النظم 2", "exam_day": "(8) الأحد (2026-06-28)", "exam_period": "الفترة الاولى"}, {"code": "ITGS219", "name": "التحليل العددي", "exam_day": "(8) الأحد (2026-06-28)", "exam_period": "الفترة الاولى"}, {"code": "ITDA311", "name": "تنقيب البيانات", "exam_day": "(8) الأحد (2026-06-28)", "exam_period": "الفترة الثانية"}, {"code": "ITSE302", "name": "تنقيب البيانات", "exam_day": "(8) الأحد (2026-06-28)", "exam_period": "الفترة الثانية"}, {"code": "ITIS404", "name": "تنقيب البيانات - الذكاء التجاري", "exam_day": "(8) الأحد (2026-06-28)", "exam_period": "الفترة الثانية"}, {"code": "ITWT413", "name": "تطوير تطبيقات الإنترنت", "exam_day": "(8) الأحد (2026-06-28)", "exam_period": "الفترة الثالثة"}, {"code": "ITMC311", "name": "تطوير التطبيقات المتنقلة", "exam_day": "(8) الأحد (2026-06-28)", "exam_period": "الفترة الثالثة"}, {"code": "ITMC413", "name": "الشبكات الاجتماعية", "exam_day": "(8) الأحد (2026-06-28)", "exam_period": "الفترة الثالثة"}, {"code": "ITSE409", "name": "الشبكات الاجتماعية", "exam_day": "(8) الأحد (2026-06-28)", "exam_period": "الفترة الثالثة"}, {"code": "ITIS311", "name": "تطوير التطبيقات", "exam_day": "(8) الأحد (2026-06-28)", "exam_period": "الفترة الثالثة"}, {"code": "ITNT422", "name": "شبكات السرعات العالية - الألياف البصرية", "exam_day": "(9) الإثنين (2026-06-29)", "exam_period": "الفترة الاولى"}, {"code": "ITNT311", "name": "اتصال بيانات", "exam_day": "(9) الإثنين (2026-06-29)", "exam_period": "الفترة الاولى"}, {"code": "ITCY403", "name": "الذكاء الاصطناعي والامن السيبراني (لغة الالة)", "exam_day": "(9) الإثنين (2026-06-29)", "exam_period": "الفترة الثانية"}, {"code": "ITIS313", "name": "إدارة البيانات والمعلومات", "exam_day": "(9) الإثنين (2026-06-29)", "exam_period": "الفترة الثانية"}, {"code": "ITDA308", "name": "قواعد البيانات غير المتجاسة", "exam_day": "(9) الإثنين (2026-06-29)", "exam_period": "الفترة الثانية"}, {"code": "ITSE322", "name": "لغة برمجة الحديثة - جافا متقدمة", "exam_day": "(9) الإثنين (2026-06-29)", "exam_period": "الفترة الثانية"}, {"code": "ITWT313", "name": "قواعد البيانات المتقدمة", "exam_day": "(9) الإثنين (2026-06-29)", "exam_period": "الفترة الثالثة"}, {"code": "ITMC323", "name": "تطوير التطبيقات المتعددة المنصات", "exam_day": "(9) الإثنين (2026-06-29)", "exam_period": "الفترة الثالثة"}, {"code": "ITSE304", "name": "برمجة التطبيقات الجوالة", "exam_day": "(9) الإثنين (2026-06-29)", "exam_period": "الفترة الثالثة"}, {"code": "ITNT411", "name": "الأنظمة الموزعة", "exam_day": "(9) الإثنين (2026-06-29)", "exam_period": "الفترة الثالثة"}, {"code": "ITSE311", "name": "تحليل متطلبات برمجيات", "exam_day": "(10) الثلاثاء (2026-06-30)", "exam_period": "الفترة الاولى"}, {"code": "ITDA314", "name": "الجبر الخطي", "exam_day": "(10) الثلاثاء (2026-06-30)", "exam_period": "الفترة الاولى"}, {"code": "ITDA323", "name": "تعلم الآلة", "exam_day": "(10) الثلاثاء (2026-06-30)", "exam_period": "الفترة الاولى"}, {"code": "ITIS411", "name": "البنيان المؤسساتي", "exam_day": "(10) الثلاثاء (2026-06-30)", "exam_period": "الفترة الاولى"}, {"code": "ITWT302", "name": "استرجاع المعلومات", "exam_day": "(10) الثلاثاء (2026-06-30)", "exam_period": "الفترة الثانية"}, {"code": "ITMC421", "name": "أساسيات الحوسبة في كل مكان", "exam_day": "(10) الثلاثاء (2026-06-30)", "exam_period": "الفترة الثانية"}, {"code": "ITSE424", "name": "أنماط تصميم البرمجيات", "exam_day": "(10) الثلاثاء (2026-06-30)", "exam_period": "الفترة الثانية"}, {"code": "ITNT403", "name": "اساسيات الحوسبة فى كل مكان", "exam_day": "(10) الثلاثاء (2026-06-30)", "exam_period": "الفترة الثانية"}, {"code": "ITWT301", "name": "التنقيب في البيانات", "exam_day": "(10) الثلاثاء (2026-06-30)", "exam_period": "الفترة الثالثة"}, {"code": null, "name": "فارغ", "exam_day": "(11) الإربعاء (2026-07-01)", "exam_period": "الفترة الاولى"}, {"code": "ITCY401", "name": "نظام تشغيل لينيكس", "exam_day": "(11) الإربعاء (2026-07-01)", "exam_period": "الفترة الثانية"}, {"code": "ITCY422", "name": "مبادي التحليل الجنائي الرقمي", "exam_day": "(11) الإربعاء (2026-07-01)", "exam_period": "الفترة الثانية"}, {"code": "ITSE414", "name": "أخلاقيات هندسة البرمجيات", "exam_day": "(11) الإربعاء (2026-07-01)", "exam_period": "الفترة الثانية"}, {"code": "ITIS401", "name": "بحث واسترجاع المعلومات", "exam_day": "(11) الإربعاء (2026-07-01)", "exam_period": "الفترة الثانية"}, {"code": "ITDA305", "name": "بحث واستلرجاع المعلومات", "exam_day": "(11) الإربعاء (2026-07-01)", "exam_period": "الفترة الثانية"}, {"code": "ITWT304", "name": "التجارة الإلكترونية", "exam_day": "(11) الإربعاء (2026-07-01)", "exam_period": "الفترة الثالثة"}, {"code": "ITMC304", "name": "التجارة المتنقلة", "exam_day": "(11) الإربعاء (2026-07-01)", "exam_period": "الفترة الثالثة"}, {"code": "ITIS421", "name": "النظم المؤسساتية", "exam_day": "(12) الخميس (2026-07-02)", "exam_period": "الفترة الاولى"}, {"code": "ITWT420", "name": "القرصنة الأخلاقية", "exam_day": "(12) الخميس (2026-07-02)", "exam_period": "الفترة الثانية"}, {"code": "ITSE413", "name": "التفاعل بين الإنسان والحاسوب", "exam_day": "(12) الخميس (2026-07-02)", "exam_period": "الفترة الثانية"}, {"code": "ITDA312", "name": "هندسة البيانات", "exam_day": "(12) الخميس (2026-07-02)", "exam_period": "الفترة الثانية"}, {"code": "ITDA321", "name": "البيانات الضخمة", "exam_day": "(12) الخميس (2026-07-02)", "exam_period": "الفترة الثانية"}, {"code": "ITNT314", "name": "خورازميات و بروتوكولات التشفير", "exam_day": "(12) الخميس (2026-07-02)", "exam_period": "الفترة الثانية"}, {"code": "ITSE306", "name": "التشفير وأمن المعلومات", "exam_day": "(12) الخميس (2026-07-02)", "exam_period": "الفترة الثانية"}, {"code": "ITWT314", "name": "امن الانترنث", "exam_day": "(12) الخميس (2026-07-02)", "exam_period": "الفترة الثالثة"}, {"code": "ITMC301", "name": "المعالج الدقيق أي أر إم", "exam_day": "(12) الخميس (2026-07-02)", "exam_period": "الفترة الثالثة"}];
+            console.log("Data Injected Successfully!");
+        </script>
+        <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.enableClosingConfirmation();
+
+        let allCourses = [];
+        let allExams = [];
+        let selectedSubjectCodes = []; // Just the codes of the subject (e.g. ['ITGS122'])
+
+        async function loadData() {
+            try {
+                // Fetch direct from the static JSON files (Vercel friendly)
+                const fRes = await fetch('./faculty.json');
+                if (!fRes.ok) throw new Error("Could not find faculty.json");
+                allCourses = await fRes.json();
+
+                const eRes = await fetch('./exams.json');
+                if (!eRes.ok) throw new Error("Could not find exams.json");
+                allExams = await eRes.json();
+
+                updateUI(); // This will trigger render and solver
+            } catch (err) {
+                console.error("Error loading data:", err);
+                // If direct files fail, we try to see if they are embedded (from index_final)
+                if (window.allCourses) {
+                    updateUI();
+                } else {
+                    tg.showAlert("❌ فشل تحميل البيانات. تأكد من رفع ملفات faculty.json و exams.json على Vercel.");
+                }
+            }
+        }
+
+        const slotMap = {
+            "08:00 - 09:30": 0,
+            "09:30 - 11:00": 1,
+            "11:00 - 12:30": 2,
+            "12:30 - 14:00": 3,
+            "14:00 - 15:30": 4,
+            "15:30 - 17:00": 5
+        };
+
+        function renderCourses(data) {
+            const list = document.getElementById('courseList');
+            list.innerHTML = '';
+
+            // Group by code to show unique subjects
+            const uniqueSubjects = [];
+            const seen = new Set();
+            data.forEach(c => {
+                if (!seen.has(c.code) && c.code) {
+                    uniqueSubjects.push(c);
+                    seen.add(c.code);
+                }
+            });
+
+            uniqueSubjects.forEach(subject => {
+                const isSelected = selectedSubjectCodes.includes(subject.code);
+                const card = document.createElement('div');
+                card.className = `course-card ${isSelected ? 'selected-subject' : ''}`;
+                card.style.border = isSelected ? '2px solid var(--primary)' : '1px solid var(--glass-border)';
+
+                card.innerHTML = `
+                    <span class="course-code">${subject.code}</span>
+                    <span class="course-name">${subject.name}</span>
+                    <div class="course-meta">
+                         <span>🏷️ مادة دراسية</span>
+                    </div>
+                `;
+                card.onclick = () => toggleSubject(subject.code);
+                list.appendChild(card);
+            });
+        }
+
+        function toggleSubject(code) {
+            if (selectedSubjectCodes.includes(code)) {
+                selectedSubjectCodes = selectedSubjectCodes.filter(c => c !== code);
+            } else {
+                selectedSubjectCodes.push(code);
+            }
+            updateUI();
+        }
+
+        function removeSubject(code) {
+            selectedSubjectCodes = selectedSubjectCodes.filter(c => c !== code);
+            updateUI();
+        }
+
+        // Logic to find valid combination (Backtracking)
+        function findValidCombination(codes) {
+            if (codes.length === 0) return [];
+
+            const subjectOptions = {};
+            codes.forEach(code => {
+                subjectOptions[code] = {};
+                allCourses.filter(c => c.code === code).forEach(item => {
+                    const g = item.group;
+                    if (!subjectOptions[code][g]) subjectOptions[code][g] = [];
+                    subjectOptions[code][g].push(item);
+                });
+            });
+
+            function solve(idx, currentSchedule) {
+                if (idx === codes.length) return currentSchedule;
+
+                const code = codes[idx];
+                const groups = subjectOptions[code];
+
+                for (const group in groups) {
+                    const lectures = groups[group];
+                    let conflict = false;
+
+                    // 1. Check lecture overlap
+                    for (const lec of lectures) {
+                        if (currentSchedule.some(s => s.day === lec.day && s.time === lec.time)) {
+                            conflict = true; break;
+                        }
+                    }
+                    if (conflict) continue;
+
+                    // 2. Check exam overlap
+                    const exNew = allExams.find(e => e.code === code && e.code);
+                    if (exNew) {
+                        const existingCodes = [...new Set(currentSchedule.map(s => s.code))];
+                        for (const eCode of existingCodes) {
+                            const exOld = allExams.find(e => e.code === eCode);
+                            if (exOld && exNew.exam_day === exOld.exam_day && exNew.exam_period === exOld.exam_period) {
+                                conflict = true; break;
+                            }
+                        }
+                    }
+                    if (conflict) continue;
+
+                    const res = solve(idx + 1, currentSchedule.concat(lectures));
+                    if (res) return res;
+                }
+                return null;
+            }
+
+            return solve(0, []);
+        }
+
+        function updateUI() {
+            // Re-render course list to show selection states
+            const query = document.getElementById('courseSearch').value.toLowerCase();
+            const filtered = allCourses.filter(c =>
+                c.name.toLowerCase().includes(query) ||
+                c.code.toLowerCase().includes(query)
+            );
+            renderCourses(filtered);
+
+            // Update Selected List (Subjects)
+            const list = document.getElementById('selectedCourses');
+            list.innerHTML = '';
+            selectedSubjectCodes.forEach(code => {
+                const subject = allCourses.find(c => c.code === code);
+                const item = document.createElement('div');
+                item.className = 'selected-item';
+                item.innerHTML = `
+                    <div>
+                        <div style="font-weight:600">${subject ? subject.name : code}</div>
+                        <div style="font-size:0.8rem; color:var(--text-dim)">${code}</div>
+                    </div>
+                    <button class="remove-btn" onclick="removeSubject('${code}')">✕</button>
+                `;
+                list.appendChild(item);
+            });
+
+            // Resolve Schedule and Update Grid
+            const bestSchedule = findValidCombination(selectedSubjectCodes);
+
+            document.querySelectorAll('.grid-cell').forEach(cell => {
+                cell.innerHTML = '';
+                cell.className = 'grid-cell';
+            });
+
+            if (bestSchedule) {
+                bestSchedule.forEach(c => {
+                    const slotIdx = slotMap[c.time];
+                    const cleanDay = c.day.trim();
+                    const cell = document.querySelector(`.grid-cell[data-day="${cleanDay}"][data-slot="${slotIdx}"]`);
+                    if (cell) {
+                        cell.classList.add('active');
+                        cell.innerHTML = `<span>${c.name.split(' ').slice(0, 2).join(' ')}<br><small>(G:${c.group})</small></span>`;
+                    }
+                });
+
+                // Update Exam Info
+                const examDiv = document.getElementById('examStatus');
+                examDiv.innerHTML = '<h4 style="color:var(--primary); margin-bottom:10px">جدول الامتحانات المقترح:</h4>';
+                selectedSubjectCodes.forEach(code => {
+                    const ex = allExams.find(e => e.code === code);
+                    const name = allCourses.find(c => c.code === code)?.name || code;
+                    if (ex && ex.code) {
+                        examDiv.innerHTML += `<div style="margin-bottom:5px; padding:5px; background:rgba(255,255,255,0.05); border-radius:5px">📍 ${name}: ${ex.exam_day} (${ex.exam_period})</div>`;
+                    }
+                });
+
+                document.getElementById('finishBtn').style.opacity = '1';
+                document.getElementById('finishBtn').disabled = false;
+                document.getElementById('finishBtn').innerText = '✅ استخراج الجدول النهائي';
+            } else if (selectedSubjectCodes.length > 0) {
+                // Conflict state
+                const examDiv = document.getElementById('examStatus');
+                examDiv.innerHTML = '<div style="color:var(--error); font-weight:700">⚠️ تنبيه: لا توجد توليفة مجموعات متاحة بدون تعارض لهذه المواد!</div>';
+                document.getElementById('finishBtn').style.opacity = '0.5';
+                document.getElementById('finishBtn').disabled = true;
+                document.getElementById('finishBtn').innerText = '❌ تعارض في المجموعات';
+            } else {
+                document.getElementById('examStatus').innerHTML = '';
+                document.getElementById('finishBtn').innerText = '✅ استخراج الجدول النهائي';
+            }
+        }
+
+        // Search logic
+        document.getElementById('courseSearch').oninput = (e) => {
+            const query = e.target.value.toLowerCase();
+            const filtered = allCourses.filter(c =>
+                c.name.toLowerCase().includes(query) ||
+                c.code.toLowerCase().includes(query)
+            );
+            renderCourses(filtered);
+        };
+
+        document.getElementById('finishBtn').onclick = () => {
+            const finalSchedule = findValidCombination(selectedSubjectCodes);
+            if (!finalSchedule || finalSchedule.length === 0) {
+                tg.showAlert("برجاء اختيار مواد صالحة أولاً!");
+                return;
+            }
+            tg.sendData(JSON.stringify(finalSchedule));
+            tg.close();
+        };
+
+        updateUI();
+    </script>
+</body>
+
+</html>

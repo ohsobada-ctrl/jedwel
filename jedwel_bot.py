@@ -5,6 +5,8 @@ import threading
 import http.server
 import socketserver
 import sqlite3
+import subprocess
+import time
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 
 # Basic configuration
@@ -17,7 +19,7 @@ EXAMS_FILE = "webapp/exams.json"
 FACULTY_FILE = "webapp/faculty.json"
 
 # --- Web App Configuration ---
-WEBAPP_URL = "https://87422f5k-8080.euw.devtunnels.ms/" 
+WEBAPP_URL = "https://87422f5k-5500.euw.devtunnels.ms/webapp/" 
 
 # --- Database Configuration ---
 DB_FILE = "jedwel.db"
@@ -301,21 +303,27 @@ def parse_exam_schedule(driver):
                 
                 if exams_in_p:
                     for ex in exams_in_p:
+                        # Smart Check: Ignore placeholder or empty exam rows
+                        if not ex.get("code") or not ex.get("name") or ex["name"] in ["غير معروف", "فارغ", ""]:
+                            continue
+                            
                         final_exams.append({
-                            "code": ex["code"],
-                            "name": ex["name"],
-                            "exam_day": day["day_text"],
-                            "exam_period": p_name
+                            "code": ex["code"].strip(),
+                            "name": ex["name"].strip(),
+                            "exam_day": day["day_text"].strip(),
+                            "exam_period": p_name.strip()
                         })
-                else:
-                    # تخزين الخانة كفارغة (حتى لو فاضية خزنها كما طلبت)
-                    final_exams.append({
-                        "code": None,
-                        "name": "فارغ",
-                        "exam_day": day["day_text"],
-                        "exam_period": p_name
-                    })
-        return final_exams
+        
+        # Deduplicate results just in case
+        unique_exams = []
+        seen_exams = set()
+        for ex in final_exams:
+            key = (ex["code"], ex["exam_day"], ex["exam_period"])
+            if key not in seen_exams:
+                unique_exams.append(ex)
+                seen_exams.add(key)
+                
+        return unique_exams
     except Exception as e:
         print(f"Error parsing exams: {e}")
         return []
@@ -332,6 +340,7 @@ def parse_faculty_schedule(driver, exam_data):
         time_slots = [h.text.strip() for h in headers[1:] if h.text.strip()]
         
         faculty_data = []
+        seen_lectures = set() # For smart deduplication
         # 2. المرور على أيام الأسبوع
         for row in rows[1:]:
             cells = row.find_elements(By.TAG_NAME, "td")
@@ -346,46 +355,54 @@ def parse_faculty_schedule(driver, exam_data):
                 time_range = time_slots[i-1] if (i-1) < len(time_slots) else f"الفترة {i}"
                 
                 # البحث عن كل مادة داخل الخلية (قد تكون هناك عدة مواد)
-                # المواد تأتي في وسوم <p> والمعلومات في وسوم <div>
                 try:
                     course_elements = cell.find_elements(By.TAG_NAME, "p")
                     info_elements = cell.find_elements(By.TAG_NAME, "div")
                     
                     for idx, p_tag in enumerate(course_elements):
-                        # اسم المادة من خاصية title
-                        course_full_name = p_tag.get_attribute("title") or "غير معروف"
+                        course_full_name = (p_tag.get_attribute("title") or "").strip()
                         course_text = p_tag.text.strip()
                         
+                        if not course_text or "غير معروف" in course_full_name:
+                            continue
+                            
                         # استخراج الرمز والمجموعة (مثلاً: ITGS240 (A))
                         match = re.search(r"([\w\d]+)\s*\(\s*([A-Za-z0-9]+)\s*\)", course_text)
-                        code = match.group(1) if match else course_text
-                        group = match.group(2) if match else "1"
+                        code = match.group(1).strip() if match else course_text
+                        group = match.group(2).strip() if match else "A"
                         
-                        # معلومات الدكتور والقاعة من الـ div المقابل
+                        # معلومات الدكتور والقاعة
                         instructor = "غير محدد"
                         room = "غير محدد"
                         if idx < len(info_elements):
                             div_tag = info_elements[idx]
-                            instructor = div_tag.text.split('(')[0].replace("أستاذ المقرر", "").strip()
+                            raw_inst = div_tag.text.split('(')[0].replace("أستاذ المقرر", "").strip()
+                            instructor = raw_inst if raw_inst else "غير محدد"
                             try:
                                 room_tag = div_tag.find_element(By.TAG_NAME, "a")
-                                room = room_tag.text.strip("()") or room_tag.get_attribute("title")
-                            except:
-                                pass
-                        
-                        # فحص إذا كانت كل المعلومات "فارغة" أو "غير معروفة" لتجنب تخزين محاضرة لا قيمة لها
-                        if course_full_name == "غير معروف" and instructor == "غير محدد" and room == "غير محدد":
-                            continue
+                                r_text = (room_tag.text.strip("()") or room_tag.get_attribute("title") or "").strip()
+                                room = r_text if r_text else "غير محدد"
+                            except: pass
 
-                        faculty_data.append({
-                            "code": code,
-                            "name": course_full_name,
-                            "group": group,
-                            "day": day,
-                            "time": time_range,
-                            "instructor": instructor,
-                            "room": room
-                        })
+                        # --- Smart Deduplication & Cleanup ---
+                        # Skip if essential data is missing
+                        if not code or code == "غير معروف": continue
+                        
+                        # Key to identify unique lecture: (code, group, day, time)
+                        lecture_key = (code, group, day, time_range)
+                        
+                        if lecture_key not in seen_lectures:
+                            faculty_data.append({
+                                "code": code,
+                                "name": course_full_name or code,
+                                "group": group,
+                                "day": day,
+                                "time": time_range,
+                                "instructor": instructor,
+                                "room": room
+                            })
+                            seen_lectures.add(lecture_key)
+
                 except Exception as e:
                     print(f"Error in cell parsing: {e}")
                     
@@ -393,6 +410,17 @@ def parse_faculty_schedule(driver, exam_data):
     except Exception as e:
         print(f"Error parsing faculty schedule: {e}")
         return []
+
+def push_to_github(chat_id):
+    """رفع الملفات لـ GitHub لتحديث Vercel تلقائياً"""
+    try:
+        bot.send_message(chat_id, "🔄 جاري رفع الجداول المحدثة إلى GitHub لتحديث Vercel...")
+        subprocess.run(["git", "add", "webapp/faculty.json", "webapp/exams.json"], check=True)
+        subprocess.run(["git", "commit", "-m", "🔄 تحديث الجداول آلياً"], check=True)
+        subprocess.run(["git", "push"], check=True)
+        bot.send_message(chat_id, "🚀 تم تحديث البيانات على Vercel بنجاح!")
+    except Exception as e:
+        bot.send_message(chat_id, f"⚠️ فشل التحديث التلقائي لـ GitHub: {e}")
 
 def scrape_process(chat_id, creds):
     chrome_options = Options()
@@ -451,6 +479,9 @@ def scrape_process(chat_id, creds):
         # حفظ كل البيانات (فصل وتحديث)
         save_schedules(exam_data, faculty_data)
         
+        # رفع التحديثات لـ GitHub
+        # push_to_github(chat_id)
+        
         status_msg = (
             "✅ اكتملت العملية بنجاح!\n\n"
             f"📝 تم تحديث {len(exam_data)} مادة في {EXAMS_FILE}\n"
@@ -479,50 +510,92 @@ def handle_scrape(call):
 # --- Web App Data Handler ---
 @bot.message_handler(content_types=['web_app_data'])
 def handle_web_app_data(message):
+    import base64
+    import io
     try:
         user_id = message.from_user.id
-        selected_courses = json.loads(message.web_app_data.data)
-        
+        raw_data = json.loads(message.web_app_data.data)
+
+        # =====================================
+        # الحالة 1: إرسال صورة الجدول الملتقطة
+        # =====================================
+        if raw_data.get('type') == 'schedule_image':
+            image_data = raw_data.get('image', '')
+            schedule_index = raw_data.get('schedule_index', 1)
+            subjects = raw_data.get('subjects', [])
+            conflicts = raw_data.get('total_conflicts', 0)
+
+            # فك ترميز الصورة من Base64
+            if ',' in image_data:
+                image_data = image_data.split(',', 1)[1]
+            
+            image_bytes = base64.b64decode(image_data)
+            image_file = io.BytesIO(image_bytes)
+            image_file.name = f'schedule_{schedule_index}.png'
+
+            # كتابة تعليق الصورة
+            conflict_text = "✅ بدون تعارضات" if conflicts == 0 else f"⚠️ عدد التعارضات: {conflicts}"
+            caption = (
+                f"📅 **جدول المحاضرات - الجدول {schedule_index}**\n\n"
+                f"📚 المواد:\n" +
+                "\n".join([f"• {s}" for s in subjects]) +
+                f"\n\n{conflict_text}\n\n"
+                "💡 _تم الإنشاء بواسطة الجدول الذكي_"
+            )
+
+            bot.send_photo(
+                message.chat.id,
+                image_file,
+                caption=caption,
+                parse_mode="Markdown"
+            )
+            return
+
+        # =====================================
+        # الحالة 2: بيانات الجدول النصية (للتوافق)
+        # =====================================
+        selected_courses = raw_data if isinstance(raw_data, list) else []
+        if not selected_courses:
+            return
+
         # Save to Database
         try:
             conn = sqlite3.connect(DB_FILE)
             c = conn.cursor()
-            c.execute("INSERT INTO user_schedules (user_id, schedule_json) VALUES (?, ?)", (user_id, json.dumps(selected_courses)))
+            c.execute("INSERT INTO user_schedules (user_id, schedule_json) VALUES (?, ?)",
+                      (user_id, json.dumps(selected_courses)))
             conn.commit()
             conn.close()
         except Exception as db_err:
             print(f"Error saving user schedule: {db_err}")
 
-        response = "🎓 **جدولك الدراسي النهائي الخالي من التعارضات:**\n\n"
+        response = "🎓 **جدولك الدراسي النهائي:**\n\n"
         
-        # ترتيب حسب الأيام
         day_order = {"السبت":1, "الأحد":2, "الإثنين":3, "الثلاثاء":4, "الإربعاء":5, "الخميس":6}
-        selected_courses.sort(key=lambda x: (day_order.get(x['day'], 99), x['time']))
+        selected_courses.sort(key=lambda x: (day_order.get(x.get('day',''), 99), x.get('time','')))
 
         current_day = ""
         for course in selected_courses:
-            if course['day'] != current_day:
-                current_day = course['day']
+            if course.get('day') != current_day:
+                current_day = course.get('day', '')
                 response += f"\n📅 **{current_day}:**\n"
-            
-            response += f"🔹 {course['name']} ({course['group']})\n"
-            response += f"   ⏰ {course['time']} | 📍 {course['room']}\n"
-            response += f"   👤 د. {course['instructor']}\n"
+            response += f"🔹 {course.get('name','')} (م{course.get('group','')})\n"
+            response += f"   ⏰ {course.get('time','')} | 📍 {course.get('room','')}\n"
+            response += f"   👤 {course.get('instructor','')}\n"
 
-        # إضافة معلومات الامتحانات
         exams = load_json(EXAMS_FILE)
-        response += "\n\n📝 **جدول الامتحانات النهائية لموادك:**\n"
-        
+        response += "\n\n📝 **جدول الامتحانات النهائية:**\n"
         for course in selected_courses:
-            ex = next((e for e in exams if e.get('code') == course['code']), None)
+            ex = next((e for e in exams if e.get('code') == course.get('code')), None)
             if ex and ex.get('code'):
-                response += f"📍 {course['name']}: {ex['exam_day']} ({ex['exam_period']})\n"
+                response += f"📍 {course.get('name')}: {ex['exam_day']} ({ex['exam_period']})\n"
 
         bot.send_message(message.chat.id, response, parse_mode="Markdown")
         bot.send_message(message.chat.id, "✨ بالتوفيق في فصلك الدراسي!")
 
     except Exception as e:
         bot.send_message(message.chat.id, f"❌ حدث خطأ في معالجة الجدول: {str(e)}")
+
 
 # --- Threaded HTTP Server ---
 def run_server():

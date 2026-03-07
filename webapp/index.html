@@ -4,624 +4,1333 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>صانع الجداول الذكي - Jedwel</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <title>الجدول - تطبيق مصغر</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         :root {
-            --primary: #8b5cf6;
-            --secondary: #3b82f6;
-            --bg: #0f172a;
-            --card-link: #1e293b;
-            --text-main: #f8fafc;
-            --text-dim: #94a3b8;
-            --success: #10b981;
-            --error: #ef4444;
-            --glass: rgba(255, 255, 255, 0.04);
-            --glass-border: rgba(255, 255, 255, 0.1);
+            --blue: #007AFF;
+            --blue-light: #E8F3FF;
+            --green: #34C759;
+            --red: #FF3B30;
+            --bg: #F2F2F7;
+            --white: #fff;
+            --border: #e0e0e5;
+            --text: #1c1c1e;
+            --subtext: #8e8e93;
         }
 
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Outfit', sans-serif;
+            font-family: 'Cairo', sans-serif;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
-            background-color: var(--bg);
-            color: var(--text-main);
-            min-height: 100vh;
-            overflow-x: hidden;
-            background: radial-gradient(circle at top right, rgba(139, 92, 246, 0.15), transparent 400px),
-                radial-gradient(circle at bottom left, rgba(59, 130, 246, 0.15), transparent 400px);
+            background: var(--bg);
+            color: var(--text);
         }
 
-        /* Layout Structure */
-        .container {
-            max-width: 1000px;
-            margin: 0 auto;
-            padding: 20px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 25px;
-        }
-
-        @media (max-width: 850px) {
-            .container {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        /* Header Components */
-        .header {
-            text-align: center;
-            padding: 20px 0 40px;
-            grid-column: 1 / -1;
-        }
-
-        .header h1 {
-            font-size: 2.5rem;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-            font-weight: 700;
-            margin-bottom: 5px;
-        }
-
-        /* Search Area */
-        .search-section {
-            background: var(--glass);
-            backdrop-filter: blur(12px);
-            border: 1px solid var(--glass-border);
-            border-radius: 20px;
-            padding: 25px;
-            height: fit-content;
-        }
-
-        .search-bar {
-            width: 100%;
-            background: rgba(0, 0, 0, 0.2);
-            border: 1px solid var(--glass-border);
-            padding: 15px 45px 15px 15px;
-            border-radius: 12px;
-            color: white;
-            font-size: 1rem;
-            margin-bottom: 20px;
-            outline: none;
-            transition: 0.3s;
-        }
-
-        .search-bar:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 15px rgba(139, 92, 246, 0.2);
-        }
-
-        /* Course List Items */
-        .course-list {
-            max-height: 500px;
-            overflow-y: auto;
-            padding-right: 5px;
-        }
-
-        .course-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid var(--glass-border);
-            border-radius: 15px;
-            padding: 15px;
-            margin-bottom: 12px;
-            cursor: pointer;
-            transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .course-card:hover {
-            transform: scale(1.02);
-            background: rgba(255, 255, 255, 0.06);
-            border-color: var(--secondary);
-        }
-
-        .course-code {
-            font-weight: 600;
-            color: var(--primary);
-            font-size: 0.9rem;
-        }
-
-        .course-name {
-            font-size: 1.1rem;
-            margin: 5px 0;
-            display: block;
-        }
-
-        .course-meta {
-            font-size: 0.85rem;
-            color: var(--text-dim);
-            display: flex;
-            gap: 15px;
-        }
-
-        /* Schedule Visualization (The Grid) */
-        .preview-section {
-            background: var(--glass);
-            backdrop-filter: blur(12px);
-            border: 1px solid var(--glass-border);
-            border-radius: 20px;
-            padding: 25px;
+        /* ---- HEADER ---- */
+        .app-header {
+            background: var(--white);
+            border-bottom: 1px solid var(--border);
+            padding: 10px 16px 0;
             position: sticky;
-            top: 20px;
+            top: 0;
+            z-index: 200;
         }
 
-        .schedule-grid {
-            display: grid;
-            grid-template-columns: 80px repeat(5, 1fr);
-            gap: 8px;
-            margin-top: 20px;
+        .app-title {
+            font-size: 1.25rem;
+            font-weight: 900;
+            color: var(--text);
             text-align: center;
+            padding-bottom: 6px;
         }
 
-        .grid-header {
+        .app-subtitle {
+            font-size: 0.72rem;
+            color: var(--subtext);
+            text-align: center;
+            margin-top: -4px;
+            margin-bottom: 6px;
+        }
+
+        .top-tabs {
+            display: flex;
+            border-bottom: none;
+            gap: 0;
+        }
+
+        .top-tab {
+            flex: 1;
+            text-align: center;
+            padding: 10px 4px;
+            font-size: 0.82rem;
             font-weight: 700;
-            font-size: 0.8rem;
-            color: var(--primary);
-            padding-bottom: 10px;
-            border-bottom: 1px solid var(--glass-border);
-        }
-
-        .time-label {
-            font-size: 0.75rem;
-            color: var(--text-dim);
-            align-self: center;
-        }
-
-        .grid-cell {
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            min-height: 50px;
-            border-radius: 8px;
-            position: relative;
+            color: var(--subtext);
+            cursor: pointer;
+            border-bottom: 2.5px solid transparent;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.7rem;
-            transition: 0.3s;
+            gap: 5px;
         }
 
-        .grid-cell.active {
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
-            border: none;
-            color: white;
-            padding: 5px;
-            font-weight: 600;
+        .top-tab.active {
+            color: var(--blue);
+            border-bottom-color: var(--blue);
         }
 
-        .grid-cell.conflict {
-            background: rgba(239, 68, 68, 0.2);
-            border-color: var(--error);
-            animation: pulse 1.5s infinite;
-        }
-
-        @keyframes pulse {
-            0% {
-                transform: scale(1);
-            }
-
-            50% {
-                transform: scale(1.05);
-            }
-
-            100% {
-                transform: scale(1);
-            }
-        }
-
-        /* UI Enhancements */
-        .btn-generate {
-            width: 100%;
-            padding: 18px;
-            margin-top: 25px;
-            border-radius: 15px;
-            border: none;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            color: white;
-            font-size: 1.1rem;
-            font-weight: 700;
-            cursor: pointer;
-            box-shadow: 0 10px 25px -5px rgba(139, 92, 246, 0.4);
-            transition: 0.3s;
-        }
-
-        .btn-generate:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 15px 30px -5px rgba(139, 92, 246, 0.6);
-        }
-
-        .badge-conflict {
-            background: var(--error);
-            color: white;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 0.75rem;
+        /* ---- CONTENT ---- */
+        .page {
             display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        .container {
+            padding: 14px 14px;
+            max-width: 900px;
+            margin: auto;
+        }
+
+        /* ---- SEARCH BOX ---- */
+        .search-wrap {
+            position: relative;
+            margin-bottom: 12px;
+        }
+
+        .search-label {
             position: absolute;
-            top: 10px;
-            left: 10px;
+            top: -10px;
+            right: 16px;
+            background: var(--white);
+            padding: 0 6px;
+            font-size: 0.74rem;
+            font-weight: 700;
+            color: var(--subtext);
         }
 
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 6px;
+        .search-box {
+            background: var(--white);
+            border: 1.5px solid var(--blue);
+            border-radius: 13px;
+            padding: 10px 12px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 7px;
+            align-items: center;
+            min-height: 60px;
         }
 
-        ::-webkit-scrollbar-track {
+        .tag {
+            background: var(--blue-light);
+            border: 1px solid #b8d8ff;
+            color: #003d99;
+            padding: 4px 11px;
+            border-radius: 20px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .tag-x {
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .search-input {
+            border: none;
+            outline: none;
+            flex: 1;
+            min-width: 100px;
+            font-size: 0.92rem;
+            font-family: 'Cairo', sans-serif;
             background: transparent;
         }
 
-        ::-webkit-scrollbar-thumb {
-            background: var(--glass-border);
+        .dropdown {
+            position: absolute;
+            width: 100%;
+            top: 105%;
+            right: 0;
+            background: var(--white);
+            border: 1px solid #ddd;
+            border-radius: 13px;
+            box-shadow: 0 10px 35px rgba(0, 0, 0, 0.12);
+            max-height: 260px;
+            overflow-y: auto;
+            z-index: 500;
+            display: none;
+            margin-top: 4px;
+        }
+
+        .drop-item {
+            padding: 12px 14px;
+            border-bottom: 1px solid #f5f5f5;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .drop-item:hover {
+            background: #f5f9ff;
+        }
+
+        .drop-item .code {
+            color: var(--blue);
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .drop-item .name {
+            font-size: 0.88rem;
+        }
+
+        /* ---- INLINE TAB SWITCHER ---- */
+        .sched-tabs {
+            display: flex;
+            background: var(--bg);
+            border-radius: 11px;
+            padding: 3px;
+            margin-bottom: 12px;
+        }
+
+        .sched-tab {
+            flex: 1;
+            text-align: center;
+            padding: 8px;
+            border-radius: 9px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--subtext);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .sched-tab.active {
+            background: var(--blue);
+            color: var(--white);
+            box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);
+        }
+
+        /* ---- SCHEDULE GRID (LECTURES) ---- */
+        .grid-scroll {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            border-radius: 13px;
+            border: 1px solid var(--border);
+            background: var(--white);
+        }
+
+        #lectureGrid,
+        #examGrid {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 580px;
+            background: var(--white);
+        }
+
+        #lectureGrid th,
+        #examGrid th {
+            background: #F8F9FC;
+            color: var(--subtext);
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 9px 5px;
+            border: 1px solid #e8e8ee;
+            text-align: center;
+        }
+
+        #lectureGrid td,
+        #examGrid td {
+            border: 1px solid #ebebf0;
+            text-align: center;
+            height: 85px;
+            padding: 4px;
+            vertical-align: middle;
+        }
+
+        .day-col {
+            width: 58px !important;
+            font-weight: 900;
+            font-size: 0.8rem;
+            background: #F0F4FB !important;
+            color: #334070 !important;
+            border-right: 3px solid #c8d8f0 !important;
+        }
+
+        .empty-cell {
+            background: #FAFBFD;
+        }
+
+        .lec-card {
+            background: #EBF4FF;
+            border-right: 3px solid var(--blue);
+            border-radius: 5px;
+            padding: 4px 5px;
+            text-align: right;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 2px;
+        }
+
+        .lec-card .ln {
+            font-weight: 800;
+            font-size: 0.72rem;
+            color: #003580;
+            line-height: 1.35;
+        }
+
+        .lec-card .lg {
+            display: inline-block;
+            background: var(--blue);
+            color: white;
+            border-radius: 8px;
+            padding: 1px 6px;
+            font-size: 0.62rem;
+            font-weight: 700;
+        }
+
+        .lec-card .lm {
+            font-size: 0.62rem;
+            color: #6a8fc5;
+            line-height: 1.3;
+        }
+
+        .exam-card {
+            background: #FFF0F0;
+            border-right: 3px solid var(--red);
+            border-radius: 5px;
+            padding: 4px 5px;
+            text-align: right;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 3px;
+        }
+
+        .exam-card .en {
+            font-weight: 800;
+            font-size: 0.72rem;
+            color: #800000;
+            line-height: 1.35;
+        }
+
+        .exam-card .ec {
+            font-size: 0.65rem;
+            color: #c87070;
+            font-weight: 600;
+        }
+
+        /* Exam clash warnings */
+        .warn-hard {
+            background: #fff0f0;
+            border: 1.5px solid #ffb3b3;
             border-radius: 10px;
+            padding: 8px 11px;
+            margin-bottom: 8px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #c0392b;
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
         }
 
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--primary);
+        .warn-soft {
+            background: #fffbe6;
+            border: 1.5px solid #ffe082;
+            border-radius: 10px;
+            padding: 8px 11px;
+            margin-bottom: 8px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #b8860b;
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
         }
 
-        .selected-list {
-            margin-top: 30px;
+        /* Divider between clean/conflict solutions */
+        .section-divider {
+            text-align: center;
+            margin: 14px 0 10px;
+            font-size: 0.78rem;
+            font-weight: 800;
+            color: var(--red);
+            position: relative;
         }
 
-        .selected-item {
-            background: rgba(139, 92, 246, 0.1);
-            border: 1px solid var(--primary);
-            padding: 12px;
-            border-radius: 12px;
+        .section-divider::before,
+        .section-divider::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 28%;
+            height: 1px;
+            background: #ffcccc;
+        }
+
+        .section-divider::before {
+            right: 0;
+        }
+
+        .section-divider::after {
+            left: 0;
+        }
+
+        /* ---- PROPOSAL CARDS ---- */
+        .prop-card {
+            background: var(--white);
+            border-radius: 14px;
+            padding: 15px;
             margin-bottom: 10px;
+            border: 1px solid var(--border);
+            box-shadow: 0 1px 6px rgba(0, 0, 0, 0.04);
+            cursor: pointer;
+            transition: box-shadow 0.2s;
+        }
+
+        .prop-card:hover {
+            box-shadow: 0 4px 18px rgba(0, 122, 255, 0.1);
+        }
+
+        .prop-head {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #f0f0f5;
         }
 
-        .remove-btn {
-            color: var(--error);
-            border: none;
-            background: none;
+        .prop-title {
+            font-weight: 900;
+            font-size: 0.95rem;
+        }
+
+        .pill-ok {
+            background: #d4f5dc;
+            color: #155724;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 700;
+        }
+
+        .pill-err {
+            background: #fce4e4;
+            color: #7f1010;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 700;
+        }
+
+        .sub-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+            font-size: 0.85rem;
+            gap: 6px;
+        }
+
+        .sub-name {
+            flex: 1;
+            color: #444;
+        }
+
+        /* ---- DETAIL HEADER ---- */
+        .detail-header {
+            background: var(--white);
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+        }
+
+        .back-btn {
+            color: var(--blue);
+            font-size: 1rem;
             cursor: pointer;
-            font-size: 1.2rem;
+            padding: 4px;
+        }
+
+        .det-title {
+            font-weight: 900;
+            font-size: 1rem;
+            flex: 1;
+        }
+
+        .nav-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            gap: 8px;
+        }
+
+        .nav-btn {
+            background: #EEF3FF;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 10px;
+            color: var(--blue);
+            font-weight: 700;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+
+        .counter {
+            color: var(--subtext);
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+
+        /* ---- SAVE BTN ---- */
+        .save-btn {
+            width: 100%;
+            margin-top: 12px;
+            padding: 15px;
+            background: var(--white);
+            color: var(--blue);
+            border: 2px solid #c8deff;
+            border-radius: 100px;
+            font-weight: 800;
+            font-size: 0.95rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .save-btn:active {
+            background: #eef5ff;
+        }
+
+        /* ---- MAIN ACTION BTN ---- */
+        .action-btn {
+            width: 100%;
+            padding: 15px;
+            background: var(--blue);
+            color: white;
+            border: none;
+            border-radius: 100px;
+            font-weight: 800;
+            font-size: 1rem;
+            margin-top: 16px;
+            cursor: pointer;
+            box-shadow: 0 5px 18px rgba(0, 122, 255, 0.3);
+        }
+
+        .action-btn:active {
+            transform: scale(0.98);
+        }
+
+        /* ---- EMPTY STATE ---- */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--subtext);
+        }
+
+        .empty-state .icon {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .empty-state .msg {
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        /* ---- LOADING ---- */
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            gap: 14px;
+            color: white;
+            font-weight: 700;
+        }
+
+        .spinner {
+            width: 42px;
+            height: 42px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px)
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0)
+            }
+        }
+
+        .anim {
+            animation: fadeUp 0.25s ease;
+        }
+
+        /* ---- RESULTS SECTION ---- */
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 18px 0 10px;
+        }
+
+        .results-title {
+            font-weight: 900;
+            font-size: 0.95rem;
+        }
+
+        .results-badge {
+            font-size: 0.78rem;
+            font-weight: 700;
         }
     </style>
 </head>
 
 <body>
 
-    <div class="header">
-        <h1>Jedwel Smart Planner</h1>
-        <p style="color: var(--text-dim)">صمم جدولك الدراسي بلا تعارضات في دقائق</p>
+    <!-- ===================================================== -->
+    <!-- PAGE 1: أداة البحث (Inline Search + Schedule Display) -->
+    <!-- ===================================================== -->
+    <div id="searchPage" class="page active">
+        <div class="app-header">
+            <div class="app-title">الدليل</div>
+            <div class="app-subtitle">تطبيق مصغر</div>
+            <div class="top-tabs">
+                <div class="top-tab active" onclick="switchTopTab('search')">🔍 أداة البحث</div>
+                <div class="top-tab" onclick="switchTopTab('schedule')">✨ أداة التنزيل</div>
+            </div>
+        </div>
+
+        <div class="container">
+            <!-- Search Box -->
+            <div class="search-wrap" style="margin-top:10px;">
+                <div class="search-label">ابحث باسم أو رمز المادة</div>
+                <div class="search-box" id="searchBox1">
+                    <div id="tags1" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+                    <input type="text" id="searchInput1" class="search-input" placeholder="اكتب...">
+                    <div id="dropdown1" class="dropdown"></div>
+                </div>
+            </div>
+
+            <!-- Inline Schedule Tabs -->
+            <div id="inlineScheduleArea" class="hidden">
+                <div class="sched-tabs" style="margin-top:14px;">
+                    <div class="sched-tab active" id="inlineTabLec" onclick="showInlineTab('lec')">جدول المحاضرات</div>
+                    <div class="sched-tab" id="inlineTabExam" onclick="showInlineTab('exam')">جدول النهائي</div>
+                </div>
+
+                <!-- Lecture Grid (inline) -->
+                <div id="inlineLecContent">
+                    <div class="grid-scroll">
+                        <table id="lectureGrid">
+                            <thead>
+                                <tr>
+                                    <th>اليوم / الوقت</th>
+                                    <th>08:00<br>09:30</th>
+                                    <th>09:30<br>11:00</th>
+                                    <th>11:00<br>12:30</th>
+                                    <th>12:30<br>14:00</th>
+                                    <th>14:00<br>15:30</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lectureGridBody"></tbody>
+                        </table>
+                    </div>
+                    <button class="save-btn" onclick="saveGridAsImage('lectureGrid', 'جدول_المحاضرات')">
+                        📥 حفظ جدول المحاضرات كصورة
+                    </button>
+                </div>
+
+                <!-- Exam Grid (inline) -->
+                <div id="inlineExamContent" class="hidden">
+                    <div class="grid-scroll">
+                        <table id="examGrid">
+                            <thead>
+                                <tr>
+                                    <th>التاريخ / الفترة</th>
+                                    <th>الفترة الأولى</th>
+                                    <th>الفترة الثانية</th>
+                                    <th>الفترة الثالثة</th>
+                                </tr>
+                            </thead>
+                            <tbody id="examGridBody"></tbody>
+                        </table>
+                    </div>
+                    <button class="save-btn" onclick="saveGridAsImage('examGrid', 'جدول_الامتحانات')">
+                        📥 حفظ جدول الامتحانات كصورة
+                    </button>
+                </div>
+            </div>
+
+            <!-- Empty State (shown until subject selected) -->
+            <div id="emptyState1" class="empty-state" style="margin-top:30px;">
+                <div class="icon">📚</div>
+                <div class="msg">اختر مادة لعرض جدولها مباشرة</div>
+            </div>
+        </div>
     </div>
 
-    <div class="container">
-        <!-- Search & Selection -->
-        <section class="search-section">
-            <div style="position: relative">
-                <input type="text" class="search-bar" placeholder="ابحث عن مادة أو رمز..." id="courseSearch">
-                <span style="position: absolute; right: 15px; top: 15px; color: var(--text-dim)">🔍</span>
+    <!-- ====================================================== -->
+    <!-- PAGE 2: أداة التنزيل (Builder + Proposals + Detail)   -->
+    <!-- ====================================================== -->
+    <div id="schedulePage" class="page">
+
+        <!-- Sub-view A: Builder -->
+        <div id="builderView">
+            <div class="app-header">
+                <div class="app-title">الدليل</div>
+                <div class="app-subtitle">تطبيق مصغر</div>
+                <div class="top-tabs">
+                    <div class="top-tab" onclick="switchTopTab('search')">🔍 أداة البحث</div>
+                    <div class="top-tab active" onclick="switchTopTab('schedule')">✨ أداة التنزيل</div>
+                </div>
             </div>
 
-            <div class="course-list" id="courseList">
-                <!-- Courses will be injected here via JS -->
+            <div class="container">
+                <div class="search-wrap" style="margin-top:10px;">
+                    <div class="search-label">اختر موادك لبناء جدول بدون تعارض</div>
+                    <div class="search-box" id="searchBox2">
+                        <div id="tags2" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+                        <input type="text" id="searchInput2" class="search-input" placeholder="أضف مادة...">
+                        <div id="dropdown2" class="dropdown"></div>
+                    </div>
+                </div>
+
+                <button class="action-btn" onclick="runSolver()">✨ اقتراح الجداول</button>
+
+                <div id="proposalsArea" class="hidden">
+                    <div class="results-header">
+                        <div class="results-title">الجداول المقترحة</div>
+                        <div id="propBadge" class="results-badge"></div>
+                    </div>
+                    <div id="proposalsList"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sub-view B: Detail -->
+        <div id="detailView" class="hidden">
+            <div class="detail-header">
+                <div class="back-btn" onclick="closeDetail()">&#8250;</div>
+                <div class="det-title" id="detTitle">الجدول 1</div>
+                <div id="detBadge"></div>
             </div>
 
-            <div class="selected-list" id="selectedListContainer">
-                <h3 style="margin-bottom: 15px; color: var(--primary)">المواد المختارة:</h3>
-                <div id="selectedCourses"></div>
+            <div class="container">
+                <div class="nav-row">
+                    <button class="nav-btn" id="btnPrev" onclick="moveSol(-1)">&#8250; السابق</button>
+                    <span class="counter" id="solCounter"></span>
+                    <button class="nav-btn" id="btnNext" onclick="moveSol(1)">التالي &#8249;</button>
+                </div>
+
+                <div class="sched-tabs">
+                    <div class="sched-tab active" id="detTabLec" onclick="showDetTab('lec')">جدول المحاضرات</div>
+                    <div class="sched-tab" id="detTabExam" onclick="showDetTab('exam')">جدول النهائي</div>
+                </div>
+
+                <!-- Detail Lecture Grid -->
+                <div id="detLecContent">
+                    <div class="grid-scroll">
+                        <table id="detLectureGrid">
+                            <thead>
+                                <tr>
+                                    <th>اليوم / الوقت</th>
+                                    <th>08:00<br>09:30</th>
+                                    <th>09:30<br>11:00</th>
+                                    <th>11:00<br>12:30</th>
+                                    <th>12:30<br>14:00</th>
+                                    <th>14:00<br>15:30</th>
+                                </tr>
+                            </thead>
+                            <tbody id="detLecBody"></tbody>
+                        </table>
+                    </div>
+                    <button class="save-btn" onclick="saveGridAsImage('detLectureGrid', 'جدول_المحاضرات')">
+                        📥 حفظ جدول المحاضرات كصورة
+                    </button>
+                </div>
+
+                <!-- Detail Exam Grid -->
+                <div id="detExamContent" class="hidden">
+                    <!-- تحذيرات تعارض الامتحانات -->
+                    <div id="detExamWarnings"></div>
+                    <div class="grid-scroll">
+                        <table id="detExamGrid">
+                            <thead>
+                                <tr>
+                                    <th>التاريخ / الفترة</th>
+                                    <th>الفترة الأولى</th>
+                                    <th>الفترة الثانية</th>
+                                    <th>الفترة الثالثة</th>
+                                </tr>
+                            </thead>
+                            <tbody id="detExamBody"></tbody>
+                        </table>
+                    </div>
+                    <button class="save-btn" onclick="saveGridAsImage('detExamGrid', 'جدول_الامتحانات')">
+                        📥 حفظ جدول الامتحانات كصورة
+                    </button>
+                </div>
             </div>
-        </section>
+        </div>
+    </div>
 
-        <!-- Visualization -->
-        <section class="preview-section">
-            <h3 style="margin-bottom: 5px">معاينة الجدول الدراسي</h3>
-            <p style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 15px">تأكد من عدم وجود تعارضات باللون
-                الأحمر</p>
-
-            <div class="schedule-grid">
-                <div class="grid-header"></div>
-                <div class="grid-header">الأحد</div>
-                <div class="grid-header">الإثنين</div>
-                <div class="grid-header">الثلاثاء</div>
-                <div class="grid-header">الأربعاء</div>
-                <div class="grid-header">الخميس</div>
-
-                <!-- Generating 6 time slots -->
-                <!-- 08:00 - 09:30 -->
-                <div class="time-label">08:00</div>
-                <div class="grid-cell" data-day="الأحد" data-slot="0"></div>
-                <div class="grid-cell" data-day="الإثنين" data-slot="0"></div>
-                <div class="grid-cell" data-day="الثلاثاء" data-slot="0"></div>
-                <div class="grid-cell" data-day="الإربعاء" data-slot="0"></div>
-                <div class="grid-cell" data-day="الخميس" data-slot="0"></div>
-
-                <!-- 09:30 - 11:00 -->
-                <div class="time-label">09:30</div>
-                <div class="grid-cell" data-day="الأحد" data-slot="1"></div>
-                <div class="grid-cell" data-day="الإثنين" data-slot="1"></div>
-                <div class="grid-cell" data-day="الثلاثاء" data-slot="1"></div>
-                <div class="grid-cell" data-day="الإربعاء" data-slot="1"></div>
-                <div class="grid-cell" data-day="الخميس" data-slot="1"></div>
-
-                <!-- 11:00 - 12:30 -->
-                <div class="time-label">11:00</div>
-                <div class="grid-cell" data-day="الأحد" data-slot="2"></div>
-                <div class="grid-cell" data-day="الإثنين" data-slot="2"></div>
-                <div class="grid-cell" data-day="الثلاثاء" data-slot="2"></div>
-                <div class="grid-cell" data-day="الإربعاء" data-slot="2"></div>
-                <div class="grid-cell" data-day="الخميس" data-slot="2"></div>
-
-                <!-- 12:30 - 14:00 -->
-                <div class="time-label">12:30</div>
-                <div class="grid-cell" data-day="الأحد" data-slot="3"></div>
-                <div class="grid-cell" data-day="الإثنين" data-slot="3"></div>
-                <div class="grid-cell" data-day="الثلاثاء" data-slot="3"></div>
-                <div class="grid-cell" data-day="الإربعاء" data-slot="3"></div>
-                <div class="grid-cell" data-day="الخميس" data-slot="3"></div>
-
-                <!-- 14:00 - 15:30 -->
-                <div class="time-label">14:00</div>
-                <div class="grid-cell" data-day="الأحد" data-slot="4"></div>
-                <div class="grid-cell" data-day="الإثنين" data-slot="4"></div>
-                <div class="grid-cell" data-day="الثلاثاء" data-slot="4"></div>
-                <div class="grid-cell" data-day="الإربعاء" data-slot="4"></div>
-                <div class="grid-cell" data-day="الخميس" data-slot="4"></div>
-
-                <!-- 15:30 - 17:00 -->
-                <div class="time-label">15:30</div>
-                <div class="grid-cell" data-day="الأحد" data-slot="5"></div>
-                <div class="grid-cell" data-day="الإثنين" data-slot="5"></div>
-                <div class="grid-cell" data-day="الثلاثاء" data-slot="5"></div>
-                <div class="grid-cell" data-day="الإربعاء" data-slot="5"></div>
-                <div class="grid-cell" data-day="الخميس" data-slot="5"></div>
-            </div>
-
-            <div id="examStatus" style="margin-top:20px; font-size: 0.9rem"></div>
-
-            <button class="btn-generate" id="finishBtn">✅ استخراج الجدول النهائي</button>
-        </section>
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="spinner"></div>
+        <div id="loadingMsg">جاري الحفظ...</div>
     </div>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script>
-        const tg = window.Telegram.WebApp;
-        tg.expand();
-        tg.enableClosingConfirmation();
+        const tg = window.Telegram?.WebApp;
+        if (tg) tg.expand();
 
-        let allCourses = [];
-        let allExams = [];
-        let selectedSubjectCodes = []; // Just the codes of the subject (e.g. ['ITGS122'])
+        let facultyData = [];
+        let examsData = [];
 
-        async function loadData() {
+        // Builder state
+        let builderSubjects = []; // [{code, name}]
+        let solutions = [];
+        let currentSolIdx = 0;
+
+        // Search state
+        let searchSubjects = []; // [{code, name}]
+
+        // ===== Days / Times =====
+        const DAYS = ['السبت', 'الأحد', 'الإثنين', 'الثلاثاء', 'الإربعاء', 'الخميس'];
+        const TIMES = ['08:00 - 09:30', '09:30 - 11:00', '11:00 - 12:30', '12:30 - 14:00', '14:00 - 15:30'];
+        const PERIODS = ['الفترة الاولى', 'الفترة الثانية', 'الفترة الثالثة'];
+
+        // ===== Load Data =====
+        async function initApp() {
             try {
-                // Fetch direct from the static JSON files (Vercel friendly)
-                const fRes = await fetch('./faculty.json');
-                if (!fRes.ok) throw new Error("Could not find faculty.json");
-                allCourses = await fRes.json();
+                const [f, e] = await Promise.all([
+                    fetch('./faculty.json').then(r => r.json()),
+                    fetch('./exams.json').then(r => r.json())
+                ]);
+                facultyData = f.filter(x => x.code && x.code.trim());
+                examsData = e;
+            } catch (err) { console.error('Load failed', err); }
+        }
 
-                const eRes = await fetch('./exams.json');
-                if (!eRes.ok) throw new Error("Could not find exams.json");
-                allExams = await eRes.json();
-
-                updateUI(); // This will trigger render and solver
-            } catch (err) {
-                console.error("Error loading data:", err);
-                // If direct files fail, we try to see if they are embedded (from index_final)
-                if (window.allCourses) {
-                    updateUI();
-                } else {
-                    tg.showAlert("❌ فشل تحميل البيانات. تأكد من رفع ملفات faculty.json و exams.json على Vercel.");
-                }
+        // ===== Top Tab Switching =====
+        function switchTopTab(tab) {
+            if (tab === 'search') {
+                document.getElementById('searchPage').classList.add('active');
+                document.getElementById('schedulePage').classList.remove('active');
+            } else {
+                document.getElementById('schedulePage').classList.add('active');
+                document.getElementById('searchPage').classList.remove('active');
             }
         }
 
-        const slotMap = {
-            "08:00 - 09:30": 0,
-            "09:30 - 11:00": 1,
-            "11:00 - 12:30": 2,
-            "12:30 - 14:00": 3,
-            "14:00 - 15:30": 4,
-            "15:30 - 17:00": 5
-        };
+        // ===== Universal Search Box Setup =====
+        function setupSearch(inputId, dropId, tagsId, subjectsArr, onChangeCallback) {
+            const inp = document.getElementById(inputId);
+            const drop = document.getElementById(dropId);
+            const tagsEl = document.getElementById(tagsId);
 
-        function renderCourses(data) {
-            const list = document.getElementById('courseList');
-            list.innerHTML = '';
+            function renderTags() {
+                tagsEl.innerHTML = '';
+                subjectsArr.forEach(s => {
+                    const t = document.createElement('div');
+                    t.className = 'tag';
+                    t.innerHTML = `${s.name} <span class="tag-x" onclick="removeFrom('${subjectsArr === searchSubjects ? 'search' : 'builder'}','${s.code}')">✕</span>`;
+                    tagsEl.appendChild(t);
+                });
+                if (onChangeCallback) onChangeCallback();
+            }
 
-            // Group by code to show unique subjects
-            const uniqueSubjects = [];
-            const seen = new Set();
-            data.forEach(c => {
-                if (!seen.has(c.code) && c.code) {
-                    uniqueSubjects.push(c);
-                    seen.add(c.code);
-                }
+            inp.addEventListener('input', () => {
+                const q = inp.value.trim().toLowerCase();
+                if (!q) { drop.style.display = 'none'; return; }
+                const seen = new Set();
+                const results = [];
+                facultyData.forEach(item => {
+                    if (!seen.has(item.code) &&
+                        (item.name.toLowerCase().includes(q) || item.code.toLowerCase().includes(q))) {
+                        results.push(item); seen.add(item.code);
+                    }
+                });
+                drop.innerHTML = '';
+                results.slice(0, 10).forEach(r => {
+                    const d = document.createElement('div');
+                    d.className = 'drop-item';
+                    d.innerHTML = `<span class="code">${r.code}</span><span class="name">${r.name}</span>`;
+                    d.onclick = () => {
+                        if (!subjectsArr.some(s => s.code === r.code)) {
+                            subjectsArr.push({ code: r.code, name: r.name });
+                            renderTags();
+                        }
+                        inp.value = ''; drop.style.display = 'none';
+                    };
+                    drop.appendChild(d);
+                });
+                drop.style.display = results.length ? 'block' : 'none';
             });
 
-            uniqueSubjects.forEach(subject => {
-                const isSelected = selectedSubjectCodes.includes(subject.code);
-                const card = document.createElement('div');
-                card.className = `course-card ${isSelected ? 'selected-subject' : ''}`;
-                card.style.border = isSelected ? '2px solid var(--primary)' : '1px solid var(--glass-border)';
+            document.addEventListener('click', e => {
+                if (!e.target.closest(`#${inputId}`) && !e.target.closest(`#${dropId}`))
+                    drop.style.display = 'none';
+            });
 
-                card.innerHTML = `
-                    <span class="course-code">${subject.code}</span>
-                    <span class="course-name">${subject.name}</span>
-                    <div class="course-meta">
-                         <span>🏷️ مادة دراسية</span>
-                    </div>
-                `;
-                card.onclick = () => toggleSubject(subject.code);
+            // expose renderTags
+            return renderTags;
+        }
+
+        let renderSearchTags, renderBuilderTags;
+
+        window.removeFrom = (which, code) => {
+            if (which === 'search') {
+                searchSubjects = searchSubjects.filter(s => s.code !== code);
+                renderSearchTags();
+            } else {
+                builderSubjects = builderSubjects.filter(s => s.code !== code);
+                renderBuilderTags();
+            }
+        };
+
+        // ===== Inline Schedule (Search Page) =====
+        function onSearchSubjectsChange() {
+            const area = document.getElementById('inlineScheduleArea');
+            const empty = document.getElementById('emptyState1');
+            if (!searchSubjects.length) {
+                area.classList.add('hidden');
+                empty.classList.remove('hidden');
+                return;
+            }
+            area.classList.remove('hidden');
+            empty.classList.add('hidden');
+
+            // Get all lectures for chosen subjects
+            const lectures = facultyData.filter(f => searchSubjects.some(s => s.code === f.code));
+            buildLectureGrid('lectureGridBody', lectures);
+            buildExamGrid('examGridBody', searchSubjects);
+        }
+
+        function showInlineTab(t) {
+            document.getElementById('inlineTabLec').classList.toggle('active', t === 'lec');
+            document.getElementById('inlineTabExam').classList.toggle('active', t === 'exam');
+            document.getElementById('inlineLecContent').classList.toggle('hidden', t !== 'lec');
+            document.getElementById('inlineExamContent').classList.toggle('hidden', t !== 'exam');
+        }
+
+        // ===== Build Lecture Grid (all groups shown) =====
+        function buildLectureGrid(tbodyId, lectures) {
+            const tbody = document.getElementById(tbodyId);
+            tbody.innerHTML = '';
+            DAYS.forEach(day => {
+                const tr = document.createElement('tr');
+                const dayTd = document.createElement('td');
+                dayTd.className = 'day-col';
+                dayTd.textContent = day;
+                tr.appendChild(dayTd);
+                TIMES.forEach(time => {
+                    const entries = lectures.filter(l => l.day && l.day.trim() === day && l.time === time);
+                    const td = document.createElement('td');
+                    if (entries.length) {
+                        entries.forEach(l => {
+                            const card = document.createElement('div');
+                            card.className = 'lec-card';
+                            card.innerHTML = `
+                        <div class="ln">${l.name}</div>
+                        <span class="lg">م${l.group}</span>
+                        <div class="lm">${l.instructor !== 'غير محدد' ? l.instructor : ''}</div>
+                        <div class="lm" style="color:#007bff;">${l.room !== 'غير محدد' ? l.room : ''}</div>`;
+                            td.appendChild(card);
+                        });
+                    } else {
+                        td.className = 'empty-cell';
+                    }
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+        }
+
+        // ===== Exam Clash Detection =====
+        function detectExamClashes(subjects) {
+            const exList = subjects.map(s => ({
+                ...s, ex: examsData.find(e => e.code === s.code)
+            })).filter(x => x.ex);
+            const hardClashes = [], softClashes = [];
+            for (let i = 0; i < exList.length; i++) {
+                for (let j = i + 1; j < exList.length; j++) {
+                    const a = exList[i], b = exList[j];
+                    if (a.ex.exam_day === b.ex.exam_day) {
+                        (a.ex.exam_period === b.ex.exam_period ? hardClashes : softClashes).push([a, b]);
+                    }
+                }
+            }
+            return { hardClashes, softClashes };
+        }
+
+        // ===== Build Exam Grid (rows=days SORTED by number, cols=periods, clash colors) =====
+        function buildExamGrid(tbodyId, subjects) {
+            const tbody = document.getElementById(tbodyId);
+            tbody.innerHTML = '';
+
+            const relevant = [];
+            subjects.forEach(s => {
+                const ex = examsData.find(e => e.code === s.code);
+                if (ex) relevant.push({ ...ex, subName: s.name });
+            });
+
+            const dayMap = {};
+            relevant.forEach(ex => {
+                if (!dayMap[ex.exam_day])
+                    dayMap[ex.exam_day] = { 'الفترة الاولى': [], 'الفترة الثانية': [], 'الفترة الثالثة': [] };
+                const k = ex.exam_period?.trim();
+                if (dayMap[ex.exam_day][k] !== undefined)
+                    dayMap[ex.exam_day][k].push(ex);
+            });
+
+            if (!Object.keys(dayMap).length) {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#aaa;padding:20px;font-size:0.85rem;">لا توجد امتحانات محددة لهذه المواد</td></tr>`;
+                return;
+            }
+
+            // ترتيب الأيام بحسب الرقم الموجود في نص اليوم مثل (1) أو (12)
+            const parseDayNum = d => { const m = d.match(/(\d+)/); return m ? parseInt(m[1]) : 9999; };
+            const sortedDays = Object.keys(dayMap).sort((a, b) => parseDayNum(a) - parseDayNum(b));
+
+            sortedDays.forEach(dayText => {
+                const periods = dayMap[dayText];
+                const tr = document.createElement('tr');
+
+                // فحص التعارض في هذا اليوم
+                const hardDay = PERIODS.some(p => periods[p].length > 1);
+                const allInDay = Object.values(periods).flat();
+                const softDay = allInDay.length > 1 && !hardDay;
+                if (hardDay) tr.style.background = '#fff5f5';
+                else if (softDay) tr.style.background = '#fffdf0';
+
+                // خلية اليوم
+                const dayTd = document.createElement('td');
+                dayTd.className = 'day-col';
+                dayTd.style.cssText = 'height:75px;font-size:0.72rem;line-height:1.6;';
+                dayTd.innerHTML = dayText.replace(/(\(\d+\))/, '<span style="display:block;font-size:0.62rem;color:#8899bb;">$1</span>');
+                tr.appendChild(dayTd);
+
+                PERIODS.forEach(pName => {
+                    const td = document.createElement('td');
+                    const entries = periods[pName] || [];
+                    const isClashCell = entries.length > 1;
+                    if (entries.length) {
+                        if (isClashCell) td.style.background = '#fff0f0';
+                        entries.forEach(ex => {
+                            const card = document.createElement('div');
+                            card.className = 'exam-card';
+                            if (isClashCell) card.style.borderColor = '#ff4444';
+                            card.innerHTML = `<div class="en">${ex.subName}</div><div class="ec">${ex.code}</div>`;
+                            td.appendChild(card);
+                        });
+                    } else {
+                        td.className = 'empty-cell';
+                    }
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+        }
+
+        // ===== SOLVER (Builder Page) =====
+        function runSolver() {
+            if (!builderSubjects.length) {
+                if (tg) tg.showAlert('يرجى اختيار مادة واحدة على الأقل!');
+                else alert('يرجى اختيار مادة واحدة على الأقل!');
+                return;
+            }
+
+            const subjectMap = {};
+            builderSubjects.forEach(sub => {
+                subjectMap[sub.code] = {};
+                facultyData.filter(f => f.code === sub.code).forEach(f => {
+                    if (!subjectMap[sub.code][f.group]) subjectMap[sub.code][f.group] = [];
+                    subjectMap[sub.code][f.group].push(f);
+                });
+            });
+
+            const missing = builderSubjects.filter(s => !Object.keys(subjectMap[s.code]).length);
+            if (missing.length) {
+                const msg = `⚠️ لا توجد بيانات للمادة: ${missing.map(m => m.name).join('، ')}`;
+                if (tg) tg.showAlert(msg); else alert(msg);
+                return;
+            }
+
+            const codes = Object.keys(subjectMap);
+            const allSols = [];
+
+            function findCombos(idx, path, statuses, conflicts) {
+                if (idx === codes.length) {
+                    const groups = {};
+                    builderSubjects.forEach(s => {
+                        const f = path.find(l => l.code === s.code);
+                        if (f) groups[s.code] = f.group;
+                    });
+                    allSols.push({ schedule: path, statuses, groups, totalConflicts: conflicts });
+                    return;
+                }
+                const code = codes[idx];
+                for (const grp in subjectMap[code]) {
+                    const lecs = subjectMap[code][grp];
+                    let clash = false;
+                    for (const l of lecs) {
+                        if (path.some(ex => ex.day === l.day && ex.time === l.time)) { clash = true; break; }
+                    }
+                    findCombos(idx + 1, path.concat(lecs), { ...statuses, [code]: !clash }, conflicts + (clash ? 1 : 0));
+                }
+            }
+
+            findCombos(0, [], {}, 0);
+            allSols.sort((a, b) => a.totalConflicts - b.totalConflicts);
+            solutions = allSols.slice(0, 20);
+
+            if (!solutions.length) {
+                const msg = 'لم يتم إيجاد أي جدول!';
+                if (tg) tg.showAlert(msg); else alert(msg);
+                return;
+            }
+
+            renderProposals();
+        }
+
+        function renderProposals() {
+            const list = document.getElementById('proposalsList');
+            const badge = document.getElementById('propBadge');
+            document.getElementById('proposalsArea').classList.remove('hidden');
+            list.innerHTML = '';
+
+            const zeroCount = solutions.filter(s => s.totalConflicts === 0).length;
+            badge.textContent = zeroCount > 0
+                ? `✅ ${zeroCount} جدول بدون تعارض`
+                : `⚠️ جميع الجداول فيها تعارض`;
+            badge.style.color = zeroCount > 0 ? 'var(--green)' : 'var(--red)';
+
+            // فحص تعارض الامتحانات مرة واحدة (ثابت لكل الجداول)
+            const { hardClashes, softClashes } = detectExamClashes(builderSubjects);
+
+            // رسالة تحذير الامتحانات (تظهر مرة واحدة فوق الكروت)
+            if (hardClashes.length) {
+                const w = document.createElement('div');
+                w.className = 'warn-hard';
+                w.innerHTML = `🚨 <div><b>تعارض في الامتحانات!</b><br>` +
+                    hardClashes.map(([a, b]) =>
+                        `${a.name} و ${b.name} — نفس اليوم ونفس الفترة`
+                    ).join('<br>') + `</div>`;
+                list.appendChild(w);
+            }
+            if (softClashes.length) {
+                const w = document.createElement('div');
+                w.className = 'warn-soft';
+                w.innerHTML = `⚠️ <div><b>تنبيه: امتحانات في نفس اليوم</b><br>` +
+                    softClashes.map(([a, b]) =>
+                        `${a.name} و ${b.name} — نفس اليوم (فترات مختلفة)`
+                    ).join('<br>') + `</div>`;
+                list.appendChild(w);
+            }
+
+            let shownDivider = false;
+
+            solutions.forEach((sol, idx) => {
+                // فاصل بين الجداول النظيفة والمتعارضة
+                if (!shownDivider && sol.totalConflicts > 0 && zeroCount > 0) {
+                    const div = document.createElement('div');
+                    div.className = 'section-divider';
+                    div.textContent = '⚠️ الجداول التالية تحتوي على تعارض';
+                    list.appendChild(div);
+                    shownDivider = true;
+                }
+
+                const card = document.createElement('div');
+                card.className = 'prop-card anim';
+                card.onclick = () => openDetail(idx);
+                const clean = sol.totalConflicts === 0;
+
+                let html = `<div class="prop-head">
+            <div class="prop-title">الجدول ${idx + 1}</div>
+            <div class="${clean ? 'pill-ok' : 'pill-err'}">${clean ? '✓ بدون تعارض' : '⚠️ ' + sol.totalConflicts + ' تعارض'}</div>
+        </div>`;
+
+                builderSubjects.forEach(s => {
+                    const ok = sol.statuses[s.code];
+                    const grp = sol.groups[s.code] || '—';
+                    html += `<div class="sub-row">
+                <div class="sub-name">${s.name} <span style="color:#aaa;font-size:0.75rem;">(م${grp})</span></div>
+                <div class="${ok ? 'pill-ok' : 'pill-err'}">${ok ? '✓' : '✗'}</div>
+            </div>`;
+                });
+
+                html += `<div style="margin-top:8px;font-size:0.75rem;color:#bbb;text-align:left;">👆 اضغط لعرض الجدول</div>`;
+                card.innerHTML = html;
                 list.appendChild(card);
             });
         }
 
-        function toggleSubject(code) {
-            if (selectedSubjectCodes.includes(code)) {
-                selectedSubjectCodes = selectedSubjectCodes.filter(c => c !== code);
-            } else {
-                selectedSubjectCodes.push(code);
+        // ===== Detail View =====
+        function openDetail(idx) {
+            currentSolIdx = idx;
+            document.getElementById('builderView').classList.add('hidden');
+            document.getElementById('detailView').classList.remove('hidden');
+            renderDetail();
+        }
+
+        function closeDetail() {
+            document.getElementById('detailView').classList.add('hidden');
+            document.getElementById('builderView').classList.remove('hidden');
+        }
+
+        function moveSol(dir) {
+            const next = currentSolIdx + dir;
+            if (next >= 0 && next < solutions.length) {
+                currentSolIdx = next;
+                renderDetail();
             }
-            updateUI();
         }
 
-        function removeSubject(code) {
-            selectedSubjectCodes = selectedSubjectCodes.filter(c => c !== code);
-            updateUI();
+        function showDetTab(t) {
+            document.getElementById('detTabLec').classList.toggle('active', t === 'lec');
+            document.getElementById('detTabExam').classList.toggle('active', t === 'exam');
+            document.getElementById('detLecContent').classList.toggle('hidden', t !== 'lec');
+            document.getElementById('detExamContent').classList.toggle('hidden', t !== 'exam');
         }
 
-        // Logic to find valid combination (Backtracking)
-        function findValidCombination(codes) {
-            if (codes.length === 0) return [];
+        function renderDetail() {
+            const sol = solutions[currentSolIdx];
+            const clean = sol.totalConflicts === 0;
+            document.getElementById('detTitle').textContent = `الجدول ${currentSolIdx + 1}`;
+            document.getElementById('solCounter').textContent = `${currentSolIdx + 1} / ${solutions.length}`;
+            document.getElementById('detBadge').innerHTML =
+                `<span class="${clean ? 'pill-ok' : 'pill-err'}">${clean ? '✓ لا تعارض' : '⚠️ ' + sol.totalConflicts + ' تعارض'}</span>`;
+            document.getElementById('btnPrev').disabled = currentSolIdx === 0;
+            document.getElementById('btnNext').disabled = currentSolIdx === solutions.length - 1;
 
-            const subjectOptions = {};
-            codes.forEach(code => {
-                subjectOptions[code] = {};
-                allCourses.filter(c => c.code === code).forEach(item => {
-                    const g = item.group;
-                    if (!subjectOptions[code][g]) subjectOptions[code][g] = [];
-                    subjectOptions[code][g].push(item);
-                });
-            });
+            // Lecture grid for this solution
+            buildLectureGrid('detLecBody', sol.schedule);
 
-            function solve(idx, currentSchedule) {
-                if (idx === codes.length) return currentSchedule;
+            // Exam grid + clash warnings
+            buildExamGrid('detExamBody', builderSubjects);
 
-                const code = codes[idx];
-                const groups = subjectOptions[code];
-
-                for (const group in groups) {
-                    const lectures = groups[group];
-                    let conflict = false;
-
-                    // 1. Check lecture overlap
-                    for (const lec of lectures) {
-                        if (currentSchedule.some(s => s.day === lec.day && s.time === lec.time)) {
-                            conflict = true; break;
-                        }
-                    }
-                    if (conflict) continue;
-
-                    // 2. Check exam overlap
-                    const exNew = allExams.find(e => e.code === code && e.code);
-                    if (exNew) {
-                        const existingCodes = [...new Set(currentSchedule.map(s => s.code))];
-                        for (const eCode of existingCodes) {
-                            const exOld = allExams.find(e => e.code === eCode);
-                            if (exOld && exNew.exam_day === exOld.exam_day && exNew.exam_period === exOld.exam_period) {
-                                conflict = true; break;
-                            }
-                        }
-                    }
-                    if (conflict) continue;
-
-                    const res = solve(idx + 1, currentSchedule.concat(lectures));
-                    if (res) return res;
-                }
-                return null;
+            // أظهر تحذيرات الامتحانات فوق جدول النهائي
+            const examWarnEl = document.getElementById('detExamWarnings');
+            if (examWarnEl) examWarnEl.innerHTML = '';
+            const { hardClashes, softClashes } = detectExamClashes(builderSubjects);
+            let warningHTML = '';
+            if (hardClashes.length) {
+                warningHTML += `<div class="warn-hard">🚨 <div><b>تعارض في الامتحانات!</b><br>` +
+                    hardClashes.map(([a, b]) => `${a.name} و ${b.name} — نفس اليوم ونفس الفترة`).join('<br>') +
+                    `</div></div>`;
             }
-
-            return solve(0, []);
+            if (softClashes.length) {
+                warningHTML += `<div class="warn-soft">⚠️ <div><b>نفس يوم الامتحان</b><br>` +
+                    softClashes.map(([a, b]) => `${a.name} و ${b.name} — فترات مختلفة`).join('<br>') +
+                    `</div></div>`;
+            }
+            if (examWarnEl) examWarnEl.innerHTML = warningHTML;
         }
 
-        function updateUI() {
-            // Re-render course list to show selection states
-            const query = document.getElementById('courseSearch').value.toLowerCase();
-            const filtered = allCourses.filter(c =>
-                c.name.toLowerCase().includes(query) ||
-                c.code.toLowerCase().includes(query)
-            );
-            renderCourses(filtered);
+        // ===== Save Grid as Image =====
+        async function saveGridAsImage(tableId, filename) {
+            const overlay = document.getElementById('loadingOverlay');
+            document.getElementById('loadingMsg').textContent = 'جاري حفظ الجدول...';
+            overlay.classList.remove('hidden');
 
-            // Update Selected List (Subjects)
-            const list = document.getElementById('selectedCourses');
-            list.innerHTML = '';
-            selectedSubjectCodes.forEach(code => {
-                const subject = allCourses.find(c => c.code === code);
-                const item = document.createElement('div');
-                item.className = 'selected-item';
-                item.innerHTML = `
-                    <div>
-                        <div style="font-weight:600">${subject ? subject.name : code}</div>
-                        <div style="font-size:0.8rem; color:var(--text-dim)">${code}</div>
-                    </div>
-                    <button class="remove-btn" onclick="removeSubject('${code}')">✕</button>
-                `;
-                list.appendChild(item);
-            });
+            try {
+                const table = document.getElementById(tableId);
 
-            // Resolve Schedule and Update Grid
-            const bestSchedule = findValidCombination(selectedSubjectCodes);
+                // Wrap the table temporarily for clean capture
+                const wrapper = document.createElement('div');
+                wrapper.style.cssText = 'background:white;padding:16px;border-radius:12px;display:inline-block;font-family:Cairo,sans-serif;';
+                const clone = table.cloneNode(true);
+                clone.style.minWidth = 'auto';
+                wrapper.appendChild(clone);
+                document.body.appendChild(wrapper);
 
-            document.querySelectorAll('.grid-cell').forEach(cell => {
-                cell.innerHTML = '';
-                cell.className = 'grid-cell';
-            });
-
-            if (bestSchedule) {
-                bestSchedule.forEach(c => {
-                    const slotIdx = slotMap[c.time];
-                    const cleanDay = c.day.trim();
-                    const cell = document.querySelector(`.grid-cell[data-day="${cleanDay}"][data-slot="${slotIdx}"]`);
-                    if (cell) {
-                        cell.classList.add('active');
-                        cell.innerHTML = `<span>${c.name.split(' ').slice(0, 2).join(' ')}<br><small>(G:${c.group})</small></span>`;
-                    }
+                const canvas = await html2canvas(wrapper, {
+                    scale: 2.5,
+                    useCORS: true,
+                    backgroundColor: '#ffffff',
+                    logging: false
                 });
 
-                // Update Exam Info
-                const examDiv = document.getElementById('examStatus');
-                examDiv.innerHTML = '<h4 style="color:var(--primary); margin-bottom:10px">جدول الامتحانات المقترح:</h4>';
-                selectedSubjectCodes.forEach(code => {
-                    const ex = allExams.find(e => e.code === code);
-                    const name = allCourses.find(c => c.code === code)?.name || code;
-                    if (ex && ex.code) {
-                        examDiv.innerHTML += `<div style="margin-bottom:5px; padding:5px; background:rgba(255,255,255,0.05); border-radius:5px">📍 ${name}: ${ex.exam_day} (${ex.exam_period})</div>`;
-                    }
-                });
+                document.body.removeChild(wrapper);
 
-                document.getElementById('finishBtn').style.opacity = '1';
-                document.getElementById('finishBtn').disabled = false;
-                document.getElementById('finishBtn').innerText = '✅ استخراج الجدول النهائي';
-            } else if (selectedSubjectCodes.length > 0) {
-                // Conflict state
-                const examDiv = document.getElementById('examStatus');
-                examDiv.innerHTML = '<div style="color:var(--error); font-weight:700">⚠️ تنبيه: لا توجد توليفة مجموعات متاحة بدون تعارض لهذه المواد!</div>';
-                document.getElementById('finishBtn').style.opacity = '0.5';
-                document.getElementById('finishBtn').disabled = true;
-                document.getElementById('finishBtn').innerText = '❌ تعارض في المجموعات';
-            } else {
-                document.getElementById('examStatus').innerHTML = '';
-                document.getElementById('finishBtn').innerText = '✅ استخراج الجدول النهائي';
+                // Download directly
+                const link = document.createElement('a');
+                link.href = canvas.toDataURL('image/png');
+                link.download = `${filename}.png`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                overlay.classList.add('hidden');
+            } catch (err) {
+                overlay.classList.add('hidden');
+                console.error(err);
+                if (tg) tg.showAlert('❌ حدث خطأ أثناء حفظ الجدول.');
+                else alert('❌ حدث خطأ أثناء حفظ الجدول.');
             }
         }
 
-        // Search logic
-        document.getElementById('courseSearch').oninput = (e) => {
-            const query = e.target.value.toLowerCase();
-            const filtered = allCourses.filter(c =>
-                c.name.toLowerCase().includes(query) ||
-                c.code.toLowerCase().includes(query)
-            );
-            renderCourses(filtered);
-        };
-
-        document.getElementById('finishBtn').onclick = () => {
-            const finalSchedule = findValidCombination(selectedSubjectCodes);
-            if (!finalSchedule || finalSchedule.length === 0) {
-                tg.showAlert("برجاء اختيار مواد صالحة أولاً!");
-                return;
-            }
-            tg.sendData(JSON.stringify(finalSchedule));
-            tg.close();
-        };
-
-        loadData();
+        // ===== Init =====
+        initApp().then(() => {
+            renderSearchTags = setupSearch('searchInput1', 'dropdown1', 'tags1', searchSubjects, onSearchSubjectsChange);
+            renderBuilderTags = setupSearch('searchInput2', 'dropdown2', 'tags2', builderSubjects, null);
+        });
     </script>
 </body>
 

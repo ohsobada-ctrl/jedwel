@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 .env
+secret.key
 venv/
 env/
 
@@ -14,6 +15,10 @@ master_data.json
 # IDEs
 .vscode/
 .idea/
+
+# Generated & Temporary
+webapp/index_final.html
+db_output.txt
 
 # OS files
 Thumbs.db

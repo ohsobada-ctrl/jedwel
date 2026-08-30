@@ -5,19 +5,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>الجدول - تطبيق مصغر</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         :root {
-            --blue: #007AFF;
-            --blue-light: #E8F3FF;
-            --green: #34C759;
-            --red: #FF3B30;
-            --bg: #F2F2F7;
-            --white: #fff;
-            --border: #e0e0e5;
-            --text: #1c1c1e;
-            --subtext: #8e8e93;
+            /* Premium Color Palette (Vibrant HSL) */
+            --primary: hsl(210, 100%, 50%);
+            --primary-glow: hsla(210, 100%, 50%, 0.3);
+            --secondary: hsl(150, 70%, 45%);
+            --accent: hsl(350, 100%, 65%);
+            --bg: #f8fafc;
+            --surface: rgba(255, 255, 255, 0.85);
+            --header-bg: rgba(255, 255, 255, 0.75);
+            --border: rgba(226, 232, 240, 0.8);
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+            --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+            --radius-lg: 1.25rem;
+            --radius-md: 0.75rem;
         }
 
         * {
@@ -30,59 +39,81 @@
 
         body {
             background: var(--bg);
-            color: var(--text);
+            color: var(--text-main);
+            overflow-x: hidden;
+            background-image: radial-gradient(at 0% 0%, hsla(210, 100%, 93%, 1) 0, transparent 50%),
+                radial-gradient(at 50% 100%, hsla(150, 75%, 95%, 1) 0, transparent 50%);
+            min-height: 100vh;
+            overscroll-behavior-y: none !important;
+            /* Prevent swipe-down-to-close in Telegram */
         }
 
-        /* ---- HEADER ---- */
+        /* ---- HEADER (Glassmorphic) ---- */
         .app-header {
-            background: var(--white);
+            background: var(--header-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             border-bottom: 1px solid var(--border);
-            padding: 10px 16px 0;
+            padding: 12px 16px 0;
             position: sticky;
             top: 0;
-            z-index: 200;
+            z-index: 1000;
+            box-shadow: var(--glass-shadow);
         }
 
         .app-title {
-            font-size: 1.25rem;
-            font-weight: 900;
-            color: var(--text);
+            font-size: 1.6rem;
+            font-weight: 950;
+            background: linear-gradient(135deg, var(--primary), #6366f1);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
             text-align: center;
-            padding-bottom: 6px;
+            letter-spacing: -0.8px;
+            margin-bottom: 2px;
         }
 
         .app-subtitle {
-            font-size: 0.72rem;
-            color: var(--subtext);
+            font-size: 0.75rem;
+            color: var(--text-muted);
             text-align: center;
-            margin-top: -4px;
-            margin-bottom: 6px;
+            margin-top: 2px;
+            margin-bottom: 8px;
+            font-weight: 600;
         }
 
         .top-tabs {
             display: flex;
-            border-bottom: none;
-            gap: 0;
+            gap: 8px;
+            padding-bottom: 4px;
         }
 
         .top-tab {
             flex: 1;
             text-align: center;
             padding: 10px 4px;
-            font-size: 0.82rem;
+            font-size: 0.9rem;
             font-weight: 700;
-            color: var(--subtext);
+            color: var(--text-muted);
             cursor: pointer;
-            border-bottom: 2.5px solid transparent;
+            border-bottom: 3px solid transparent;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 5px;
+            gap: 6px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: var(--radius-md) var(--radius-md) 0 0;
+        }
+
+        .top-tab:hover {
+            color: var(--primary);
+            background: hsla(210, 100%, 50%, 0.05);
         }
 
         .top-tab.active {
-            color: var(--blue);
-            border-bottom-color: var(--blue);
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+            background: hsla(210, 100%, 50%, 0.08);
         }
 
         /* ---- CONTENT ---- */
@@ -95,96 +126,146 @@
         }
 
         .container {
-            padding: 14px 14px;
+            padding: 16px;
             max-width: 900px;
             margin: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
         }
 
-        /* ---- SEARCH BOX ---- */
+        /* ---- SEARCH BOX (Modern Deck) ---- */
         .search-wrap {
             position: relative;
-            margin-bottom: 12px;
+            z-index: 100;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .search-label {
             position: absolute;
             top: -10px;
             right: 16px;
-            background: var(--white);
-            padding: 0 6px;
-            font-size: 0.74rem;
-            font-weight: 700;
-            color: var(--subtext);
+            background: var(--bg);
+            padding: 0 8px;
+            font-size: 0.8rem;
+            font-weight: 800;
+            color: var(--primary);
+            z-index: 10;
         }
 
         .search-box {
-            background: var(--white);
-            border: 1.5px solid var(--blue);
-            border-radius: 13px;
-            padding: 10px 12px;
+            background: var(--surface);
+            backdrop-filter: blur(8px);
+            border: 2px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 12px 16px;
             display: flex;
             flex-wrap: wrap;
-            gap: 7px;
+            gap: 8px;
             align-items: center;
-            min-height: 60px;
+            min-height: 70px;
+            box-shadow: var(--card-shadow);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .search-box:focus-within {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px var(--primary-glow);
+            transform: translateY(-2px);
         }
 
         .tag {
-            background: var(--blue-light);
-            border: 1px solid #b8d8ff;
-            color: #003d99;
-            padding: 4px 11px;
-            border-radius: 20px;
-            font-size: 0.82rem;
+            background: var(--primary);
+            color: white;
+            padding: 6px 14px;
+            border-radius: 50px;
+            font-size: 0.85rem;
             font-weight: 700;
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            animation: scaleIn 0.2s ease-out;
+        }
+
+        @keyframes scaleIn {
+            from {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
         }
 
         .tag-x {
             cursor: pointer;
-            font-size: 0.85rem;
-            color: #666;
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.8);
+            transition: 0.2s;
+        }
+
+        .tag-x:hover {
+            color: #fff;
+            transform: scale(1.2);
         }
 
         .search-input {
             border: none;
             outline: none;
             flex: 1;
-            min-width: 100px;
-            font-size: 0.92rem;
+            min-width: 120px;
+            font-size: 1rem;
             font-family: 'Cairo', sans-serif;
             background: transparent;
+            color: var(--text-main);
         }
 
         .dropdown {
             position: absolute;
             width: 100%;
-            top: 105%;
+            top: calc(100% + 8px);
             right: 0;
-            background: var(--white);
-            border: 1px solid #ddd;
-            border-radius: 13px;
-            box-shadow: 0 10px 35px rgba(0, 0, 0, 0.12);
-            max-height: 260px;
+            background: #ffffff !important;
+            /* Force solid background */
+            border: 2px solid var(--primary);
+            border-radius: var(--radius-md);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+            max-height: 280px;
             overflow-y: auto;
-            z-index: 500;
+            z-index: 9999;
+            /* Ensure it's on top */
             display: none;
-            margin-top: 4px;
         }
 
         .drop-item {
-            padding: 12px 14px;
-            border-bottom: 1px solid #f5f5f5;
+            padding: 14px 18px;
+            border-bottom: 1px solid #f1f5f9;
             cursor: pointer;
             display: flex;
             flex-direction: column;
-            gap: 2px;
+            gap: 4px;
+            transition: 0.2s;
         }
 
         .drop-item:hover {
-            background: #f5f9ff;
+            background: #f8fafc;
+            padding-right: 22px;
+            border-right: 4px solid var(--primary);
         }
 
         .drop-item .code {
@@ -197,216 +278,304 @@
             font-size: 0.88rem;
         }
 
-        /* ---- INLINE TAB SWITCHER ---- */
+        /* ---- INLINE TAB SWITCHER (Glass) ---- */
         .sched-tabs {
             display: flex;
-            background: var(--bg);
-            border-radius: 11px;
-            padding: 3px;
-            margin-bottom: 12px;
+            background: #f1f5f9;
+            border-radius: 14px;
+            padding: 4px;
+            margin-bottom: 16px;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
         }
 
         .sched-tab {
             flex: 1;
             text-align: center;
-            padding: 8px;
-            border-radius: 9px;
-            font-size: 0.85rem;
-            font-weight: 700;
-            color: var(--subtext);
+            padding: 10px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 800;
+            color: var(--text-muted);
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .sched-tab.active {
-            background: var(--blue);
-            color: var(--white);
-            box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);
+            background: var(--white);
+            color: var(--primary);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
 
         /* ---- SCHEDULE GRID (LECTURES) ---- */
         .grid-scroll {
             overflow-x: auto;
+            overflow-y: hidden;
+            overscroll-behavior-x: contain;
+            /* height expands naturally, vertical scroll moves to the page body */
             -webkit-overflow-scrolling: touch;
-            border-radius: 13px;
-            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            border: 2px solid var(--border);
             background: var(--white);
+            box-shadow: var(--card-shadow);
+            scrollbar-width: thin;
+            scrollbar-color: var(--primary) transparent;
+            position: relative;
         }
 
         #lectureGrid,
-        #examGrid {
+        #examGrid,
+        #detLectureGrid,
+        #detExamGrid {
             width: 100%;
             border-collapse: collapse;
-            min-width: 580px;
+            min-width: 850px;
             background: var(--white);
         }
 
         #lectureGrid th,
-        #examGrid th {
-            background: #F8F9FC;
-            color: var(--subtext);
-            font-size: 0.7rem;
-            font-weight: 700;
-            padding: 9px 5px;
-            border: 1px solid #e8e8ee;
+        #examGrid th,
+        #detLectureGrid th,
+        #detExamGrid th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: #cbd5e1;
+            color: #0f172a;
+            font-size: 0.8rem;
+            font-weight: 900;
+            padding: 14px 8px;
+            border: 2px solid #94a3b8;
+            outline: 2px solid #94a3b8;
+            /* Fix border collapse on sticky */
             text-align: center;
+        }
+
+        /* Top-Right Corner - Needs highest z-index */
+        #lectureGrid th:first-child,
+        #examGrid th:first-child,
+        #detLectureGrid th:first-child,
+        #detExamGrid th:first-child {
+            position: sticky;
+            right: 0;
+            top: 0;
+            z-index: 20;
         }
 
         #lectureGrid td,
-        #examGrid td {
-            border: 1px solid #ebebf0;
+        #examGrid td,
+        #detLectureGrid td,
+        #detExamGrid td {
+            border: 2px solid #cbd5e1;
             text-align: center;
-            height: 85px;
-            padding: 4px;
-            vertical-align: middle;
+            min-height: 110px;
+            height: auto;
+            padding: 10px 6px;
+            vertical-align: top;
+            transition: all 0.2s;
         }
 
         .day-col {
-            width: 58px !important;
-            font-weight: 900;
-            font-size: 0.8rem;
-            background: #F0F4FB !important;
-            color: #334070 !important;
-            border-right: 3px solid #c8d8f0 !important;
+            position: sticky;
+            /* Keep day visible when scrolling horizontally */
+            right: 0;
+            z-index: 5;
+            width: 80px !important;
+            font-weight: 950;
+            font-size: 0.95rem;
+            background: #f1f5f9 !important;
+            color: var(--primary) !important;
+            border: 2px solid #94a3b8 !important;
+            outline: 2px solid #94a3b8;
+            /* Fix border collapse */
+            border-right: 5px solid var(--primary) !important;
         }
 
         .empty-cell {
-            background: #FAFBFD;
+            background: hsla(210, 20%, 98%, 1);
         }
 
         .lec-card {
-            background: #EBF4FF;
-            border-right: 3px solid var(--blue);
-            border-radius: 5px;
-            padding: 4px 5px;
+            background: hsla(210, 100%, 96%, 1);
+            border-right: 4px solid var(--primary);
+            border-radius: 8px;
+            padding: 6px;
             text-align: right;
-            height: 100%;
+            margin-bottom: 4px;
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            justify-content: flex-start;
             gap: 2px;
+            box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s;
+        }
+
+        .lec-card:last-child {
+            margin-bottom: 0;
+        }
+
+        .lec-card:hover {
+            transform: scale(1.02);
+            z-index: 10;
         }
 
         .lec-card .ln {
             font-weight: 800;
             font-size: 0.72rem;
-            color: #003580;
-            line-height: 1.35;
+            color: hsl(210, 100%, 25%);
+            line-height: 1.25;
         }
 
         .lec-card .lg {
             display: inline-block;
-            background: var(--blue);
+            background: var(--primary);
             color: white;
-            border-radius: 8px;
+            border-radius: 4px;
             padding: 1px 6px;
-            font-size: 0.62rem;
+            font-size: 0.6rem;
             font-weight: 700;
+            width: fit-content;
         }
 
         .lec-card .lm {
-            font-size: 0.62rem;
-            color: #6a8fc5;
-            line-height: 1.3;
+            font-size: 0.65rem;
+            color: var(--text-main);
+            font-weight: 600;
+            margin-top: 1px;
         }
 
         .exam-card {
-            background: #FFF0F0;
-            border-right: 3px solid var(--red);
-            border-radius: 5px;
-            padding: 4px 5px;
+            background: hsla(350, 100%, 97%, 1);
+            border-right: 4px solid var(--accent);
+            border-radius: 8px;
+            padding: 6px;
             text-align: right;
-            height: 100%;
+            margin-bottom: 4px;
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            gap: 3px;
+            justify-content: flex-start;
+            gap: 2px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .exam-card:last-child {
+            margin-bottom: 0;
         }
 
         .exam-card .en {
             font-weight: 800;
             font-size: 0.72rem;
-            color: #800000;
-            line-height: 1.35;
+            color: hsl(350, 100%, 30%);
+            line-height: 1.25;
         }
 
         .exam-card .ec {
             font-size: 0.65rem;
-            color: #c87070;
-            font-weight: 600;
+            color: var(--accent);
+            font-weight: 700;
         }
 
-        /* Exam clash warnings */
+        /* Exam clash warnings (Premium) */
         .warn-hard {
-            background: #fff0f0;
-            border: 1.5px solid #ffb3b3;
-            border-radius: 10px;
-            padding: 8px 11px;
-            margin-bottom: 8px;
-            font-size: 0.8rem;
-            font-weight: 700;
-            color: #c0392b;
+            background: hsla(350, 100%, 97%, 1);
+            border: 2px solid hsla(350, 100%, 65%, 0.2);
+            border-radius: var(--radius-md);
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            font-size: 0.9rem;
+            font-weight: 800;
+            color: hsl(350, 100%, 30%);
             display: flex;
             align-items: flex-start;
-            gap: 6px;
+            gap: 10px;
+            box-shadow: var(--card-shadow);
         }
 
         .warn-soft {
-            background: #fffbe6;
-            border: 1.5px solid #ffe082;
-            border-radius: 10px;
-            padding: 8px 11px;
-            margin-bottom: 8px;
-            font-size: 0.8rem;
-            font-weight: 700;
-            color: #b8860b;
+            background: hsla(45, 100%, 97%, 1);
+            border: 2px solid hsla(45, 100%, 65%, 0.2);
+            border-radius: var(--radius-md);
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            font-size: 0.9rem;
+            font-weight: 800;
+            color: hsl(45, 100%, 25%);
             display: flex;
             align-items: flex-start;
-            gap: 6px;
+            gap: 10px;
+            box-shadow: var(--card-shadow);
         }
 
         /* Divider between clean/conflict solutions */
         .section-divider {
             text-align: center;
-            margin: 14px 0 10px;
-            font-size: 0.78rem;
-            font-weight: 800;
-            color: var(--red);
+            margin: 20px 0 15px;
+            font-size: 0.85rem;
+            font-weight: 900;
+            color: var(--accent);
             position: relative;
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
         .section-divider::before,
         .section-divider::after {
             content: '';
-            position: absolute;
-            top: 50%;
-            width: 28%;
-            height: 1px;
-            background: #ffcccc;
+            flex: 1;
+            height: 2px;
+            background: linear-gradient(to left, transparent, var(--accent), transparent);
+            opacity: 0.2;
         }
 
-        .section-divider::before {
-            right: 0;
-        }
-
-        .section-divider::after {
-            left: 0;
-        }
-
-        /* ---- PROPOSAL CARDS ---- */
+        /* ---- PROPOSAL CARDS (Premium Glass) ---- */
         .prop-card {
-            background: var(--white);
-            border-radius: 14px;
-            padding: 15px;
-            margin-bottom: 10px;
-            border: 1px solid var(--border);
-            box-shadow: 0 1px 6px rgba(0, 0, 0, 0.04);
+            background: var(--surface);
+            backdrop-filter: blur(8px);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            margin-bottom: 16px;
+            border: 2px solid var(--border);
+            box-shadow: var(--card-shadow);
             cursor: pointer;
-            transition: box-shadow 0.2s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            animation: fadeIn 0.4s ease-out backwards;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .prop-card:hover {
-            box-shadow: 0 4px 18px rgba(0, 122, 255, 0.1);
+            transform: translateY(-4px) scale(1.01);
+            border-color: var(--primary);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .prop-card::after {
+            content: '‹';
+            position: absolute;
+            left: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.8rem;
+            color: var(--primary);
+            opacity: 0.4;
+            transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .prop-card:hover::after {
+            opacity: 1;
+            transform: translateY(-50%) translateX(-8px);
         }
 
         .prop-head {
@@ -424,21 +593,23 @@
         }
 
         .pill-ok {
-            background: #d4f5dc;
-            color: #155724;
-            padding: 3px 10px;
-            border-radius: 20px;
-            font-size: 0.72rem;
-            font-weight: 700;
+            background: hsla(150, 70%, 95%, 1);
+            color: var(--secondary);
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            border: 1px solid hsla(150, 70%, 45%, 0.2);
         }
 
         .pill-err {
-            background: #fce4e4;
-            color: #7f1010;
-            padding: 3px 10px;
-            border-radius: 20px;
-            font-size: 0.72rem;
-            font-weight: 700;
+            background: hsla(350, 100%, 96%, 1);
+            color: var(--accent);
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            border: 1px solid hsla(350, 100%, 65%, 0.2);
         }
 
         .sub-row {
@@ -452,12 +623,41 @@
 
         .sub-name {
             flex: 1;
-            color: #444;
+            color: var(--text-main);
+            font-weight: 600;
         }
 
-        /* ---- DETAIL HEADER ---- */
+        /* ---- RESULTS HEADER ---- */
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 24px 0 16px;
+            padding: 0 4px;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        .results-title {
+            font-size: 1.1rem;
+            font-weight: 900;
+            color: var(--text-main);
+            letter-spacing: -0.3px;
+        }
+
+        .results-badge {
+            background: var(--surface);
+            padding: 6px 14px;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 800;
+            border: 1px solid var(--border);
+            box-shadow: var(--card-shadow);
+        }
+
         .detail-header {
-            background: var(--white);
+            background: var(--header-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             padding: 12px 16px;
             border-bottom: 1px solid var(--border);
             display: flex;
@@ -465,68 +665,106 @@
             gap: 12px;
             position: sticky;
             top: 0;
-            z-index: 200;
+            z-index: 1000;
+            box-shadow: var(--glass-shadow);
         }
 
         .back-btn {
-            color: var(--blue);
-            font-size: 1rem;
+            color: var(--primary);
+            font-size: 1.2rem;
             cursor: pointer;
-            padding: 4px;
+            padding: 8px;
+            background: white;
+            border-radius: 50%;
+            width: 38px;
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            transition: 0.2s;
+        }
+
+        .back-btn:hover {
+            transform: scale(1.1);
+            background: var(--primary);
+            color: white;
         }
 
         .det-title {
             font-weight: 900;
-            font-size: 1rem;
+            font-size: 1.15rem;
             flex: 1;
+            color: var(--text-main);
+            letter-spacing: -0.3px;
+        }
+
+        .det-subtitle {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin-top: 2px;
+        }
+
+        /* ---- BUTTONS (Action Polish) ---- */
+        .save-btn {
+            width: 100%;
+            margin-top: 16px;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--primary), #4f46e5);
+            color: white;
+            border: none;
+            border-radius: 100px;
+            font-weight: 900;
+            font-size: 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .save-btn:active {
+            transform: scale(0.96);
+            box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
         }
 
         .nav-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
-            gap: 8px;
+            margin-bottom: 16px;
+            gap: 12px;
+            background: rgba(255, 255, 255, 0.5);
+            padding: 10px;
+            border-radius: var(--radius-md);
         }
 
         .nav-btn {
-            background: #EEF3FF;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 10px;
-            color: var(--blue);
-            font-weight: 700;
-            font-size: 0.85rem;
+            background: white;
+            border: 1px solid var(--border);
+            padding: 10px 20px;
+            border-radius: 12px;
+            color: var(--primary);
+            font-weight: 800;
+            font-size: 0.9rem;
             cursor: pointer;
+            transition: 0.2s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
         }
 
         .nav-btn:disabled {
-            opacity: 0.35;
+            opacity: 0.4;
             cursor: not-allowed;
-        }
-
-        .counter {
-            color: var(--subtext);
-            font-size: 0.8rem;
-            font-weight: 700;
-        }
-
-        /* ---- SAVE BTN ---- */
-        .save-btn {
-            width: 100%;
-            margin-top: 12px;
-            padding: 15px;
-            background: var(--white);
-            color: var(--blue);
-            border: 2px solid #c8deff;
-            border-radius: 100px;
-            font-weight: 800;
-            font-size: 0.95rem;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
+            filter: grayscale(1);
         }
 
         .save-btn:active {
@@ -536,67 +774,104 @@
         /* ---- MAIN ACTION BTN ---- */
         .action-btn {
             width: 100%;
-            padding: 15px;
-            background: var(--blue);
+            padding: 16px;
+            background: linear-gradient(135deg, var(--secondary), #10b981);
             color: white;
             border: none;
             border-radius: 100px;
-            font-weight: 800;
-            font-size: 1rem;
+            font-weight: 900;
+            font-size: 1.05rem;
             margin-top: 16px;
             cursor: pointer;
-            box-shadow: 0 5px 18px rgba(0, 122, 255, 0.3);
+            box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.3);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 25px -5px rgba(16, 185, 129, 0.4);
         }
 
         .action-btn:active {
-            transform: scale(0.98);
+            transform: scale(0.97);
         }
 
-        /* ---- EMPTY STATE ---- */
+        /* ---- EMPTY STATE (Clean) ---- */
         .empty-state {
             text-align: center;
-            padding: 40px 20px;
-            color: var(--subtext);
+            padding: 80px 20px;
+            color: var(--text-muted);
+            animation: fadeIn 0.8s ease-out;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: var(--radius-lg);
+            border: 2px dashed var(--border);
         }
 
         .empty-state .icon {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
+            font-size: 3.5rem;
+            margin-bottom: 20px;
+            filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.05));
+            display: block;
         }
 
         .empty-state .msg {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: var(--text-main);
+            margin-bottom: 8px;
+        }
+
+        .empty-state .sub-msg {
             font-size: 0.9rem;
+            color: var(--text-muted);
             font-weight: 600;
         }
 
-        /* ---- LOADING ---- */
+        /* ---- LOADING (Glassmorphic) ---- */
         .loading-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            z-index: 9999;
-            gap: 14px;
+            z-index: 10000;
+            gap: 20px;
             color: white;
-            font-weight: 700;
         }
 
         .spinner {
-            width: 42px;
-            height: 42px;
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            border-top-color: white;
+            width: 54px;
+            height: 54px;
+            border: 5px solid rgba(255, 255, 255, 0.1);
+            border-top-color: var(--primary);
             border-radius: 50%;
-            animation: spin 0.8s linear infinite;
+            animation: spin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+            filter: drop-shadow(0 0 15px var(--primary));
+        }
+
+        #loadingMsg {
+            font-size: 1.1rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
 
         @keyframes spin {
             to {
                 transform: rotate(360deg);
             }
+        }
+
+        .hidden {
+            display: none !important;
         }
 
         .hidden {
@@ -646,8 +921,8 @@
     <!-- ===================================================== -->
     <div id="searchPage" class="page active">
         <div class="app-header">
-            <div class="app-title">الدليل</div>
-            <div class="app-subtitle">تطبيق مصغر</div>
+            <div class="app-title">جدولي</div>
+            <div class="app-subtitle">أداة تنظيم الجدول الدراسي</div>
             <div class="top-tabs">
                 <div class="top-tab active" onclick="switchTopTab('search')">🔍 أداة البحث</div>
                 <div class="top-tab" onclick="switchTopTab('schedule')">✨ أداة التنزيل</div>
@@ -656,7 +931,7 @@
 
         <div class="container">
             <!-- Search Box -->
-            <div class="search-wrap" style="margin-top:10px;">
+            <div class="search-wrap">
                 <div class="search-label">ابحث باسم أو رمز المادة</div>
                 <div class="search-box" id="searchBox1">
                     <div id="tags1" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
@@ -670,6 +945,12 @@
                 <div class="sched-tabs" style="margin-top:14px;">
                     <div class="sched-tab active" id="inlineTabLec" onclick="showInlineTab('lec')">جدول المحاضرات</div>
                     <div class="sched-tab" id="inlineTabExam" onclick="showInlineTab('exam')">جدول النهائي</div>
+                </div>
+
+                <div class="zoom-controls">
+                    <span>🔍 التكبير والتصغير:</span>
+                    <input type="range" class="zoom-slider" min="0.4" max="1.5" step="0.05" value="1.0"
+                        oninput="updateTableZoom(this.value)">
                 </div>
 
                 <!-- Lecture Grid (inline) -->
@@ -716,8 +997,8 @@
             </div>
 
             <!-- Empty State (shown until subject selected) -->
-            <div id="emptyState1" class="empty-state" style="margin-top:30px;">
-                <div class="icon">📚</div>
+            <div id="emptyState1" class="empty-state">
+                <div class="icon" style="opacity:0.3;">📚</div>
                 <div class="msg">اختر مادة لعرض جدولها مباشرة</div>
             </div>
         </div>
@@ -731,8 +1012,8 @@
         <!-- Sub-view A: Builder -->
         <div id="builderView">
             <div class="app-header">
-                <div class="app-title">الدليل</div>
-                <div class="app-subtitle">تطبيق مصغر</div>
+                <div class="app-title">جدولي</div>
+                <div class="app-subtitle">أداة تنظيم الجدول الدراسي</div>
                 <div class="top-tabs">
                     <div class="top-tab" onclick="switchTopTab('search')">🔍 أداة البحث</div>
                     <div class="top-tab active" onclick="switchTopTab('schedule')">✨ أداة التنزيل</div>
@@ -740,7 +1021,7 @@
             </div>
 
             <div class="container">
-                <div class="search-wrap" style="margin-top:10px;">
+                <div class="search-wrap">
                     <div class="search-label">اختر موادك لبناء جدول بدون تعارض</div>
                     <div class="search-box" id="searchBox2">
                         <div id="tags2" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
@@ -781,6 +1062,12 @@
                     <div class="sched-tab" id="detTabExam" onclick="showDetTab('exam')">جدول النهائي</div>
                 </div>
 
+                <div class="zoom-controls">
+                    <span>🔍 التكبير والتصغير:</span>
+                    <input type="range" class="zoom-slider" min="0.4" max="1.5" step="0.05" value="1.0"
+                        oninput="updateTableZoom(this.value)">
+                </div>
+
                 <!-- Detail Lecture Grid -->
                 <div id="detLecContent">
                     <div class="grid-scroll">
@@ -798,8 +1085,8 @@
                             <tbody id="detLecBody"></tbody>
                         </table>
                     </div>
-                    <button class="save-btn" onclick="saveGridAsImage('detLectureGrid', 'جدول_المحاضرات')">
-                        📥 حفظ جدول المحاضرات كصورة
+                    <button class="save-btn" onclick="saveGridAsImage('detLectureGrid', '📅 جدول المحاضرات')">
+                        📥 حفظ الجدول وإرساله للبوت
                     </button>
                 </div>
 
@@ -820,8 +1107,8 @@
                             <tbody id="detExamBody"></tbody>
                         </table>
                     </div>
-                    <button class="save-btn" onclick="saveGridAsImage('detExamGrid', 'جدول_الامتحانات')">
-                        📥 حفظ جدول الامتحانات كصورة
+                    <button class="save-btn" onclick="saveGridAsImage('detExamGrid', '📝 جدول الامتحانات')">
+                        📥 حفظ الجدول وإرساله للبوت
                     </button>
                 </div>
             </div>
@@ -837,10 +1124,23 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script>
         const tg = window.Telegram?.WebApp;
-        if (tg) tg.expand();
+        if (tg) {
+            tg.expand();
+            tg.enableClosingConfirmation();
+            if (tg.disableVerticalSwipes) {
+                tg.disableVerticalSwipes();
+            }
+        }
+
+        function updateTableZoom(val) {
+            const tables = document.querySelectorAll('.grid-scroll table');
+            tables.forEach(t => t.style.zoom = val);
+            document.querySelectorAll('.zoom-slider').forEach(s => s.value = val);
+        }
 
         let facultyData = [];
         let examsData = [];
+        let datesMap = {};
 
         // Builder state
         let builderSubjects = []; // [{code, name}]
@@ -855,15 +1155,75 @@
         const TIMES = ['08:00 - 09:30', '09:30 - 11:00', '11:00 - 12:30', '12:30 - 14:00', '14:00 - 15:30'];
         const PERIODS = ['الفترة الاولى', 'الفترة الثانية', 'الفترة الثالثة'];
 
+        let uniqueSubjects = [];
+
         // ===== Load Data =====
         async function initApp() {
             try {
-                const [f, e] = await Promise.all([
-                    fetch('./faculty.json').then(r => r.json()),
-                    fetch('./exams.json').then(r => r.json())
-                ]);
-                facultyData = f.filter(x => x.code && x.code.trim());
-                examsData = e;
+                let f, e, d;
+
+                // إذا كانت البيانات محقونة مباشرةً في الصفحة (index_final.html) استخدمها فوراً
+                if (window.allCourses && window.allExams) {
+                    f = window.allCourses;
+                    e = window.allExams;
+                    d = window.datesMap || {};
+                } else {
+                    // وإلا جلب البيانات من الخادم
+                    const ts = new Date().getTime();
+                    const res = await Promise.all([
+                        fetch(`./faculty.json?v=${ts}`).then(r => {
+                            if (!r.ok) throw new Error('Faculty fetch not ok');
+                            return r.json();
+                        }).catch(() => {
+                            console.log("Fallback: Fetching faculty from API");
+                            return fetch(`/api/faculty?v=${ts}`).then(r => r.json()).catch(() => []);
+                        }),
+                        fetch(`./exams.json?v=${ts}`).then(r => {
+                            if (!r.ok) throw new Error('Exams fetch not ok');
+                            return r.json();
+                        }).catch(() => {
+                            console.log("Fallback: Fetching exams from API");
+                            return fetch(`/api/exams?v=${ts}`).then(r => r.json()).catch(() => []);
+                        }),
+                        fetch(`./dates.json?v=${ts}`).then(r => {
+                            if (!r.ok) throw new Error('Dates fetch not ok');
+                            return r.json();
+                        }).catch(() => ({}))
+                    ]);
+                    f = res[0]; e = res[1]; d = res[2];
+                }
+
+                facultyData = (f || []).filter(x => x.code && x.code.trim());
+                examsData = e || [];
+                datesMap = d || {};
+
+                // Pre-process unique subjects for faster search
+                const seen = new Set();
+                uniqueSubjects = [];
+
+                [...facultyData, ...examsData].forEach(item => {
+                    if (item.code && !seen.has(item.code)) {
+                        uniqueSubjects.push({
+                            code: item.code,
+                            name: item.name || '',
+                            // نحفظ النص كاملاً للبحث (عربي + كود)
+                            searchStr: ((item.name || '') + ' ' + (item.code || '')).toLowerCase()
+                        });
+                        seen.add(item.code);
+                    }
+                });
+
+                // Load from localStorage
+                const savedSearch = localStorage.getItem('searchSubjects');
+                if (savedSearch) searchSubjects = JSON.parse(savedSearch);
+
+                const savedBuilder = localStorage.getItem('builderSubjects');
+                if (savedBuilder) builderSubjects = JSON.parse(savedBuilder);
+
+                // Initial render
+                if (renderSearchTags) renderSearchTags();
+                if (renderBuilderTags) renderBuilderTags();
+
             } catch (err) { console.error('Load failed', err); }
         }
 
@@ -879,48 +1239,57 @@
         }
 
         // ===== Universal Search Box Setup =====
-        function setupSearch(inputId, dropId, tagsId, subjectsArr, onChangeCallback) {
+        function setupSearch(inputId, dropId, tagsId, getArr, setArr, type, onChangeCallback) {
             const inp = document.getElementById(inputId);
             const drop = document.getElementById(dropId);
             const tagsEl = document.getElementById(tagsId);
 
             function renderTags() {
                 tagsEl.innerHTML = '';
+                const subjectsArr = getArr();
+
+                // Save to localStorage using the explicit type
+                localStorage.setItem(type + 'Subjects', JSON.stringify(subjectsArr));
+
                 subjectsArr.forEach(s => {
                     const t = document.createElement('div');
                     t.className = 'tag';
-                    t.innerHTML = `${s.name} <span class="tag-x" onclick="removeFrom('${subjectsArr === searchSubjects ? 'search' : 'builder'}','${s.code}')">✕</span>`;
+                    t.innerHTML = `${s.name} <span class="tag-x" onclick="removeFrom('${type}','${s.code}')">✕</span>`;
                     tagsEl.appendChild(t);
                 });
                 if (onChangeCallback) onChangeCallback();
             }
 
+            let debounceTimer;
             inp.addEventListener('input', () => {
-                const q = inp.value.trim().toLowerCase();
-                if (!q) { drop.style.display = 'none'; return; }
-                const seen = new Set();
-                const results = [];
-                facultyData.forEach(item => {
-                    if (!seen.has(item.code) &&
-                        (item.name.toLowerCase().includes(q) || item.code.toLowerCase().includes(q))) {
-                        results.push(item); seen.add(item.code);
-                    }
-                });
-                drop.innerHTML = '';
-                results.slice(0, 10).forEach(r => {
-                    const d = document.createElement('div');
-                    d.className = 'drop-item';
-                    d.innerHTML = `<span class="code">${r.code}</span><span class="name">${r.name}</span>`;
-                    d.onclick = () => {
-                        if (!subjectsArr.some(s => s.code === r.code)) {
-                            subjectsArr.push({ code: r.code, name: r.name });
-                            renderTags();
-                        }
-                        inp.value = ''; drop.style.display = 'none';
-                    };
-                    drop.appendChild(d);
-                });
-                drop.style.display = results.length ? 'block' : 'none';
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    const raw = inp.value.trim();
+                    if (!raw) { drop.style.display = 'none'; return; }
+
+                    // دعم البحث بكلمات متعددة وجزئية (عربي وإنجليزي)
+                    const words = raw.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+                    const results = uniqueSubjects.filter(s =>
+                        words.every(w => s.searchStr.includes(w))
+                    );
+
+                    drop.innerHTML = '';
+                    results.slice(0, 15).forEach(r => {
+                        const d = document.createElement('div');
+                        d.className = 'drop-item';
+                        d.innerHTML = `<span class="code">${r.code}</span><span class="name">${r.name}</span>`;
+                        d.onclick = () => {
+                            const current = getArr();
+                            if (!current.some(s => s.code === r.code)) {
+                                current.push({ code: r.code, name: r.name });
+                                renderTags();
+                            }
+                            inp.value = ''; drop.style.display = 'none';
+                        };
+                        drop.appendChild(d);
+                    });
+                    drop.style.display = results.length ? 'block' : 'none';
+                }, 150);
             });
 
             document.addEventListener('click', e => {
@@ -928,7 +1297,6 @@
                     drop.style.display = 'none';
             });
 
-            // expose renderTags
             return renderTags;
         }
 
@@ -956,7 +1324,6 @@
             area.classList.remove('hidden');
             empty.classList.add('hidden');
 
-            // Get all lectures for chosen subjects
             const lectures = facultyData.filter(f => searchSubjects.some(s => s.code === f.code));
             buildLectureGrid('lectureGridBody', lectures);
             buildExamGrid('examGridBody', searchSubjects);
@@ -984,13 +1351,16 @@
                     const td = document.createElement('td');
                     if (entries.length) {
                         entries.forEach(l => {
+                            const instructor = (l.instructor && l.instructor !== 'غير محدد') ? l.instructor : 'د. غير محدد';
+                            const room = (l.room && l.room !== 'غير محدد') ? l.room : 'قاعة غير محددة';
+
                             const card = document.createElement('div');
                             card.className = 'lec-card';
                             card.innerHTML = `
-                        <div class="ln">${l.name}</div>
-                        <span class="lg">م${l.group}</span>
-                        <div class="lm">${l.instructor !== 'غير محدد' ? l.instructor : ''}</div>
-                        <div class="lm" style="color:#007bff;">${l.room !== 'غير محدد' ? l.room : ''}</div>`;
+                                <div class="ln">${l.name}</div>
+                                <span class="lg">م${l.group}</span>
+                                <div class="lm">👤 ${instructor}</div>
+                                <div class="lm" style="color:var(--primary); font-weight:800;">📍 ${room}</div>`;
                             td.appendChild(card);
                         });
                     } else {
@@ -1004,22 +1374,28 @@
 
         // ===== Exam Clash Detection =====
         function detectExamClashes(subjects) {
-            const exList = subjects.map(s => ({
-                ...s, ex: examsData.find(e => e.code === s.code)
-            })).filter(x => x.ex);
+            const exList = [];
+            subjects.forEach(s => {
+                const ex = examsData.find(e => e.code === s.code);
+                if (ex) exList.push({ code: s.code, name: s.name, ex });
+            });
             const hardClashes = [], softClashes = [];
             for (let i = 0; i < exList.length; i++) {
                 for (let j = i + 1; j < exList.length; j++) {
                     const a = exList[i], b = exList[j];
-                    if (a.ex.exam_day === b.ex.exam_day) {
-                        (a.ex.exam_period === b.ex.exam_period ? hardClashes : softClashes).push([a, b]);
+                    const dayA = (a.ex.exam_day || '').trim();
+                    const dayB = (b.ex.exam_day || '').trim();
+                    const palA = (a.ex.exam_period || '').trim();
+                    const palB = (b.ex.exam_period || '').trim();
+                    if (dayA === dayB) {
+                        (palA === palB ? hardClashes : softClashes).push([a, b]);
                     }
                 }
             }
             return { hardClashes, softClashes };
         }
 
-        // ===== Build Exam Grid (rows=days SORTED by number, cols=periods, clash colors) =====
+        // ===== Build Exam Grid (All days between min and max) =====
         function buildExamGrid(tbodyId, subjects) {
             const tbody = document.getElementById(tbodyId);
             tbody.innerHTML = '';
@@ -1030,40 +1406,66 @@
                 if (ex) relevant.push({ ...ex, subName: s.name });
             });
 
-            const dayMap = {};
-            relevant.forEach(ex => {
-                if (!dayMap[ex.exam_day])
-                    dayMap[ex.exam_day] = { 'الفترة الاولى': [], 'الفترة الثانية': [], 'الفترة الثالثة': [] };
-                const k = ex.exam_period?.trim();
-                if (dayMap[ex.exam_day][k] !== undefined)
-                    dayMap[ex.exam_day][k].push(ex);
-            });
-
-            if (!Object.keys(dayMap).length) {
-                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#aaa;padding:20px;font-size:0.85rem;">لا توجد امتحانات محددة لهذه المواد</td></tr>`;
+            if (!relevant.length) {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:40px;font-size:0.9rem;font-weight:600;">لا توجد امتحانات محددة لهذه المواد ✨</td></tr>`;
                 return;
             }
 
-            // ترتيب الأيام بحسب الرقم الموجود في نص اليوم مثل (1) أو (12)
-            const parseDayNum = d => { const m = d.match(/(\d+)/); return m ? parseInt(m[1]) : 9999; };
-            const sortedDays = Object.keys(dayMap).sort((a, b) => parseDayNum(a) - parseDayNum(b));
+            // استخلاص رقم اليوم
+            const getDayNum = str => {
+                const m = str.match(/\((\d+)\)/);
+                return m ? parseInt(m[1]) : null;
+            };
 
-            sortedDays.forEach(dayText => {
-                const periods = dayMap[dayText];
+            // بناء خريطة للأيام الموجودة
+            const dayMap = {}; // num -> { text, periods: {p1:[],p2:[],p3:[]} }
+            let minNum = 999, maxNum = -1;
+
+            relevant.forEach(ex => {
+                const num = getDayNum(ex.exam_day);
+                if (num === null) return;
+                if (num < minNum) minNum = num;
+                if (num > maxNum) maxNum = num;
+
+                if (!dayMap[num]) {
+                    dayMap[num] = {
+                        text: ex.exam_day,
+                        periods: { 'الفترة الاولى': [], 'الفترة الثانية': [], 'الفترة الثالثة': [] }
+                    };
+                }
+                const k = ex.exam_period?.trim();
+                if (dayMap[num].periods[k]) dayMap[num].periods[k].push(ex);
+            });
+
+            // قائمة الأيام من الأصغر للأكبر (بما في ذلك الفراغات)
+            for (let d = minNum; d <= maxNum; d++) {
                 const tr = document.createElement('tr');
+                const data = dayMap[d];
 
-                // فحص التعارض في هذا اليوم
+                if (!data) {
+                    // يوم فارغ - استحضار التاريخ من خريطة التواريخ
+                    const dateText = datesMap[d] || `اليوم (${d})`;
+                    tr.innerHTML = `<td class="day-col" style="height:50px;font-size:0.72rem;line-height:1.6;color:var(--text-muted);opacity:0.8;">
+                                        ${dateText.replace(/(\(\d+\))/, '<span style="display:block;font-size:0.62rem;color:#8899bb;">$1</span>')}
+                                    </td>
+                                    <td class="empty-cell"></td><td class="empty-cell"></td><td class="empty-cell"></td>`;
+                    tbody.appendChild(tr);
+                    continue;
+                }
+
+                // فحص التعارض
+                const periods = data.periods;
                 const hardDay = PERIODS.some(p => periods[p].length > 1);
                 const allInDay = Object.values(periods).flat();
                 const softDay = allInDay.length > 1 && !hardDay;
-                if (hardDay) tr.style.background = '#fff5f5';
-                else if (softDay) tr.style.background = '#fffdf0';
+                if (hardDay) tr.style.background = 'hsla(350, 100%, 98%, 1)';
+                else if (softDay) tr.style.background = 'hsla(45, 100%, 98%, 1)';
 
                 // خلية اليوم
                 const dayTd = document.createElement('td');
                 dayTd.className = 'day-col';
                 dayTd.style.cssText = 'height:75px;font-size:0.72rem;line-height:1.6;';
-                dayTd.innerHTML = dayText.replace(/(\(\d+\))/, '<span style="display:block;font-size:0.62rem;color:#8899bb;">$1</span>');
+                dayTd.innerHTML = data.text.replace(/(\(\d+\))/, '<span style="display:block;font-size:0.62rem;color:#8899bb;">$1</span>');
                 tr.appendChild(dayTd);
 
                 PERIODS.forEach(pName => {
@@ -1071,11 +1473,11 @@
                     const entries = periods[pName] || [];
                     const isClashCell = entries.length > 1;
                     if (entries.length) {
-                        if (isClashCell) td.style.background = '#fff0f0';
+                        if (isClashCell) td.style.background = 'hsla(350, 100%, 96%, 1)';
                         entries.forEach(ex => {
                             const card = document.createElement('div');
                             card.className = 'exam-card';
-                            if (isClashCell) card.style.borderColor = '#ff4444';
+                            if (isClashCell) card.style.borderColor = 'var(--accent)';
                             card.innerHTML = `<div class="en">${ex.subName}</div><div class="ec">${ex.code}</div>`;
                             td.appendChild(card);
                         });
@@ -1085,7 +1487,7 @@
                     tr.appendChild(td);
                 });
                 tbody.appendChild(tr);
-            });
+            }
         }
 
         // ===== SOLVER (Builder Page) =====
@@ -1096,57 +1498,75 @@
                 return;
             }
 
-            const subjectMap = {};
-            builderSubjects.forEach(sub => {
-                subjectMap[sub.code] = {};
-                facultyData.filter(f => f.code === sub.code).forEach(f => {
-                    if (!subjectMap[sub.code][f.group]) subjectMap[sub.code][f.group] = [];
-                    subjectMap[sub.code][f.group].push(f);
-                });
-            });
+            // Show Loading
+            const btn = document.querySelector('.action-btn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '⏳ جاري البحث...';
+            btn.disabled = true;
 
-            const missing = builderSubjects.filter(s => !Object.keys(subjectMap[s.code]).length);
-            if (missing.length) {
-                const msg = `⚠️ لا توجد بيانات للمادة: ${missing.map(m => m.name).join('، ')}`;
-                if (tg) tg.showAlert(msg); else alert(msg);
-                return;
-            }
-
-            const codes = Object.keys(subjectMap);
-            const allSols = [];
-
-            function findCombos(idx, path, statuses, conflicts) {
-                if (idx === codes.length) {
-                    const groups = {};
-                    builderSubjects.forEach(s => {
-                        const f = path.find(l => l.code === s.code);
-                        if (f) groups[s.code] = f.group;
+            setTimeout(() => {
+                const subjectMap = {};
+                builderSubjects.forEach(sub => {
+                    subjectMap[sub.code] = {};
+                    facultyData.filter(f => f.code === sub.code).forEach(f => {
+                        if (!subjectMap[sub.code][f.group]) subjectMap[sub.code][f.group] = [];
+                        subjectMap[sub.code][f.group].push(f);
                     });
-                    allSols.push({ schedule: path, statuses, groups, totalConflicts: conflicts });
+                });
+
+                const missing = builderSubjects.filter(s => !Object.keys(subjectMap[s.code]).length);
+                if (missing.length) {
+                    const msg = `⚠️ لا توجد بيانات للمادة: ${missing.map(m => m.name).join('، ')}`;
+                    btn.innerHTML = originalText; btn.disabled = false;
+                    if (tg) tg.showAlert(msg); else alert(msg);
                     return;
                 }
-                const code = codes[idx];
-                for (const grp in subjectMap[code]) {
-                    const lecs = subjectMap[code][grp];
-                    let clash = false;
-                    for (const l of lecs) {
-                        if (path.some(ex => ex.day === l.day && ex.time === l.time)) { clash = true; break; }
+
+                const codes = Object.keys(subjectMap);
+                const allSols = [];
+                let counter = 0;
+
+                function findCombos(idx, path, statuses, conflicts) {
+                    if (counter > 2000) return;
+                    if (idx === codes.length) {
+                        counter++;
+                        const groups = {};
+                        builderSubjects.forEach(s => {
+                            const f = path.find(l => l.code === s.code);
+                            if (f) groups[s.code] = f.group;
+                        });
+                        allSols.push({ schedule: path, statuses, groups, totalConflicts: conflicts });
+                        return;
                     }
-                    findCombos(idx + 1, path.concat(lecs), { ...statuses, [code]: !clash }, conflicts + (clash ? 1 : 0));
+                    const code = codes[idx];
+                    const groupsForCode = Object.keys(subjectMap[code]);
+                    for (const grp of groupsForCode) {
+                        const lecs = subjectMap[code][grp];
+                        let clash = false;
+                        for (const l of lecs) {
+                            if (path.some(ex => ex.day === l.day && ex.time === l.time)) { clash = true; break; }
+                        }
+                        findCombos(idx + 1, path.concat(lecs), { ...statuses, [code]: !clash }, conflicts + (clash ? 1 : 0));
+                    }
                 }
-            }
 
-            findCombos(0, [], {}, 0);
-            allSols.sort((a, b) => a.totalConflicts - b.totalConflicts);
-            solutions = allSols.slice(0, 20);
+                findCombos(0, [], {}, 0);
+                allSols.sort((a, b) => a.totalConflicts - b.totalConflicts);
+                solutions = allSols.slice(0, 30);
+                currentSolIdx = 0;
 
-            if (!solutions.length) {
-                const msg = 'لم يتم إيجاد أي جدول!';
-                if (tg) tg.showAlert(msg); else alert(msg);
-                return;
-            }
+                btn.innerHTML = originalText;
+                btn.disabled = false;
 
-            renderProposals();
+                if (!solutions.length) {
+                    if (tg) tg.showAlert('عذراً، لم نجد جداول مناسبة.');
+                    return;
+                }
+
+                renderProposals();
+                document.getElementById('proposalsArea').classList.remove('hidden');
+                document.getElementById('proposalsArea').scrollIntoView({ behavior: 'smooth' });
+            }, 50);
         }
 
         function renderProposals() {
@@ -1159,7 +1579,8 @@
             badge.textContent = zeroCount > 0
                 ? `✅ ${zeroCount} جدول بدون تعارض`
                 : `⚠️ جميع الجداول فيها تعارض`;
-            badge.style.color = zeroCount > 0 ? 'var(--green)' : 'var(--red)';
+            badge.style.color = zeroCount > 0 ? 'var(--secondary)' : 'var(--accent)';
+            badge.style.fontWeight = '900';
 
             // فحص تعارض الامتحانات مرة واحدة (ثابت لكل الجداول)
             const { hardClashes, softClashes } = detectExamClashes(builderSubjects);
@@ -1210,12 +1631,12 @@
                     const ok = sol.statuses[s.code];
                     const grp = sol.groups[s.code] || '—';
                     html += `<div class="sub-row">
-                <div class="sub-name">${s.name} <span style="color:#aaa;font-size:0.75rem;">(م${grp})</span></div>
+                <div class="sub-name">${s.name} <span style="color:var(--text-muted);font-size:0.75rem;font-weight:600;">(م${grp})</span></div>
                 <div class="${ok ? 'pill-ok' : 'pill-err'}">${ok ? '✓' : '✗'}</div>
             </div>`;
                 });
 
-                html += `<div style="margin-top:8px;font-size:0.75rem;color:#bbb;text-align:left;">👆 اضغط لعرض الجدول</div>`;
+                html += `<div style="margin-top:12px;font-size:0.8rem;color:var(--primary);text-align:left;font-weight:800;opacity:0.8;">إعرض التفاصيل ←</div>`;
                 card.innerHTML = html;
                 list.appendChild(card);
             });
@@ -1223,6 +1644,7 @@
 
         // ===== Detail View =====
         function openDetail(idx) {
+            if (tg) tg.expand();
             currentSolIdx = idx;
             document.getElementById('builderView').classList.add('hidden');
             document.getElementById('detailView').classList.remove('hidden');
@@ -1230,6 +1652,7 @@
         }
 
         function closeDetail() {
+            if (tg) tg.expand();
             document.getElementById('detailView').classList.add('hidden');
             document.getElementById('builderView').classList.remove('hidden');
         }
@@ -1243,6 +1666,7 @@
         }
 
         function showDetTab(t) {
+            if (tg) tg.expand();
             document.getElementById('detTabLec').classList.toggle('active', t === 'lec');
             document.getElementById('detTabExam').classList.toggle('active', t === 'exam');
             document.getElementById('detLecContent').classList.toggle('hidden', t !== 'lec');
@@ -1283,53 +1707,183 @@
             if (examWarnEl) examWarnEl.innerHTML = warningHTML;
         }
 
-        // ===== Save Grid as Image =====
-        async function saveGridAsImage(tableId, filename) {
+        // ===== Save Grid as Image & Send to Bot =====
+        async function saveGridAsImage(tableId, title) {
             const overlay = document.getElementById('loadingOverlay');
-            document.getElementById('loadingMsg').textContent = 'جاري حفظ الجدول...';
+            document.getElementById('loadingMsg').textContent = 'جاري المعالجة وإرسال الجدول...';
             overlay.classList.remove('hidden');
 
             try {
-                const table = document.getElementById(tableId);
+                // 1. Preparation: Get the table and create a robust clone
+                const originalTable = document.getElementById(tableId);
+                const container = document.createElement('div');
 
-                // Wrap the table temporarily for clean capture
-                const wrapper = document.createElement('div');
-                wrapper.style.cssText = 'background:white;padding:16px;border-radius:12px;display:inline-block;font-family:Cairo,sans-serif;';
-                const clone = table.cloneNode(true);
-                clone.style.minWidth = 'auto';
-                wrapper.appendChild(clone);
-                document.body.appendChild(wrapper);
+                // Style container for perfect capture - DARKK MODE
+                container.style.cssText = `
+                    position: absolute;
+                    left: -9999px;
+                    top: 0;
+                    background: #111111;
+                    padding: 0;
+                    width: fit-content;
+                    font-family: 'Cairo', sans-serif;
+                    direction: rtl;
+                `;
 
-                const canvas = await html2canvas(wrapper, {
-                    scale: 2.5,
-                    useCORS: true,
-                    backgroundColor: '#ffffff',
-                    logging: false
+                const clone = originalTable.cloneNode(true);
+                clone.style.cssText = `
+                    width: auto;
+                    min-width: 1200px;
+                    border-collapse: collapse;
+                    background: #111111;
+                    margin: 0;
+                `;
+
+                const allCells = clone.querySelectorAll('th, td');
+                allCells.forEach(cell => {
+                    cell.style.border = '1px solid #2a2a2a';
+                    cell.style.background = '#111111';
+                    cell.style.color = '#e5e5e5';
+                    cell.style.padding = '16px 10px';
+                    cell.style.textAlign = 'center';
+                    cell.style.verticalAlign = 'middle';
+                    // Wipe out all class styling overrides
+                    cell.className = '';
                 });
 
-                document.body.removeChild(wrapper);
+                const headers = clone.querySelectorAll('th');
+                headers.forEach(th => {
+                    th.style.position = 'static';
+                    th.style.background = '#1a1a1a';
+                    th.style.color = '#ffffff';
+                    th.style.fontWeight = 'bold';
+                    th.style.fontSize = '14px';
+                    // Reformat header text to strictly match original "10:00 - 8:30" format if it uses <br>
+                    th.innerHTML = th.innerHTML.replace('<br>', ' - ');
+                });
 
-                // Download directly
-                const link = document.createElement('a');
-                link.href = canvas.toDataURL('image/png');
-                link.download = `${filename}.png`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+                // Day Col background
+                const originalDayCols = originalTable.querySelectorAll('tr > td:first-child');
+                const cloneDayCols = clone.querySelectorAll('tr > td:first-child');
+                cloneDayCols.forEach(dayCol => {
+                    dayCol.style.position = 'static';
+                    // Make it look just like rest of headers
+                    dayCol.style.background = '#1a1a1a';
+                    dayCol.style.color = '#ffffff';
+                    dayCol.style.fontWeight = 'bold';
+                    dayCol.style.fontSize = '14px';
+                });
+
+                // Strip the Cards and reformat the text explicitly
+                const cards = clone.querySelectorAll('.lec-card, .exam-card');
+                cards.forEach(card => {
+                    card.style.background = 'transparent';
+                    card.style.border = 'none';
+                    card.style.boxShadow = 'none';
+                    card.style.padding = '0';
+                    card.style.margin = '0 auto 8px auto';
+
+                    const nameEl = card.querySelector('.ln, .en');
+                    const groupEl = card.querySelector('.lg, .ec'); // Group
+                    const instRmEls = card.querySelectorAll('.lm');
+
+                    if (nameEl) {
+                        let courseName = nameEl.textContent;
+                        let groupText = groupEl ? groupEl.textContent.trim() : '';
+                        if (groupText && !groupText.includes('(')) {
+                            // If it's pure text like "مA" or "ITGS"
+                            // Format: الشبكات اللاسلكية (A)
+                            groupText = groupText.replace('م', '');
+                            courseName = `${courseName} (${groupText})`;
+                        }
+
+                        let content = `<div style="color:#ffffff; font-size:14.5px; margin-bottom:6px;">${courseName}</div>`;
+
+                        if (instRmEls && instRmEls.length > 0) {
+                            let instText = instRmEls[0].textContent.replace('👤 ', '').trim();
+                            let roomText = instRmEls.length > 1 ? instRmEls[1].textContent.replace('📍 ', '').trim() : '';
+
+                            // Format: د. محمد (الخوارزمي 1)
+                            let subText = roomText ? `${instText} (${roomText})` : instText;
+                            content += `<div style="color:#888888; font-size:12.5px;">${subText}</div>`;
+                        }
+                        card.innerHTML = content;
+                    }
+                });
+
+                // We don't add the blue header anymore
+                container.appendChild(clone);
+                document.body.appendChild(container);
+
+                // 2. Capture using html2canvas
+                const canvas = await html2canvas(container, {
+                    scale: 1.5, // High quality
+                    useCORS: true,
+                    backgroundColor: '#111111',
+                    logging: false,
+                    allowTaint: true,
+                    onclone: (clonedDoc) => {
+                        const el = clonedDoc.body.querySelector('div');
+                        if (el) el.style.position = 'relative';
+                    }
+                });
+
+                // Cleanup
+                document.body.removeChild(container);
+
+                // 3. Process image (JPEG 0.8 for optimal payload size on mobile)
+                const base64Jpeg = canvas.toDataURL('image/jpeg', 0.8);
+
+                // 4. Send directly to Bot Chat
+                const urlParams = new URLSearchParams(window.location.search);
+                const explicitUid = urlParams.get('uid');
+                const tgUserId = (tg && tg.initDataUnsafe?.user?.id) ? tg.initDataUnsafe.user.id : parseInt(explicitUid);
+
+                const initData = (tg && tg.initData) ? tg.initData : '';
+                if (tgUserId) {
+                    const response = await fetch('/api/send_image', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Telegram-Init-Data': initData
+                        },
+                        body: JSON.stringify({
+                            user_id: tgUserId,
+                            image: base64Jpeg,
+                            caption: `📊 *${title}*\n\n`
+                        })
+                    });
+                    if (response.ok) {
+                        if (tg) tg.showAlert('✅ تم تصدير الجدول وإرساله لشات البوت بنجاح!');
+                        else alert('✅ تم تصدير الجدول وإرساله لشات البوت بنجاح!');
+                    } else {
+                        const err = await response.text();
+                        if (tg) tg.showAlert('❌ فشل إرسال الجدول للبوت: ' + err);
+                        else alert('❌ فشل إرسال الجدول للبوت: ' + err);
+                    }
+                } else {
+                    if (tg) tg.showAlert('⚠️ لم نتمكن من تحديد حسابك. جرب كتابة /start في البوت أولاً.');
+                    else alert('⚠️ الخلل من التطبيق. لم نجد هويتك.');
+                }
 
                 overlay.classList.add('hidden');
             } catch (err) {
                 overlay.classList.add('hidden');
-                console.error(err);
-                if (tg) tg.showAlert('❌ حدث خطأ أثناء حفظ الجدول.');
-                else alert('❌ حدث خطأ أثناء حفظ الجدول.');
+                console.error('Capture Error:', err);
+                const errorMsg = '❌ حدث خطأ أثناء سحب الجدول. يرجى المحاولة مرة أخرى.';
+                if (tg) tg.showAlert(errorMsg);
+                else alert(errorMsg);
             }
         }
 
         // ===== Init =====
         initApp().then(() => {
-            renderSearchTags = setupSearch('searchInput1', 'dropdown1', 'tags1', searchSubjects, onSearchSubjectsChange);
-            renderBuilderTags = setupSearch('searchInput2', 'dropdown2', 'tags2', builderSubjects, null);
+            renderSearchTags = setupSearch('searchInput1', 'dropdown1', 'tags1', () => searchSubjects, (v) => searchSubjects = v, 'search', onSearchSubjectsChange);
+            renderBuilderTags = setupSearch('searchInput2', 'dropdown2', 'tags2', () => builderSubjects, (v) => builderSubjects = v, 'builder', null);
+
+            // Initial render of saved tags
+            renderSearchTags();
+            renderBuilderTags();
         });
     </script>
 </body>

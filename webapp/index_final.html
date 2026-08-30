@@ -1,0 +1,1899 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الجدول - تطبيق مصغر</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            /* Premium Color Palette (Vibrant HSL) */
+            --primary: hsl(210, 100%, 50%);
+            --primary-glow: hsla(210, 100%, 50%, 0.3);
+            --secondary: hsl(150, 70%, 45%);
+            --accent: hsl(350, 100%, 65%);
+            --bg: #f8fafc;
+            --surface: rgba(255, 255, 255, 0.85);
+            --header-bg: rgba(255, 255, 255, 0.75);
+            --border: rgba(226, 232, 240, 0.8);
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+            --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+            --radius-lg: 1.25rem;
+            --radius-md: 0.75rem;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Cairo', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text-main);
+            overflow-x: hidden;
+            background-image: radial-gradient(at 0% 0%, hsla(210, 100%, 93%, 1) 0, transparent 50%),
+                radial-gradient(at 50% 100%, hsla(150, 75%, 95%, 1) 0, transparent 50%);
+            min-height: 100vh;
+            overscroll-behavior-y: none !important;
+            /* Prevent swipe-down-to-close in Telegram */
+        }
+
+        /* ---- HEADER (Glassmorphic) ---- */
+        .app-header {
+            background: var(--header-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: var(--glass-shadow);
+        }
+
+        .app-title {
+            font-size: 1.6rem;
+            font-weight: 950;
+            background: linear-gradient(135deg, var(--primary), #6366f1);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-align: center;
+            letter-spacing: -0.8px;
+            margin-bottom: 2px;
+        }
+
+        .app-subtitle {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-align: center;
+            margin-top: 2px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .top-tabs {
+            display: flex;
+            gap: 8px;
+            padding-bottom: 4px;
+        }
+
+        .top-tab {
+            flex: 1;
+            text-align: center;
+            padding: 10px 4px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: var(--radius-md) var(--radius-md) 0 0;
+        }
+
+        .top-tab:hover {
+            color: var(--primary);
+            background: hsla(210, 100%, 50%, 0.05);
+        }
+
+        .top-tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+            background: hsla(210, 100%, 50%, 0.08);
+        }
+
+        /* ---- CONTENT ---- */
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        .container {
+            padding: 16px;
+            max-width: 900px;
+            margin: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* ---- SEARCH BOX (Modern Deck) ---- */
+        .search-wrap {
+            position: relative;
+            z-index: 100;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .search-label {
+            position: absolute;
+            top: -10px;
+            right: 16px;
+            background: var(--bg);
+            padding: 0 8px;
+            font-size: 0.8rem;
+            font-weight: 800;
+            color: var(--primary);
+            z-index: 10;
+        }
+
+        .search-box {
+            background: var(--surface);
+            backdrop-filter: blur(8px);
+            border: 2px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 12px 16px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            min-height: 70px;
+            box-shadow: var(--card-shadow);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .search-box:focus-within {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px var(--primary-glow);
+            transform: translateY(-2px);
+        }
+
+        .tag {
+            background: var(--primary);
+            color: white;
+            padding: 6px 14px;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            animation: scaleIn 0.2s ease-out;
+        }
+
+        @keyframes scaleIn {
+            from {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .tag-x {
+            cursor: pointer;
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.8);
+            transition: 0.2s;
+        }
+
+        .tag-x:hover {
+            color: #fff;
+            transform: scale(1.2);
+        }
+
+        .search-input {
+            border: none;
+            outline: none;
+            flex: 1;
+            min-width: 120px;
+            font-size: 1rem;
+            font-family: 'Cairo', sans-serif;
+            background: transparent;
+            color: var(--text-main);
+        }
+
+        .dropdown {
+            position: absolute;
+            width: 100%;
+            top: calc(100% + 8px);
+            right: 0;
+            background: #ffffff !important;
+            /* Force solid background */
+            border: 2px solid var(--primary);
+            border-radius: var(--radius-md);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+            max-height: 280px;
+            overflow-y: auto;
+            z-index: 9999;
+            /* Ensure it's on top */
+            display: none;
+        }
+
+        .drop-item {
+            padding: 14px 18px;
+            border-bottom: 1px solid #f1f5f9;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            transition: 0.2s;
+        }
+
+        .drop-item:hover {
+            background: #f8fafc;
+            padding-right: 22px;
+            border-right: 4px solid var(--primary);
+        }
+
+        .drop-item .code {
+            color: var(--blue);
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .drop-item .name {
+            font-size: 0.88rem;
+        }
+
+        /* ---- INLINE TAB SWITCHER (Glass) ---- */
+        .sched-tabs {
+            display: flex;
+            background: #f1f5f9;
+            border-radius: 14px;
+            padding: 4px;
+            margin-bottom: 16px;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .sched-tab {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 800;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .sched-tab.active {
+            background: var(--white);
+            color: var(--primary);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        /* ---- SCHEDULE GRID (LECTURES) ---- */
+        .grid-scroll {
+            overflow-x: auto;
+            overflow-y: hidden;
+            overscroll-behavior-x: contain;
+            /* height expands naturally, vertical scroll moves to the page body */
+            -webkit-overflow-scrolling: touch;
+            border-radius: var(--radius-lg);
+            border: 2px solid var(--border);
+            background: var(--white);
+            box-shadow: var(--card-shadow);
+            scrollbar-width: thin;
+            scrollbar-color: var(--primary) transparent;
+            position: relative;
+        }
+
+        #lectureGrid,
+        #examGrid,
+        #detLectureGrid,
+        #detExamGrid {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 850px;
+            background: var(--white);
+        }
+
+        #lectureGrid th,
+        #examGrid th,
+        #detLectureGrid th,
+        #detExamGrid th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: #cbd5e1;
+            color: #0f172a;
+            font-size: 0.8rem;
+            font-weight: 900;
+            padding: 14px 8px;
+            border: 2px solid #94a3b8;
+            outline: 2px solid #94a3b8;
+            /* Fix border collapse on sticky */
+            text-align: center;
+        }
+
+        /* Top-Right Corner - Needs highest z-index */
+        #lectureGrid th:first-child,
+        #examGrid th:first-child,
+        #detLectureGrid th:first-child,
+        #detExamGrid th:first-child {
+            position: sticky;
+            right: 0;
+            top: 0;
+            z-index: 20;
+        }
+
+        #lectureGrid td,
+        #examGrid td,
+        #detLectureGrid td,
+        #detExamGrid td {
+            border: 2px solid #cbd5e1;
+            text-align: center;
+            min-height: 110px;
+            height: auto;
+            padding: 10px 6px;
+            vertical-align: top;
+            transition: all 0.2s;
+        }
+
+        .day-col {
+            position: sticky;
+            /* Keep day visible when scrolling horizontally */
+            right: 0;
+            z-index: 5;
+            width: 80px !important;
+            font-weight: 950;
+            font-size: 0.95rem;
+            background: #f1f5f9 !important;
+            color: var(--primary) !important;
+            border: 2px solid #94a3b8 !important;
+            outline: 2px solid #94a3b8;
+            /* Fix border collapse */
+            border-right: 5px solid var(--primary) !important;
+        }
+
+        .empty-cell {
+            background: hsla(210, 20%, 98%, 1);
+        }
+
+        .lec-card {
+            background: hsla(210, 100%, 96%, 1);
+            border-right: 4px solid var(--primary);
+            border-radius: 8px;
+            padding: 6px;
+            text-align: right;
+            margin-bottom: 4px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            gap: 2px;
+            box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s;
+        }
+
+        .lec-card:last-child {
+            margin-bottom: 0;
+        }
+
+        .lec-card:hover {
+            transform: scale(1.02);
+            z-index: 10;
+        }
+
+        .lec-card .ln {
+            font-weight: 800;
+            font-size: 0.72rem;
+            color: hsl(210, 100%, 25%);
+            line-height: 1.25;
+        }
+
+        .lec-card .lg {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            border-radius: 4px;
+            padding: 1px 6px;
+            font-size: 0.6rem;
+            font-weight: 700;
+            width: fit-content;
+        }
+
+        .lec-card .lm {
+            font-size: 0.65rem;
+            color: var(--text-main);
+            font-weight: 600;
+            margin-top: 1px;
+        }
+
+        .exam-card {
+            background: hsla(350, 100%, 97%, 1);
+            border-right: 4px solid var(--accent);
+            border-radius: 8px;
+            padding: 6px;
+            text-align: right;
+            margin-bottom: 4px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            gap: 2px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .exam-card:last-child {
+            margin-bottom: 0;
+        }
+
+        .exam-card .en {
+            font-weight: 800;
+            font-size: 0.72rem;
+            color: hsl(350, 100%, 30%);
+            line-height: 1.25;
+        }
+
+        .exam-card .ec {
+            font-size: 0.65rem;
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        /* Exam clash warnings (Premium) */
+        .warn-hard {
+            background: hsla(350, 100%, 97%, 1);
+            border: 2px solid hsla(350, 100%, 65%, 0.2);
+            border-radius: var(--radius-md);
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            font-size: 0.9rem;
+            font-weight: 800;
+            color: hsl(350, 100%, 30%);
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            box-shadow: var(--card-shadow);
+        }
+
+        .warn-soft {
+            background: hsla(45, 100%, 97%, 1);
+            border: 2px solid hsla(45, 100%, 65%, 0.2);
+            border-radius: var(--radius-md);
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            font-size: 0.9rem;
+            font-weight: 800;
+            color: hsl(45, 100%, 25%);
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            box-shadow: var(--card-shadow);
+        }
+
+        /* Divider between clean/conflict solutions */
+        .section-divider {
+            text-align: center;
+            margin: 20px 0 15px;
+            font-size: 0.85rem;
+            font-weight: 900;
+            color: var(--accent);
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section-divider::before,
+        .section-divider::after {
+            content: '';
+            flex: 1;
+            height: 2px;
+            background: linear-gradient(to left, transparent, var(--accent), transparent);
+            opacity: 0.2;
+        }
+
+        /* ---- PROPOSAL CARDS (Premium Glass) ---- */
+        .prop-card {
+            background: var(--surface);
+            backdrop-filter: blur(8px);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            margin-bottom: 16px;
+            border: 2px solid var(--border);
+            box-shadow: var(--card-shadow);
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            animation: fadeIn 0.4s ease-out backwards;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .prop-card:hover {
+            transform: translateY(-4px) scale(1.01);
+            border-color: var(--primary);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .prop-card::after {
+            content: '‹';
+            position: absolute;
+            left: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.8rem;
+            color: var(--primary);
+            opacity: 0.4;
+            transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .prop-card:hover::after {
+            opacity: 1;
+            transform: translateY(-50%) translateX(-8px);
+        }
+
+        .prop-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #f0f0f5;
+        }
+
+        .prop-title {
+            font-weight: 900;
+            font-size: 0.95rem;
+        }
+
+        .pill-ok {
+            background: hsla(150, 70%, 95%, 1);
+            color: var(--secondary);
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            border: 1px solid hsla(150, 70%, 45%, 0.2);
+        }
+
+        .pill-err {
+            background: hsla(350, 100%, 96%, 1);
+            color: var(--accent);
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            border: 1px solid hsla(350, 100%, 65%, 0.2);
+        }
+
+        .sub-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+            font-size: 0.85rem;
+            gap: 6px;
+        }
+
+        .sub-name {
+            flex: 1;
+            color: var(--text-main);
+            font-weight: 600;
+        }
+
+        /* ---- RESULTS HEADER ---- */
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 24px 0 16px;
+            padding: 0 4px;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        .results-title {
+            font-size: 1.1rem;
+            font-weight: 900;
+            color: var(--text-main);
+            letter-spacing: -0.3px;
+        }
+
+        .results-badge {
+            background: var(--surface);
+            padding: 6px 14px;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 800;
+            border: 1px solid var(--border);
+            box-shadow: var(--card-shadow);
+        }
+
+        .detail-header {
+            background: var(--header-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: var(--glass-shadow);
+        }
+
+        .back-btn {
+            color: var(--primary);
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 8px;
+            background: white;
+            border-radius: 50%;
+            width: 38px;
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            transition: 0.2s;
+        }
+
+        .back-btn:hover {
+            transform: scale(1.1);
+            background: var(--primary);
+            color: white;
+        }
+
+        .det-title {
+            font-weight: 900;
+            font-size: 1.15rem;
+            flex: 1;
+            color: var(--text-main);
+            letter-spacing: -0.3px;
+        }
+
+        .det-subtitle {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin-top: 2px;
+        }
+
+        /* ---- BUTTONS (Action Polish) ---- */
+        .save-btn {
+            width: 100%;
+            margin-top: 16px;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--primary), #4f46e5);
+            color: white;
+            border: none;
+            border-radius: 100px;
+            font-weight: 900;
+            font-size: 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .save-btn:active {
+            transform: scale(0.96);
+            box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
+        }
+
+        .nav-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            gap: 12px;
+            background: rgba(255, 255, 255, 0.5);
+            padding: 10px;
+            border-radius: var(--radius-md);
+        }
+
+        .nav-btn {
+            background: white;
+            border: 1px solid var(--border);
+            padding: 10px 20px;
+            border-radius: 12px;
+            color: var(--primary);
+            font-weight: 800;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: 0.2s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            filter: grayscale(1);
+        }
+
+        .save-btn:active {
+            background: #eef5ff;
+        }
+
+        /* ---- MAIN ACTION BTN ---- */
+        .action-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--secondary), #10b981);
+            color: white;
+            border: none;
+            border-radius: 100px;
+            font-weight: 900;
+            font-size: 1.05rem;
+            margin-top: 16px;
+            cursor: pointer;
+            box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.3);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 25px -5px rgba(16, 185, 129, 0.4);
+        }
+
+        .action-btn:active {
+            transform: scale(0.97);
+        }
+
+        /* ---- EMPTY STATE (Clean) ---- */
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: var(--text-muted);
+            animation: fadeIn 0.8s ease-out;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: var(--radius-lg);
+            border: 2px dashed var(--border);
+        }
+
+        .empty-state .icon {
+            font-size: 3.5rem;
+            margin-bottom: 20px;
+            filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.05));
+            display: block;
+        }
+
+        .empty-state .msg {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: var(--text-main);
+            margin-bottom: 8px;
+        }
+
+        .empty-state .sub-msg {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        /* ---- LOADING (Glassmorphic) ---- */
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            gap: 20px;
+            color: white;
+        }
+
+        .spinner {
+            width: 54px;
+            height: 54px;
+            border: 5px solid rgba(255, 255, 255, 0.1);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+            filter: drop-shadow(0 0 15px var(--primary));
+        }
+
+        #loadingMsg {
+            font-size: 1.1rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px)
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0)
+            }
+        }
+
+        .anim {
+            animation: fadeUp 0.25s ease;
+        }
+
+        /* ---- RESULTS SECTION ---- */
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 18px 0 10px;
+        }
+
+        .results-title {
+            font-weight: 900;
+            font-size: 0.95rem;
+        }
+
+        .results-badge {
+            font-size: 0.78rem;
+            font-weight: 700;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ===================================================== -->
+    <!-- PAGE 1: أداة البحث (Inline Search + Schedule Display) -->
+    <!-- ===================================================== -->
+    <div id="searchPage" class="page active">
+        <div class="app-header">
+            <div class="app-title">جدولي</div>
+            <div class="app-subtitle">أداة تنظيم الجدول الدراسي</div>
+            <div class="top-tabs">
+                <div class="top-tab active" onclick="switchTopTab('search')">🔍 أداة البحث</div>
+                <div class="top-tab" onclick="switchTopTab('schedule')">✨ أداة التنزيل</div>
+            </div>
+        </div>
+
+        <div class="container">
+            <!-- Search Box -->
+            <div class="search-wrap">
+                <div class="search-label">ابحث باسم أو رمز المادة</div>
+                <div class="search-box" id="searchBox1">
+                    <div id="tags1" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+                    <input type="text" id="searchInput1" class="search-input" placeholder="اكتب...">
+                    <div id="dropdown1" class="dropdown"></div>
+                </div>
+            </div>
+
+            <!-- Inline Schedule Tabs -->
+            <div id="inlineScheduleArea" class="hidden">
+                <div class="sched-tabs" style="margin-top:14px;">
+                    <div class="sched-tab active" id="inlineTabLec" onclick="showInlineTab('lec')">جدول المحاضرات</div>
+                    <div class="sched-tab" id="inlineTabExam" onclick="showInlineTab('exam')">جدول النهائي</div>
+                </div>
+
+                <div class="zoom-controls">
+                    <span>🔍 التكبير والتصغير:</span>
+                    <input type="range" class="zoom-slider" min="0.4" max="1.5" step="0.05" value="1.0"
+                        oninput="updateTableZoom(this.value)">
+                </div>
+
+                <!-- Lecture Grid (inline) -->
+                <div id="inlineLecContent">
+                    <div class="grid-scroll">
+                        <table id="lectureGrid">
+                            <thead>
+                                <tr>
+                                    <th>اليوم / الوقت</th>
+                                    <th>08:00<br>09:30</th>
+                                    <th>09:30<br>11:00</th>
+                                    <th>11:00<br>12:30</th>
+                                    <th>12:30<br>14:00</th>
+                                    <th>14:00<br>15:30</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lectureGridBody"></tbody>
+                        </table>
+                    </div>
+                    <button class="save-btn" onclick="saveGridAsImage('lectureGrid', 'جدول_المحاضرات')">
+                        📥 حفظ جدول المحاضرات كصورة
+                    </button>
+                </div>
+
+                <!-- Exam Grid (inline) -->
+                <div id="inlineExamContent" class="hidden">
+                    <div class="grid-scroll">
+                        <table id="examGrid">
+                            <thead>
+                                <tr>
+                                    <th>التاريخ / الفترة</th>
+                                    <th>الفترة الأولى</th>
+                                    <th>الفترة الثانية</th>
+                                    <th>الفترة الثالثة</th>
+                                </tr>
+                            </thead>
+                            <tbody id="examGridBody"></tbody>
+                        </table>
+                    </div>
+                    <button class="save-btn" onclick="saveGridAsImage('examGrid', 'جدول_الامتحانات')">
+                        📥 حفظ جدول الامتحانات كصورة
+                    </button>
+                </div>
+            </div>
+
+            <!-- Empty State (shown until subject selected) -->
+            <div id="emptyState1" class="empty-state">
+                <div class="icon" style="opacity:0.3;">📚</div>
+                <div class="msg">اختر مادة لعرض جدولها مباشرة</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====================================================== -->
+    <!-- PAGE 2: أداة التنزيل (Builder + Proposals + Detail)   -->
+    <!-- ====================================================== -->
+    <div id="schedulePage" class="page">
+
+        <!-- Sub-view A: Builder -->
+        <div id="builderView">
+            <div class="app-header">
+                <div class="app-title">جدولي</div>
+                <div class="app-subtitle">أداة تنظيم الجدول الدراسي</div>
+                <div class="top-tabs">
+                    <div class="top-tab" onclick="switchTopTab('search')">🔍 أداة البحث</div>
+                    <div class="top-tab active" onclick="switchTopTab('schedule')">✨ أداة التنزيل</div>
+                </div>
+            </div>
+
+            <div class="container">
+                <div class="search-wrap">
+                    <div class="search-label">اختر موادك لبناء جدول بدون تعارض</div>
+                    <div class="search-box" id="searchBox2">
+                        <div id="tags2" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+                        <input type="text" id="searchInput2" class="search-input" placeholder="أضف مادة...">
+                        <div id="dropdown2" class="dropdown"></div>
+                    </div>
+                </div>
+
+                <button class="action-btn" onclick="runSolver()">✨ اقتراح الجداول</button>
+
+                <div id="proposalsArea" class="hidden">
+                    <div class="results-header">
+                        <div class="results-title">الجداول المقترحة</div>
+                        <div id="propBadge" class="results-badge"></div>
+                    </div>
+                    <div id="proposalsList"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sub-view B: Detail -->
+        <div id="detailView" class="hidden">
+            <div class="detail-header">
+                <div class="back-btn" onclick="closeDetail()">&#8250;</div>
+                <div class="det-title" id="detTitle">الجدول 1</div>
+                <div id="detBadge"></div>
+            </div>
+
+            <div class="container">
+                <div class="nav-row">
+                    <button class="nav-btn" id="btnPrev" onclick="moveSol(-1)">&#8250; السابق</button>
+                    <span class="counter" id="solCounter"></span>
+                    <button class="nav-btn" id="btnNext" onclick="moveSol(1)">التالي &#8249;</button>
+                </div>
+
+                <div class="sched-tabs">
+                    <div class="sched-tab active" id="detTabLec" onclick="showDetTab('lec')">جدول المحاضرات</div>
+                    <div class="sched-tab" id="detTabExam" onclick="showDetTab('exam')">جدول النهائي</div>
+                </div>
+
+                <div class="zoom-controls">
+                    <span>🔍 التكبير والتصغير:</span>
+                    <input type="range" class="zoom-slider" min="0.4" max="1.5" step="0.05" value="1.0"
+                        oninput="updateTableZoom(this.value)">
+                </div>
+
+                <!-- Detail Lecture Grid -->
+                <div id="detLecContent">
+                    <div class="grid-scroll">
+                        <table id="detLectureGrid">
+                            <thead>
+                                <tr>
+                                    <th>اليوم / الوقت</th>
+                                    <th>08:00<br>09:30</th>
+                                    <th>09:30<br>11:00</th>
+                                    <th>11:00<br>12:30</th>
+                                    <th>12:30<br>14:00</th>
+                                    <th>14:00<br>15:30</th>
+                                </tr>
+                            </thead>
+                            <tbody id="detLecBody"></tbody>
+                        </table>
+                    </div>
+                    <button class="save-btn" onclick="saveGridAsImage('detLectureGrid', '📅 جدول المحاضرات')">
+                        📥 حفظ الجدول وإرساله للبوت
+                    </button>
+                </div>
+
+                <!-- Detail Exam Grid -->
+                <div id="detExamContent" class="hidden">
+                    <!-- تحذيرات تعارض الامتحانات -->
+                    <div id="detExamWarnings"></div>
+                    <div class="grid-scroll">
+                        <table id="detExamGrid">
+                            <thead>
+                                <tr>
+                                    <th>التاريخ / الفترة</th>
+                                    <th>الفترة الأولى</th>
+                                    <th>الفترة الثانية</th>
+                                    <th>الفترة الثالثة</th>
+                                </tr>
+                            </thead>
+                            <tbody id="detExamBody"></tbody>
+                        </table>
+                    </div>
+                    <button class="save-btn" onclick="saveGridAsImage('detExamGrid', '📝 جدول الامتحانات')">
+                        📥 حفظ الجدول وإرساله للبوت
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="spinner"></div>
+        <div id="loadingMsg">جاري الحفظ...</div>
+    </div>
+
+    
+        <script>
+            window.allCourses = [{"id": 8497, "code": "ITGS113", "name": "الحلول التقنية", "group": "A", "day": "السبت", "time": "08:00 - 09:30", "instructor": ".أ اريج سمير امبارك", "room": "مدرج مالك بن نبي"}, {"id": 8498, "code": "ITGS226", "name": "مقدمة في برمجة الانترنت", "group": "B", "day": "السبت", "time": "08:00 - 09:30", "instructor": "أ. مروة ابراهيم عبدالهادي", "room": "البيروني 1"}, {"id": 8499, "code": "ITGS223", "name": "معمارية الحاسوب", "group": "A", "day": "السبت", "time": "08:00 - 09:30", "instructor": "أ سناء بشير دغمان", "room": "البيروني 2"}, {"id": 8500, "code": "ITGS240", "name": "مقدمة في الذكاء الاصطناعي", "group": "A", "day": "السبت", "time": "08:00 - 09:30", "instructor": "أ. أينور إدريس تربح", "room": "مدرج الهوني - مبني الكلية"}, {"id": 8501, "code": "ITGS301", "name": "تصميم وتحليل الخوارزميات", "group": "A", "day": "السبت", "time": "08:00 - 09:30", "instructor": "أ. مي مفتاح البعباع", "room": "الخوارزمي 2"}, {"id": 8502, "code": "ITNT412", "name": "تصميم وإدارة الشبكات", "group": "A", "day": "السبت", "time": "08:00 - 09:30", "instructor": "أ. ناجية خالد بن سعود", "room": "قاعة 6"}, {"id": 8503, "code": "ITMC311", "name": "تطوير التطبيقات المتنقلة", "group": "A", "day": "السبت", "time": "08:00 - 09:30", "instructor": "د. خالد محمد بن حامد", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"id": 8504, "code": "ITGS111", "name": "مقدمة في تقنية المعلومات", "group": "A", "day": "السبت", "time": "09:30 - 11:00", "instructor": ".أ اريج سمير امبارك", "room": "مدرج مالك بن نبي"}, {"id": 8505, "code": "ITGS223", "name": "معمارية الحاسوب", "group": "B", "day": "السبت", "time": "09:30 - 11:00", "instructor": "أ سناء بشير دغمان", "room": "البيروني 1"}, {"id": 8506, "code": "ITGS240", "name": "مقدمة في الذكاء الاصطناعي", "group": "B", "day": "السبت", "time": "09:30 - 11:00", "instructor": "أ. أينور إدريس تربح", "room": "مدرج الهوني - مبني الكلية"}, {"id": 8507, "code": "ITGS301", "name": "تصميم وتحليل الخوارزميات", "group": "B", "day": "السبت", "time": "09:30 - 11:00", "instructor": "أ. مي مفتاح البعباع", "room": "الخوارزمي 2"}, {"id": 8508, "code": "ITGS122", "name": "مقدمة في البرمجة", "group": "B", "day": "السبت", "time": "09:30 - 11:00", "instructor": "أ. ابتسام رجب ابوقندة", "room": "الخوارزمي 1"}, {"id": 8509, "code": "ITNT403", "name": "اساسيات الحوسبة فى كل مكان", "group": "A", "day": "السبت", "time": "09:30 - 11:00", "instructor": "أ. مروة ابراهيم عبدالهادي", "room": "قاعة 6"}, {"id": 8510, "code": "ITNT414", "name": "الحوسبة السحابية", "group": "A", "day": "السبت", "time": "09:30 - 11:00", "instructor": "أ. ناجية خالد بن سعود", "room": "الخوارزمي 3"}, {"id": 8511, "code": "ITMC414", "name": "برمجة الشبكات", "group": "A", "day": "السبت", "time": "09:30 - 11:00", "instructor": "د. خالد محمد بن حامد", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"id": 8512, "code": "ITIS323", "name": "البنية التحتية لنظم المعلومات", "group": "A", "day": "السبت", "time": "09:30 - 11:00", "instructor": "أ. ناجية خالد بن سعود", "room": "الخوارزمي 3"}, {"id": 8513, "code": "ITSE421", "name": "جودة واختبار البرمجيات", "group": "A", "day": "السبت", "time": "09:30 - 11:00", "instructor": "أ. مروى نوري صولة", "room": "قاعة 2"}, {"id": 8514, "code": "ITGS242", "name": "مقدمة في علم البيانات", "group": "A", "day": "السبت", "time": "11:00 - 12:30", "instructor": "أ. فاطمة بشير القاضي", "room": "مدرج الهوني - مبني الكلية"}, {"id": 8515, "code": "ITGS219", "name": "التحليل العددي", "group": "A", "day": "السبت", "time": "11:00 - 12:30", "instructor": "أ. غنى عماد الدين الويفاتي", "room": "البيروني 1"}, {"id": 8516, "code": "ITGS122", "name": "مقدمة في البرمجة", "group": "C", "day": "السبت", "time": "11:00 - 12:30", "instructor": "أ. ابتسام رجب ابوقندة", "room": "البيروني 2"}, {"id": 8517, "code": "ITNT313", "name": "برمجة الشبكات", "group": "A", "day": "السبت", "time": "11:00 - 12:30", "instructor": "أ. مروة ابراهيم عبدالهادي", "room": "قاعة 6"}, {"id": 8518, "code": "ITMC403", "name": "الحوسبة المتوازية والموزعة", "group": "A", "day": "السبت", "time": "11:00 - 12:30", "instructor": "د. خالد محمد بن حامد", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"id": 8519, "code": "ITSE405", "name": "برمجة الشبكات", "group": "A", "day": "السبت", "time": "11:00 - 12:30", "instructor": "أ. مروة ابراهيم عبدالهادي", "room": "قاعة 6"}, {"id": 8520, "code": "ITDA407", "name": "الحوسبة المتوازية والموزعة", "group": "A", "day": "السبت", "time": "11:00 - 12:30", "instructor": "د. خالد محمد بن حامد", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"id": 8521, "code": "ITIS411", "name": "البنيان المؤسساتي", "group": "A", "day": "السبت", "time": "11:00 - 12:30", "instructor": "د. خالد محمد بن حامد", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"id": 8522, "code": "ITSE322", "name": "لغة برمجة الحديثة - جافا متقدمة", "group": "A", "day": "السبت", "time": "11:00 - 12:30", "instructor": "أ. مي مفتاح البعباع", "room": "قاعة 2"}, {"id": 8523, "code": "ITGS126", "name": "تصميم الدوائر المنطقية", "group": "B", "day": "السبت", "time": "12:30 - 14:00", "instructor": "أ. ناجية خالد بن سعود", "room": "مدرج مالك بن نبي"}, {"id": 8524, "code": "ITGS242", "name": "مقدمة في علم البيانات", "group": "B", "day": "السبت", "time": "12:30 - 14:00", "instructor": "أ. فاطمة بشير القاضي", "room": "مدرج الهوني - مبني الكلية"}, {"id": 8525, "code": "ITGS213", "name": "مقدمة في هندسة البرمجيات", "group": "A", "day": "السبت", "time": "12:30 - 14:00", "instructor": "أ. مروى نوري صولة", "room": "البيروني 1"}, {"id": 8526, "code": "ITSE422", "name": "إعادة إستخدام البرمجيات", "group": "A", "day": "السبت", "time": "12:30 - 14:00", "instructor": "أ. غنى عماد الدين الويفاتي", "room": "قاعة 2"}, {"id": 8527, "code": "ITGS213", "name": "مقدمة في هندسة البرمجيات", "group": "B", "day": "السبت", "time": "14:00 - 15:30", "instructor": "أ. مروى نوري صولة", "room": "البيروني 1"}, {"id": 8528, "code": "ITSE412", "name": "برمجة الانترنت المتقدمة", "group": "A", "day": "السبت", "time": "14:00 - 15:30", "instructor": "أ. غنى عماد الدين الويفاتي", "room": "قاعة 2"}, {"id": 8529, "code": "ITAR111", "name": "لغة عربية 1", "group": "A", "day": "السبت", "time": "15:30 - 17:00", "instructor": "أ. احمد علي صمود", "room": "الخوارزمي 5"}, {"id": 8530, "code": "ITEL121", "name": "لغة انجليزية 2", "group": "A", "day": "السبت", "time": "15:30 - 17:00", "instructor": "أ. أحمد علي الهوني", "room": "البيروني 1"}, {"id": 8531, "code": "ITDA321", "name": "البيانات الضخمة", "group": "A", "day": "الأحد", "time": "08:00 - 09:30", "instructor": "أ. فاطمة بشير القاضي", "room": "قاعة 5"}, {"id": 8532, "code": "ITGS226", "name": "مقدمة في برمجة الانترنت", "group": "A", "day": "الأحد", "time": "08:00 - 09:30", "instructor": "أ. وفاء حسين المصباحي", "room": "مدرج مالك بن نبي"}, {"id": 8533, "code": "ITGS303", "name": "إدارة المشاريع", "group": "A", "day": "الأحد", "time": "08:00 - 09:30", "instructor": "أ. هديل رافت الجربي", "room": "مدرج الهوني - مبني الكلية"}, {"id": 8534, "code": "ITNT304", "name": "السياسة الأمنية", "group": "A", "day": "الأحد", "time": "08:00 - 09:30", "instructor": "د. إدريس عبدالهادي غميض", "room": "البيروني 3"}, {"id": 8535, "code": "ITGS211", "name": "البرمجة الشيئية", "group": "C", "day": "الأحد", "time": "08:00 - 09:30", "instructor": "أ محمد فؤاد البوعيشي", "room": "البيروني 1"}, {"id": 8536, "code": "ITMC308", "name": "إجراءات ولوائح الآمان", "group": "A", "day": "الأحد", "time": "08:00 - 09:30", "instructor": "د. إدريس عبدالهادي غميض", "room": "البيروني 3"}, {"id": 8537, "code": "ITSE411", "name": "تصميم وهيكلة البرمجيات", "group": "A", "day": "الأحد", "time": "08:00 - 09:30", "instructor": "أ. بيرم علي زرتي", "room": "البيروني 2"}, {"id": 8538, "code": "ITSE424", "name": "أنماط تصميم البرمجيات", "group": "A", "day": "الأحد", "time": "08:00 - 09:30", "instructor": ".د عبدالحميد الفلاح الواعر", "room": "قاعة 2"}, {"id": 8539, "code": "ITCY313", "name": "خوارزميات وبروتوكولات التشفير", "group": "A", "day": "الأحد", "time": "08:00 - 09:30", "instructor": "أ.د عزالدين محمد السلامي", "room": "قاعة 3"}, {"id": 8540, "code": "ITMC321", "name": "تصميم التفاعلي في الاجهزة  المتنقلة", "group": "A", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "أ. ناهد فتحي فرح", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"id": 8541, "code": "ITDA412", "name": "تمييز الانماط", "group": "A", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "أ. فاطمة بشير القاضي", "room": "قاعة 5"}, {"id": 8542, "code": "ITDA322", "name": "تصور البيانات", "group": "A", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "د. يوسف محمد أبوستة", "room": "قاعة 9"}, {"id": 8543, "code": "ITDA312", "name": "هندسة البيانات", "group": "A", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "أ. ابتسام عبدالسلام العاشوري", "room": "قاعة 5"}, {"id": 8544, "code": "ITIS313", "name": "إدارة البيانات والمعلومات", "group": "A", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "أ. ابتسام عبدالسلام العاشوري", "room": "قاعة 5"}, {"id": 8545, "code": "ITGS303", "name": "إدارة المشاريع", "group": "B", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "أ. هديل رافت الجربي", "room": "مدرج الهوني - مبني الكلية"}, {"id": 8546, "code": "ITGS304", "name": "كتابة التقارير العلمية - لغة انجليزية", "group": "A", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "أ. مروة مسعود خليفة", "room": "الخوارزمي 2"}, {"id": 8547, "code": "ITGS217", "name": "التراكيب المنفصلة", "group": "A", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "رحاب عبدالله بن عبدالله", "room": "مدرج مالك بن نبي"}, {"id": 8548, "code": "ITGS122", "name": "مقدمة في البرمجة", "group": "D", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "أ. ابتسام رجب ابوقندة", "room": "البيروني 2"}, {"id": 8549, "code": "ITGS228", "name": "مقدمة في قواعد البيانات", "group": "D", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "أ. حسن علي ابراهيم", "room": "مدرج نصرالدين الزعبي"}, {"id": 8550, "code": "ITNT411", "name": "الأنظمة الموزعة", "group": "A", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "د. إدريس عبدالهادي غميض", "room": "البيروني 3"}, {"id": 8551, "code": "ITNT321", "name": "الشبكات المترامية", "group": "A", "day": "الأحد", "time": "09:30 - 11:00", "instructor": ".أ حمدي أحمد جابر", "room": "الخوارزمي 1"}, {"id": 8552, "code": "ITMC305", "name": "مواضيع مختارة", "group": "A", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "د. محمد احمد مغيدر", "room": "قاعة 1"}, {"id": 8553, "code": "ITSE321", "name": "بناء البرمجيات", "group": "A", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "د. امنة علي محمد", "room": "قاعة 2"}, {"id": 8554, "code": "ITCY324", "name": "الحوسبة السحابية", "group": "A", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "أ.د عزالدين محمد السلامي", "room": "قاعة 3"}, {"id": 8555, "code": "ITCY422", "name": "مبادي التحليل الجنائي الرقمي", "group": "A", "day": "الأحد", "time": "09:30 - 11:00", "instructor": "أ. عبدالرؤوف محمد الغرياني", "room": "معمل 2 - مبني الكلية الجديد"}, {"id": 8556, "code": "ITDA223", "name": "الاحصاء والاحتمالات لعلم البيانات", "group": "A", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "د. عادل علي أوحيدة", "room": "قاعة 9"}, {"id": 8557, "code": "ITDA402", "name": "ذكاء الاعمال", "group": "A", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "أ. هديل رافت الجربي", "room": "قاعة 5"}, {"id": 8558, "code": "ITIS422", "name": "إدارة إستراتيجيات نظم المعلومات", "group": "A", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "أ. هديل رافت الجربي", "room": "قاعة 5"}, {"id": 8559, "code": "ITGS228", "name": "مقدمة في قواعد البيانات", "group": "A", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "أ. ابتسام عبدالسلام العاشوري", "room": "البيروني 1"}, {"id": 8560, "code": "ITGS304", "name": "كتابة التقارير العلمية - لغة انجليزية", "group": "B", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "أ. مروة مسعود خليفة", "room": "الخوارزمي 2"}, {"id": 8561, "code": "ITGS217", "name": "التراكيب المنفصلة", "group": "B", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "رحاب عبدالله بن عبدالله", "room": "مدرج مالك بن نبي"}, {"id": 8562, "code": "ITGS122", "name": "مقدمة في البرمجة", "group": "C", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "أ. ابتسام رجب ابوقندة", "room": "البيروني 2"}, {"id": 8563, "code": "ITGS228", "name": "مقدمة في قواعد البيانات", "group": "C", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "أ. حسن علي ابراهيم", "room": "مدرج نصرالدين الزعبي"}, {"id": 8564, "code": "ITNT401", "name": "شبكات المنطقة الشخصية", "group": "A", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "د. هالة منصور الشاعرى", "room": "قاعة 1"}, {"id": 8565, "code": "ITMC412", "name": "شبكات المنطقة الشخصية", "group": "A", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "د. هالة منصور الشاعرى", "room": "قاعة 1"}, {"id": 8566, "code": "ITMC323", "name": "تطوير التطبيقات المتعددة المنصات", "group": "A", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "د. محمد احمد مغيدر", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"id": 8567, "code": "ITSE304", "name": "برمجة التطبيقات الجوالة", "group": "A", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "د. محمد احمد مغيدر", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"id": 8568, "code": "ITGS224", "name": "امن المعلومات", "group": "C", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "أ. علي محمود محمد", "room": "الخوارزمي 3"}, {"id": 8569, "code": "ITCY322", "name": "الهاكر الاخلاقي", "group": "A", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "أ. عبدالرؤوف محمد الغرياني", "room": "معمل 2 - مبني الكلية الجديد"}, {"id": 8570, "code": "ITCY414", "name": "مقدمة في حوكمة الامن السيبرانى", "group": "A", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "أ.د عزالدين محمد السلامي", "room": "البيروني 3"}, {"id": 8571, "code": "ITIS412", "name": "الأمن وإدارة المخاطر", "group": "A", "day": "الأحد", "time": "11:00 - 12:30", "instructor": "أ.د عزالدين محمد السلامي", "room": "البيروني 3"}, {"id": 8572, "code": "ITDA403", "name": "نظرية الألعاب", "group": "A", "day": "الأحد", "time": "12:30 - 14:00", "instructor": "د. يوسف محمد أبوستة", "room": "قاعة 5"}, {"id": 8573, "code": "ITGS220", "name": "تراكيب البيانات", "group": "A", "day": "الأحد", "time": "12:30 - 14:00", "instructor": "د. امنة علي محمد", "room": "البيروني 1"}, {"id": 8574, "code": "ITMC411", "name": "الأمن في الحوسبة المتنقلة", "group": "A", "day": "الأحد", "time": "12:30 - 14:00", "instructor": "أ. محمد معتوق الكوم", "room": "قاعة 1"}, {"id": 8575, "code": "ITSE312", "name": "قواعد البيانات المتقدمة", "group": "A", "day": "الأحد", "time": "12:30 - 14:00", "instructor": "أ. حسن علي ابراهيم", "room": "مدرج نصرالدين الزعبي"}, {"id": 8576, "code": "ITSE305", "name": "مواضيع مختارة", "group": "A", "day": "الأحد", "time": "12:30 - 14:00", "instructor": "د. عبدالمنعم عمر الاسود", "room": "قاعة 2"}, {"id": 8577, "code": "ITIS325", "name": "قواعد البيانات المتقدمة", "group": "A", "day": "الأحد", "time": "12:30 - 14:00", "instructor": "أ. حسن علي ابراهيم", "room": "مدرج نصرالدين الزعبي"}, {"id": 8578, "code": "ITCY401", "name": "نظام تشغيل لينيكس", "group": "A", "day": "الأحد", "time": "12:30 - 14:00", "instructor": "أ. عبدالرؤوف محمد الغرياني", "room": "معمل 2 - مبني الكلية الجديد"}, {"id": 8579, "code": "ITCY421", "name": "ألامن في الحوسبة المتنفلة", "group": "A", "day": "الأحد", "time": "12:30 - 14:00", "instructor": "أ. محمد معتوق الكوم", "room": "قاعة 1"}, {"id": 8580, "code": "ITGS220", "name": "تراكيب البيانات", "group": "B", "day": "الأحد", "time": "14:00 - 15:30", "instructor": "د. امنة علي محمد", "room": "البيروني 1"}, {"id": 8581, "code": "ITSE413", "name": "التفاعل بين الإنسان والحاسوب", "group": "A", "day": "الأحد", "time": "14:00 - 15:30", "instructor": "د. عبدالمنعم عمر الاسود", "room": "قاعة 2"}, {"id": 8582, "code": "ITEL111", "name": "لغة انجليزية 1", "group": "A", "day": "الأحد", "time": "15:30 - 17:00", "instructor": "أ. احمد علي صمود", "room": "الخوارزمي 5"}, {"id": 8583, "code": "ITDA323", "name": "تعلم الآلة", "group": "A", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": "د. محمد علي ابراهيم الطاهر", "room": "قاعة 5"}, {"id": 8584, "code": "ITGS240", "name": "مقدمة في الذكاء الاصطناعي", "group": "A", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": "أ. أينور إدريس تربح", "room": "مدرج الهوني - مبني الكلية"}, {"id": 8585, "code": "ITGS122", "name": "مقدمة في البرمجة", "group": "A", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": "أ سعد اعمار الذيب", "room": "الخوارزمي 1"}, {"id": 8586, "code": "ITGS301", "name": "تصميم وتحليل الخوارزميات", "group": "A", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": "أ. مي مفتاح البعباع", "room": "الخوارزمي 2"}, {"id": 8587, "code": "ITNT324", "name": "الإتصالات اللاسلكية والمحمولة", "group": "A", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": "د. محمد مفتاح الرايس", "room": "البيروني 3"}, {"id": 8588, "code": "ITNT314", "name": "خورازميات و بروتوكولات التشفير", "group": "A", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": "د. محمد عبدالسلام عزاقة", "room": "قاعة 1"}, {"id": 8589, "code": "ITNT412", "name": "تصميم وإدارة الشبكات", "group": "A", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": "أ. ناجية خالد بن سعود", "room": "قاعة 6"}, {"id": 8590, "code": "ITMC312", "name": "مبادئ  شبكات  اللاسلكية  المتنقلة", "group": "A", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": "د. محمد مفتاح الرايس", "room": "البيروني 3"}, {"id": 8591, "code": "ITSE306", "name": "التشفير وأمن المعلومات", "group": "A", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": "د. محمد عبدالسلام عزاقة", "room": "قاعة 1"}, {"id": 8592, "code": "ITMC313", "name": "نظم تشغيل الأجهزة  المتنقلة", "group": "A", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": "رحاب عبدالله بن عبدالله", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"id": 8593, "code": "ITCY321", "name": "الشبكات اللاسلكية", "group": "A", "day": "الإثنين", "time": "08:00 - 09:30", "instructor": "د. محمد مفتاح الرايس", "room": "البيروني 3"}, {"id": 8594, "code": "ITDA311", "name": "تنقيب البيانات", "group": "A", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "أ.د. محمد عبدالدائم محبوب", "room": "الخوارزمي 5"}, {"id": 8595, "code": "ITDA411", "name": "الشبكات العصبية", "group": "A", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "أ. أينور إدريس تربح", "room": "قاعة 9"}, {"id": 8596, "code": "ITIS404", "name": "تنقيب البيانات -  الذكاء التجاري", "group": "A", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "أ.د. محمد عبدالدائم محبوب", "room": "الخوارزمي 5"}, {"id": 8597, "code": "ITGS126", "name": "تصميم الدوائر المنطقية", "group": "A", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "د. محمد عبدالسلام عزاقة", "room": "مدرج مالك بن نبي"}, {"id": 8598, "code": "ITGS301", "name": "تصميم وتحليل الخوارزميات", "group": "B", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "أ. مي مفتاح البعباع", "room": "الخوارزمي 2"}, {"id": 8599, "code": "ITNT322", "name": "بروتوكولات وبرمجيات الشبكات", "group": "A", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "د. محمد مفتاح الرايس", "room": "البيروني 3"}, {"id": 8600, "code": "ITNT311", "name": "اتصال بيانات", "group": "A", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "د. عبدالباسط الهادي التهامي", "room": "الخوارزمي 1"}, {"id": 8601, "code": "ITMC421", "name": "أساسيات الحوسبة في كل مكان", "group": "A", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "رحاب عبدالله بن عبدالله", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"id": 8602, "code": "ITMC301", "name": "المعالج الدقيق أي أر إم", "group": "A", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "أ سناء بشير دغمان", "room": "قاعة 1"}, {"id": 8603, "code": "ITSE302", "name": "تنقيب البيانات", "group": "A", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "أ.د. محمد عبدالدائم محبوب", "room": "الخوارزمي 5"}, {"id": 8604, "code": "ITSE311", "name": "تحليل متطلبات برمجيات", "group": "A", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "أ. فاطمه علي بن الاشهر", "room": "قاعة 2"}, {"id": 8605, "code": "ITGS224", "name": "امن المعلومات", "group": "B", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "أ. عبدالرؤوف محمد الغرياني", "room": "مدرج الهوني - مبني الكلية"}, {"id": 8606, "code": "ITCY312", "name": "بروتوكولات وبرمجيات الشبكات", "group": "A", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "د. خالد البشير الربيعي", "room": "البيروني 2"}, {"id": 8607, "code": "ITCY414", "name": "مقدمة في حوكمة الامن السيبرانى", "group": "A", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "أ.د عزالدين محمد السلامي", "room": "البيروني 1"}, {"id": 8608, "code": "ITIS412", "name": "الأمن وإدارة المخاطر", "group": "A", "day": "الإثنين", "time": "09:30 - 11:00", "instructor": "أ.د عزالدين محمد السلامي", "room": "البيروني 1"}, {"id": 8609, "code": "ITDA314", "name": "الجبر الخطي", "group": "A", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": ".أ امل عبدالله الطربان", "room": "قاعة 9"}, {"id": 8610, "code": "ITGS215", "name": "مقدمة في شبكات الحاسوب", "group": "A", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": "د. عبدالباسط الهادي التهامي", "room": "البيروني 2"}, {"id": 8611, "code": "ITGS228", "name": "مقدمة في قواعد البيانات", "group": "A", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": "أ. ابتسام عبدالسلام العاشوري", "room": "البيروني 1"}, {"id": 8612, "code": "ITGS242", "name": "مقدمة في علم البيانات", "group": "A", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": "أ. فاطمة بشير القاضي", "room": "مدرج الهوني - مبني الكلية"}, {"id": 8613, "code": "ITNT414", "name": "الحوسبة السحابية", "group": "A", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": "أ. ناجية خالد بن سعود", "room": "الخوارزمي 3"}, {"id": 8614, "code": "ITGS224", "name": "امن المعلومات", "group": "A", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": "أ. عبدالرؤوف محمد الغرياني", "room": "مدرج مالك بن نبي"}, {"id": 8615, "code": "ITIS323", "name": "البنية التحتية لنظم المعلومات", "group": "A", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": "أ. ناجية خالد بن سعود", "room": "الخوارزمي 3"}, {"id": 8616, "code": "ITSE322", "name": "لغة برمجة الحديثة - جافا متقدمة", "group": "A", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": "أ. مي مفتاح البعباع", "room": "الخوارزمي 2"}, {"id": 8617, "code": "ITSE423", "name": "البرمجة المرئية", "group": "A", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": "أ. فاطمه علي بن الاشهر", "room": "قاعة 2"}, {"id": 8618, "code": "ITCY403", "name": "الذكاء الاصطناعي والامن السيبراني (لغة الالة)", "group": "A", "day": "الإثنين", "time": "11:00 - 12:30", "instructor": "د. خالد البشير الربيعي", "room": "البيروني 3"}, {"id": 8619, "code": "ITDA413", "name": "معالجة اللغات الطبيعية", "group": "A", "day": "الإثنين", "time": "12:30 - 14:00", "instructor": "أ.د. محمد عبدالدائم محبوب", "room": "قاعة 5"}, {"id": 8620, "code": "ITGS126", "name": "تصميم الدوائر المنطقية", "group": "B", "day": "الإثنين", "time": "12:30 - 14:00", "instructor": "أ. ناجية خالد بن سعود", "room": "البيروني 1"}, {"id": 8621, "code": "ITGS211", "name": "البرمجة الشيئية", "group": "A", "day": "الإثنين", "time": "12:30 - 14:00", "instructor": ".أ محمد على وهيبة", "room": "مدرج مالك بن نبي"}, {"id": 8622, "code": "ITGS228", "name": "مقدمة في قواعد البيانات", "group": "B", "day": "الإثنين", "time": "12:30 - 14:00", "instructor": "أ. ابتسام عبدالسلام العاشوري", "room": "البيروني 2"}, {"id": 8623, "code": "ITGS242", "name": "مقدمة في علم البيانات", "group": "B", "day": "الإثنين", "time": "12:30 - 14:00", "instructor": "أ. فاطمة بشير القاضي", "room": "مدرج الهوني - مبني الكلية"}, {"id": 8624, "code": "ITNT422", "name": "شبكات السرعات العالية - الألياف البصرية", "group": "A", "day": "الإثنين", "time": "12:30 - 14:00", "instructor": "د. عبدالباسط الهادي التهامي", "room": "البيروني 3"}, {"id": 8625, "code": "ITMC322", "name": "قواعد البيانات المتنقلة وغير متجانسة", "group": "A", "day": "الإثنين", "time": "12:30 - 14:00", "instructor": "أ. محمد علي وهيبة", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"id": 8626, "code": "ITDA308", "name": "قواعد البيانات غير المتجاسة", "group": "A", "day": "الإثنين", "time": "12:30 - 14:00", "instructor": "أ. محمد علي وهيبة", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"id": 8627, "code": "ITSE408", "name": "تطوير تطبيقات الإنترنت", "group": "A", "day": "الإثنين", "time": "12:30 - 14:00", "instructor": "د. عبدالسلام الفيتوري النويصري", "room": "قاعة 2"}, {"id": 8628, "code": "ITCY411", "name": "أمن وطرق الدفاع بالشبكات", "group": "A", "day": "الإثنين", "time": "12:30 - 14:00", "instructor": "د. خالد البشير الربيعي", "room": "الخوارزمي 1"}, {"id": 8629, "code": "ITCY323", "name": "قواعد البيانات المتقدمة", "group": "A", "day": "الإثنين", "time": "12:30 - 14:00", "instructor": "أ. محمد علي وهيبة", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"id": 8630, "code": "ITGS211", "name": "البرمجة الشيئية", "group": "B", "day": "الإثنين", "time": "14:00 - 15:30", "instructor": ".أ محمد على وهيبة", "room": "مدرج مالك بن نبي"}, {"id": 8631, "code": "ITSE424", "name": "أنماط تصميم البرمجيات", "group": "A", "day": "الإثنين", "time": "14:00 - 15:30", "instructor": ".د عبدالحميد الفلاح الواعر", "room": "قاعة 2"}, {"id": 8632, "code": "ITMM111", "name": "رياضة 1", "group": "A", "day": "الإثنين", "time": "15:30 - 17:00", "instructor": "أ. احمد علي صمود", "room": "البيروني 1"}, {"id": 8633, "code": "ITDA405", "name": "أنطمة التوصية", "group": "A", "day": "الثلاثاء", "time": "08:00 - 09:30", "instructor": "أ. هديل رافت الجربي", "room": "قاعة 9"}, {"id": 8634, "code": "ITGS111", "name": "مقدمة في تقنية المعلومات", "group": "A", "day": "الثلاثاء", "time": "08:00 - 09:30", "instructor": ".أ اريج سمير امبارك", "room": "مدرج مالك بن نبي"}, {"id": 8635, "code": "ITGS226", "name": "مقدمة في برمجة الانترنت", "group": "B", "day": "الثلاثاء", "time": "08:00 - 09:30", "instructor": "أ. مروة ابراهيم عبدالهادي", "room": "البيروني 1"}, {"id": 8636, "code": "ITNT421", "name": "جودة خدمات الشبكات", "group": "A", "day": "الثلاثاء", "time": "08:00 - 09:30", "instructor": "أ. مريم ابوعجيله مساعد", "room": "قاعة 6"}, {"id": 8637, "code": "ITNT321", "name": "الشبكات المترامية", "group": "A", "day": "الثلاثاء", "time": "08:00 - 09:30", "instructor": ".أ حمدي أحمد جابر", "room": "الخوارزمي 1"}, {"id": 8638, "code": "ITMC311", "name": "تطوير التطبيقات المتنقلة", "group": "A", "day": "الثلاثاء", "time": "08:00 - 09:30", "instructor": "د. خالد محمد بن حامد", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"id": 8639, "code": "ITSE414", "name": "أخلاقيات هندسة البرمجيات", "group": "A", "day": "الثلاثاء", "time": "08:00 - 09:30", "instructor": "أ. علياء مفتاح علي", "room": "قاعة 2"}, {"id": 8640, "code": "ITDA421", "name": "اخلاقيات الذكاء الاصطناعي والاتجاهات المستقبلية", "group": "A", "day": "الثلاثاء", "time": "08:00 - 09:30", "instructor": "أ. علياء مفتاح علي", "room": "قاعة 2"}, {"id": 8641, "code": "ITDA403", "name": "نظرية الألعاب", "group": "A", "day": "الثلاثاء", "time": "09:30 - 11:00", "instructor": "د. يوسف محمد أبوستة", "room": "قاعة 9"}, {"id": 8642, "code": "ITGS113", "name": "الحلول التقنية", "group": "A", "day": "الثلاثاء", "time": "09:30 - 11:00", "instructor": ".أ اريج سمير امبارك", "room": "مدرج مالك بن نبي"}, {"id": 8643, "code": "ITGS303", "name": "إدارة المشاريع", "group": "B", "day": "الثلاثاء", "time": "09:30 - 11:00", "instructor": "أ. هديل رافت الجربي", "room": "مدرج الهوني - مبني الكلية"}, {"id": 8644, "code": "ITGS226", "name": "مقدمة في برمجة الانترنت", "group": "C", "day": "الثلاثاء", "time": "09:30 - 11:00", "instructor": "أ. مروة ابراهيم عبدالهادي", "room": "البيروني 2"}, {"id": 8645, "code": "ITGS122", "name": "مقدمة في البرمجة", "group": "B", "day": "الثلاثاء", "time": "09:30 - 11:00", "instructor": "أ. ابتسام رجب ابوقندة", "room": "الخوارزمي 1"}, {"id": 8646, "code": "ITGS213", "name": "مقدمة في هندسة البرمجيات", "group": "C", "day": "الثلاثاء", "time": "09:30 - 11:00", "instructor": "أ. علياء مفتاح علي", "room": "البيروني 1"}, {"id": 8647, "code": "ITGS228", "name": "مقدمة في قواعد البيانات", "group": "D", "day": "الثلاثاء", "time": "09:30 - 11:00", "instructor": "أ. حسن علي ابراهيم", "room": "مدرج نصرالدين الزعبي"}, {"id": 8648, "code": "ITNT312", "name": "الشبكات المحلية", "group": "A", "day": "الثلاثاء", "time": "09:30 - 11:00", "instructor": "أ. مريم ابوعجيله مساعد", "room": "قاعة 6"}, {"id": 8649, "code": "ITMC413", "name": "الشبكات الاجتماعية", "group": "A", "day": "الثلاثاء", "time": "09:30 - 11:00", "instructor": "أ. منار سامي عريف", "room": "قاعة 1"}, {"id": 8650, "code": "ITMC414", "name": "برمجة الشبكات", "group": "A", "day": "الثلاثاء", "time": "09:30 - 11:00", "instructor": "د. خالد محمد بن حامد", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"id": 8651, "code": "ITSE409", "name": "الشبكات الاجتماعية", "group": "A", "day": "الثلاثاء", "time": "09:30 - 11:00", "instructor": "أ. منار سامي عريف", "room": "قاعة 1"}, {"id": 8652, "code": "ITSE412", "name": "برمجة الانترنت المتقدمة", "group": "A", "day": "الثلاثاء", "time": "09:30 - 11:00", "instructor": "أ. غنى عماد الدين الويفاتي", "room": "قاعة 2"}, {"id": 8653, "code": "ITGS224", "name": "امن المعلومات", "group": "C", "day": "الثلاثاء", "time": "09:30 - 11:00", "instructor": "أ. علي محمود محمد", "room": "الخوارزمي 2"}, {"id": 8654, "code": "ITCY322", "name": "الهاكر الاخلاقي", "group": "A", "day": "الثلاثاء", "time": "09:30 - 11:00", "instructor": "أ. عبدالرؤوف محمد الغرياني", "room": "معمل 2 - مبني الكلية الجديد"}, {"id": 8655, "code": "ITGS303", "name": "إدارة المشاريع", "group": "A", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "أ. هديل رافت الجربي", "room": "مدرج الهوني - مبني الكلية"}, {"id": 8656, "code": "ITGS122", "name": "مقدمة في البرمجة", "group": "D", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "أ. ابتسام رجب ابوقندة", "room": "البيروني 2"}, {"id": 8657, "code": "ITGS213", "name": "مقدمة في هندسة البرمجيات", "group": "D", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "أ. علياء مفتاح علي", "room": "البيروني 3"}, {"id": 8658, "code": "ITGS228", "name": "مقدمة في قواعد البيانات", "group": "C", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "أ. حسن علي ابراهيم", "room": "مدرج نصرالدين الزعبي"}, {"id": 8659, "code": "ITNT401", "name": "شبكات المنطقة الشخصية", "group": "A", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "د. هالة منصور الشاعرى", "room": "قاعة 1"}, {"id": 8660, "code": "ITMC412", "name": "شبكات المنطقة الشخصية", "group": "A", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "د. هالة منصور الشاعرى", "room": "قاعة 1"}, {"id": 8661, "code": "ITMC403", "name": "الحوسبة المتوازية والموزعة", "group": "A", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "د. خالد محمد بن حامد", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"id": 8662, "code": "ITDA407", "name": "الحوسبة المتوازية والموزعة", "group": "A", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "د. خالد محمد بن حامد", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"id": 8663, "code": "ITIS411", "name": "البنيان المؤسساتي", "group": "A", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "د. خالد محمد بن حامد", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"id": 8664, "code": "ITSE422", "name": "إعادة إستخدام البرمجيات", "group": "A", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "أ. غنى عماد الدين الويفاتي", "room": "قاعة 2"}, {"id": 8665, "code": "ITCY401", "name": "نظام تشغيل لينيكس", "group": "A", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "أ. عبدالرؤوف محمد الغرياني", "room": "معمل 2 - مبني الكلية الجديد"}, {"id": 8666, "code": "ITCY412", "name": "مقدمة في أمن البرمجيات", "group": "A", "day": "الثلاثاء", "time": "11:00 - 12:30", "instructor": "أ.د عزالدين محمد السلامي", "room": "البيروني 1"}, {"id": 8667, "code": "ITDA404", "name": "الوكيل والانظمة المعرفية", "group": "A", "day": "الثلاثاء", "time": "12:30 - 14:00", "instructor": "د. يوسف محمد أبوستة", "room": "قاعة 5"}, {"id": 8668, "code": "ITGS220", "name": "تراكيب البيانات", "group": "A", "day": "الثلاثاء", "time": "12:30 - 14:00", "instructor": "د. امنة علي محمد", "room": "البيروني 1"}, {"id": 8669, "code": "ITGS219", "name": "التحليل العددي", "group": "A", "day": "الثلاثاء", "time": "12:30 - 14:00", "instructor": "أ. غنى عماد الدين الويفاتي", "room": "البيروني 2"}, {"id": 8670, "code": "ITSE312", "name": "قواعد البيانات المتقدمة", "group": "A", "day": "الثلاثاء", "time": "12:30 - 14:00", "instructor": "أ. حسن علي ابراهيم", "room": "مدرج نصرالدين الزعبي"}, {"id": 8671, "code": "ITSE305", "name": "مواضيع مختارة", "group": "A", "day": "الثلاثاء", "time": "12:30 - 14:00", "instructor": "د. عبدالمنعم عمر الاسود", "room": "قاعة 2"}, {"id": 8672, "code": "ITIS325", "name": "قواعد البيانات المتقدمة", "group": "A", "day": "الثلاثاء", "time": "12:30 - 14:00", "instructor": "أ. حسن علي ابراهيم", "room": "مدرج نصرالدين الزعبي"}, {"id": 8673, "code": "ITCY422", "name": "مبادي التحليل الجنائي الرقمي", "group": "A", "day": "الثلاثاء", "time": "12:30 - 14:00", "instructor": "أ. عبدالرؤوف محمد الغرياني", "room": "معمل 2 - مبني الكلية الجديد"}, {"id": 8674, "code": "ITSE413", "name": "التفاعل بين الإنسان والحاسوب", "group": "A", "day": "الثلاثاء", "time": "14:00 - 15:30", "instructor": "د. عبدالمنعم عمر الاسود", "room": "قاعة 2"}, {"id": 8675, "code": "ITMM122", "name": "رياضة 2", "group": "A", "day": "الثلاثاء", "time": "15:30 - 17:00", "instructor": "أ. احمد علي صمود", "room": "البيروني 1"}, {"id": 8676, "code": "ITGS226", "name": "مقدمة في برمجة الانترنت", "group": "A", "day": "الإربعاء", "time": "08:00 - 09:30", "instructor": "أ. وفاء حسين المصباحي", "room": "مدرج مالك بن نبي"}, {"id": 8677, "code": "ITGS223", "name": "معمارية الحاسوب", "group": "A", "day": "الإربعاء", "time": "08:00 - 09:30", "instructor": "أ سناء بشير دغمان", "room": "البيروني 2"}, {"id": 8678, "code": "ITGS122", "name": "مقدمة في البرمجة", "group": "A", "day": "الإربعاء", "time": "08:00 - 09:30", "instructor": "أ سعد اعمار الذيب", "room": "الخوارزمي 1"}, {"id": 8679, "code": "ITNT324", "name": "الإتصالات اللاسلكية والمحمولة", "group": "A", "day": "الإربعاء", "time": "08:00 - 09:30", "instructor": "د. محمد مفتاح الرايس", "room": "البيروني 3"}, {"id": 8680, "code": "ITNT304", "name": "السياسة الأمنية", "group": "A", "day": "الإربعاء", "time": "08:00 - 09:30", "instructor": "د. إدريس عبدالهادي غميض", "room": "مدرج الهوني - مبني الكلية"}, {"id": 8681, "code": "ITNT421", "name": "جودة خدمات الشبكات", "group": "A", "day": "الإربعاء", "time": "08:00 - 09:30", "instructor": "أ. مريم ابوعجيله مساعد", "room": "قاعة 6"}, {"id": 8682, "code": "ITNT314", "name": "خورازميات و بروتوكولات التشفير", "group": "A", "day": "الإربعاء", "time": "08:00 - 09:30", "instructor": "د. محمد عبدالسلام عزاقة", "room": "قاعة 1"}, {"id": 8683, "code": "ITMC312", "name": "مبادئ  شبكات  اللاسلكية  المتنقلة", "group": "A", "day": "الإربعاء", "time": "08:00 - 09:30", "instructor": "د. محمد مفتاح الرايس", "room": "البيروني 3"}, {"id": 8684, "code": "ITMC308", "name": "إجراءات ولوائح الآمان", "group": "A", "day": "الإربعاء", "time": "08:00 - 09:30", "instructor": "د. إدريس عبدالهادي غميض", "room": "مدرج الهوني - مبني الكلية"}, {"id": 8685, "code": "ITSE306", "name": "التشفير وأمن المعلومات", "group": "A", "day": "الإربعاء", "time": "08:00 - 09:30", "instructor": "د. محمد عبدالسلام عزاقة", "room": "قاعة 1"}, {"id": 8686, "code": "ITMC313", "name": "نظم تشغيل الأجهزة  المتنقلة", "group": "A", "day": "الإربعاء", "time": "08:00 - 09:30", "instructor": "رحاب عبدالله بن عبدالله", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"id": 8687, "code": "ITCY411", "name": "أمن وطرق الدفاع بالشبكات", "group": "A", "day": "الإربعاء", "time": "08:00 - 09:30", "instructor": "د. خالد البشير الربيعي", "room": "البيروني 1"}, {"id": 8688, "code": "ITCY321", "name": "الشبكات اللاسلكية", "group": "A", "day": "الإربعاء", "time": "08:00 - 09:30", "instructor": "د. محمد مفتاح الرايس", "room": "البيروني 3"}, {"id": 8689, "code": "ITDA311", "name": "تنقيب البيانات", "group": "A", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "أ.د. محمد عبدالدائم محبوب", "room": "قاعة 5"}, {"id": 8690, "code": "ITIS404", "name": "تنقيب البيانات -  الذكاء التجاري", "group": "A", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "أ.د. محمد عبدالدائم محبوب", "room": "قاعة 5"}, {"id": 8691, "code": "ITGS126", "name": "تصميم الدوائر المنطقية", "group": "A", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "د. محمد عبدالسلام عزاقة", "room": "مدرج مالك بن نبي"}, {"id": 8692, "code": "ITGS223", "name": "معمارية الحاسوب", "group": "B", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "أ سناء بشير دغمان", "room": "البيروني 1"}, {"id": 8693, "code": "ITGS304", "name": "كتابة التقارير العلمية - لغة انجليزية", "group": "A", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "أ. مروة مسعود خليفة", "room": "الخوارزمي 2"}, {"id": 8694, "code": "ITNT322", "name": "بروتوكولات وبرمجيات الشبكات", "group": "A", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "د. محمد مفتاح الرايس", "room": "البيروني 3"}, {"id": 8695, "code": "ITNT411", "name": "الأنظمة الموزعة", "group": "A", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "د. إدريس عبدالهادي غميض", "room": "مدرج الهوني - مبني الكلية"}, {"id": 8696, "code": "ITNT312", "name": "الشبكات المحلية", "group": "A", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "أ. مريم ابوعجيله مساعد", "room": "قاعة 6"}, {"id": 8697, "code": "ITMC305", "name": "مواضيع مختارة", "group": "A", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "د. محمد احمد مغيدر", "room": "قاعة 1"}, {"id": 8698, "code": "ITSE302", "name": "تنقيب البيانات", "group": "A", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "أ.د. محمد عبدالدائم محبوب", "room": "قاعة 5"}, {"id": 8699, "code": "ITGS224", "name": "امن المعلومات", "group": "B", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "أ. عبدالرؤوف محمد الغرياني", "room": "الخوارزمي 1"}, {"id": 8700, "code": "ITCY403", "name": "الذكاء الاصطناعي والامن السيبراني (لغة الالة)", "group": "A", "day": "الإربعاء", "time": "09:30 - 11:00", "instructor": "د. خالد البشير الربيعي", "room": "البيروني 2"}, {"id": 8701, "code": "ITIS313", "name": "إدارة البيانات والمعلومات", "group": "A", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": "أ. ابتسام عبدالسلام العاشوري", "room": "قاعة 5"}, {"id": 8702, "code": "ITGS215", "name": "مقدمة في شبكات الحاسوب", "group": "A", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": "د. عبدالباسط الهادي التهامي", "room": "البيروني 2"}, {"id": 8703, "code": "ITGS304", "name": "كتابة التقارير العلمية - لغة انجليزية", "group": "B", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": "أ. مروة مسعود خليفة", "room": "الخوارزمي 2"}, {"id": 8704, "code": "ITGS213", "name": "مقدمة في هندسة البرمجيات", "group": "A", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": "أ. مروى نوري صولة", "room": "الخوارزمي 1"}, {"id": 8705, "code": "ITGS224", "name": "امن المعلومات", "group": "A", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": "أ. عبدالرؤوف محمد الغرياني", "room": "البيروني 1"}, {"id": 8706, "code": "ITMC323", "name": "تطوير التطبيقات المتعددة المنصات", "group": "A", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": "د. محمد احمد مغيدر", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"id": 8707, "code": "ITMC411", "name": "الأمن في الحوسبة المتنقلة", "group": "A", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": "أ. محمد معتوق الكوم", "room": "قاعة 1"}, {"id": 8708, "code": "ITSE304", "name": "برمجة التطبيقات الجوالة", "group": "A", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": "د. محمد احمد مغيدر", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"id": 8709, "code": "ITCY312", "name": "بروتوكولات وبرمجيات الشبكات", "group": "A", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": "د. خالد البشير الربيعي", "room": "البيروني 3"}, {"id": 8710, "code": "ITCY421", "name": "ألامن في الحوسبة المتنفلة", "group": "A", "day": "الإربعاء", "time": "11:00 - 12:30", "instructor": "أ. محمد معتوق الكوم", "room": "قاعة 1"}, {"id": 8711, "code": "ITGS215", "name": "مقدمة في شبكات الحاسوب", "group": "B", "day": "الإربعاء", "time": "12:30 - 14:00", "instructor": "د. عبدالباسط الهادي التهامي", "room": "البيروني 2"}, {"id": 8712, "code": "ITGS228", "name": "مقدمة في قواعد البيانات", "group": "B", "day": "الإربعاء", "time": "12:30 - 14:00", "instructor": "أ. ابتسام عبدالسلام العاشوري", "room": "البيروني 3"}, {"id": 8713, "code": "ITSE421", "name": "جودة واختبار البرمجيات", "group": "A", "day": "الإربعاء", "time": "12:30 - 14:00", "instructor": "أ. مروى نوري صولة", "room": "البيروني 1"}, {"id": 8714, "code": "ITSE321", "name": "بناء البرمجيات", "group": "A", "day": "الإربعاء", "time": "12:30 - 14:00", "instructor": "د. امنة علي محمد", "room": "قاعة 2"}, {"id": 8715, "code": "ITNT422", "name": "شبكات السرعات العالية - الألياف البصرية", "group": "A", "day": "الإربعاء", "time": "14:00 - 15:30", "instructor": "د. عبدالباسط الهادي التهامي", "room": "البيروني 2"}, {"id": 8716, "code": "ITSE408", "name": "تطوير تطبيقات الإنترنت", "group": "A", "day": "الإربعاء", "time": "14:00 - 15:30", "instructor": "د. عبدالسلام الفيتوري النويصري", "room": "قاعة 2"}, {"id": 8717, "code": "ITAR121", "name": "لغة عربية 2", "group": "A", "day": "الإربعاء", "time": "15:30 - 17:00", "instructor": "أ. احمد علي صمود", "room": "البيروني 1"}, {"id": 8718, "code": "ITDA402", "name": "ذكاء الاعمال", "group": "A", "day": "الخميس", "time": "08:00 - 09:30", "instructor": "أ. هديل رافت الجربي", "room": "قاعة 5"}, {"id": 8719, "code": "ITIS422", "name": "إدارة إستراتيجيات نظم المعلومات", "group": "A", "day": "الخميس", "time": "08:00 - 09:30", "instructor": "أ. هديل رافت الجربي", "room": "قاعة 5"}, {"id": 8720, "code": "ITGS217", "name": "التراكيب المنفصلة", "group": "A", "day": "الخميس", "time": "08:00 - 09:30", "instructor": "رحاب عبدالله بن عبدالله", "room": "مدرج مالك بن نبي"}, {"id": 8721, "code": "ITNT313", "name": "برمجة الشبكات", "group": "A", "day": "الخميس", "time": "08:00 - 09:30", "instructor": "أ. مروة ابراهيم عبدالهادي", "room": "الخوارزمي 2"}, {"id": 8722, "code": "ITGS211", "name": "البرمجة الشيئية", "group": "C", "day": "الخميس", "time": "08:00 - 09:30", "instructor": "أ محمد فؤاد البوعيشي", "room": "البيروني 1"}, {"id": 8723, "code": "ITSE405", "name": "برمجة الشبكات", "group": "A", "day": "الخميس", "time": "08:00 - 09:30", "instructor": "أ. مروة ابراهيم عبدالهادي", "room": "الخوارزمي 2"}, {"id": 8724, "code": "ITCY324", "name": "الحوسبة السحابية", "group": "A", "day": "الخميس", "time": "08:00 - 09:30", "instructor": "أ.د عزالدين محمد السلامي", "room": "البيروني 2"}, {"id": 8725, "code": "ITGS240", "name": "مقدمة في الذكاء الاصطناعي", "group": "B", "day": "الخميس", "time": "09:30 - 11:00", "instructor": "أ. أينور إدريس تربح", "room": "مدرج الهوني - مبني الكلية"}, {"id": 8726, "code": "ITGS226", "name": "مقدمة في برمجة الانترنت", "group": "C", "day": "الخميس", "time": "09:30 - 11:00", "instructor": "أ. مروة ابراهيم عبدالهادي", "room": "البيروني 2"}, {"id": 8727, "code": "ITGS213", "name": "مقدمة في هندسة البرمجيات", "group": "C", "day": "الخميس", "time": "09:30 - 11:00", "instructor": "أ. علياء مفتاح علي", "room": "البيروني 1"}, {"id": 8728, "code": "ITNT311", "name": "اتصال بيانات", "group": "A", "day": "الخميس", "time": "09:30 - 11:00", "instructor": "د. عبدالباسط الهادي التهامي", "room": "الخوارزمي 1"}, {"id": 8729, "code": "ITMC421", "name": "أساسيات الحوسبة في كل مكان", "group": "A", "day": "الخميس", "time": "09:30 - 11:00", "instructor": "رحاب عبدالله بن عبدالله", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"id": 8730, "code": "ITMC301", "name": "المعالج الدقيق أي أر إم", "group": "A", "day": "الخميس", "time": "09:30 - 11:00", "instructor": "أ سناء بشير دغمان", "room": "قاعة 1"}, {"id": 8731, "code": "ITSE423", "name": "البرمجة المرئية", "group": "A", "day": "الخميس", "time": "09:30 - 11:00", "instructor": "أ. فاطمه علي بن الاشهر", "room": "قاعة 2"}, {"id": 8732, "code": "ITCY412", "name": "مقدمة في أمن البرمجيات", "group": "A", "day": "الخميس", "time": "09:30 - 11:00", "instructor": "أ.د عزالدين محمد السلامي", "room": "الخوارزمي 2"}, {"id": 8733, "code": "ITDA404", "name": "الوكيل والانظمة المعرفية", "group": "A", "day": "الخميس", "time": "11:00 - 12:30", "instructor": "د. يوسف محمد أبوستة", "room": "قاعة 5"}, {"id": 8734, "code": "ITGS217", "name": "التراكيب المنفصلة", "group": "B", "day": "الخميس", "time": "11:00 - 12:30", "instructor": "رحاب عبدالله بن عبدالله", "room": "مدرج مالك بن نبي"}, {"id": 8735, "code": "ITGS213", "name": "مقدمة في هندسة البرمجيات", "group": "D", "day": "الخميس", "time": "11:00 - 12:30", "instructor": "أ. علياء مفتاح علي", "room": "البيروني 1"}, {"id": 8736, "code": "ITNT403", "name": "اساسيات الحوسبة فى كل مكان", "group": "A", "day": "الخميس", "time": "11:00 - 12:30", "instructor": "أ. مروة ابراهيم عبدالهادي", "room": "الخوارزمي 3"}, {"id": 8737, "code": "ITMC413", "name": "الشبكات الاجتماعية", "group": "A", "day": "الخميس", "time": "11:00 - 12:30", "instructor": "أ. منار سامي عريف", "room": "قاعة 1"}, {"id": 8738, "code": "ITSE409", "name": "الشبكات الاجتماعية", "group": "A", "day": "الخميس", "time": "11:00 - 12:30", "instructor": "أ. منار سامي عريف", "room": "قاعة 1"}, {"id": 8739, "code": "ITSE311", "name": "تحليل متطلبات برمجيات", "group": "A", "day": "الخميس", "time": "11:00 - 12:30", "instructor": "أ. فاطمه علي بن الاشهر", "room": "قاعة 2"}, {"id": 8740, "code": "ITCY313", "name": "خوارزميات وبروتوكولات التشفير", "group": "A", "day": "الخميس", "time": "11:00 - 12:30", "instructor": "أ.د عزالدين محمد السلامي", "room": "الخوارزمي 2"}, {"id": 8741, "code": "ITGS215", "name": "مقدمة في شبكات الحاسوب", "group": "B", "day": "الخميس", "time": "12:30 - 14:00", "instructor": "د. عبدالباسط الهادي التهامي", "room": "البيروني 2"}, {"id": 8742, "code": "ITGS211", "name": "البرمجة الشيئية", "group": "A", "day": "الخميس", "time": "12:30 - 14:00", "instructor": ".أ محمد على وهيبة", "room": "مدرج مالك بن نبي"}, {"id": 8743, "code": "ITMC322", "name": "قواعد البيانات المتنقلة وغير متجانسة", "group": "A", "day": "الخميس", "time": "12:30 - 14:00", "instructor": "أ. محمد علي وهيبة", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"id": 8744, "code": "ITSE414", "name": "أخلاقيات هندسة البرمجيات", "group": "A", "day": "الخميس", "time": "12:30 - 14:00", "instructor": "أ. علياء مفتاح علي", "room": "قاعة 2"}, {"id": 8745, "code": "ITDA421", "name": "اخلاقيات الذكاء الاصطناعي والاتجاهات المستقبلية", "group": "A", "day": "الخميس", "time": "12:30 - 14:00", "instructor": "أ. علياء مفتاح علي", "room": "قاعة 2"}, {"id": 8746, "code": "ITDA308", "name": "قواعد البيانات غير المتجاسة", "group": "A", "day": "الخميس", "time": "12:30 - 14:00", "instructor": "أ. محمد علي وهيبة", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"id": 8747, "code": "ITCY323", "name": "قواعد البيانات المتقدمة", "group": "A", "day": "الخميس", "time": "12:30 - 14:00", "instructor": "أ. محمد علي وهيبة", "room": "معمل سامسونق - مبني الكلية الجديد"}, {"id": 8748, "code": "ITSE411", "name": "تصميم وهيكلة البرمجيات", "group": "A", "day": "الخميس", "time": "14:00 - 15:30", "instructor": "أ. بيرم علي زرتي", "room": "قاعة 2"}, {"id": 8749, "code": "ITST111", "name": "مبادئ الاحصاء والاحتمالات", "group": "A", "day": "الخميس", "time": "15:30 - 17:00", "instructor": "أ. احمد علي صمود", "room": "البيروني 1"}, {"id": 8750, "code": "ITPH111", "name": "الفيزياء الالكترونية والمغناطيسية", "group": "A", "day": "الخميس", "time": "15:30 - 17:00", "instructor": "أ. أحمد علي الهوني", "room": "الخوارزمي 5"}];
+            window.allExams = [{"id": 3074, "code": "ITGS302", "name": "نظم التشغيل", "exam_day": "(1) السبت (2026-08-20)", "exam_period": "الفترة الاولى", "day_index": 1}, {"id": 3075, "code": "ITGS223", "name": "معمارية الحاسوب", "exam_day": "(1) السبت (2026-08-20)", "exam_period": "الفترة الاولى", "day_index": 1}, {"id": 3076, "code": "ITWT304", "name": "التجارة الإلكترونية", "exam_day": "(1) السبت (2026-08-20)", "exam_period": "الفترة الاولى", "day_index": 1}, {"id": 3077, "code": "ITGS126", "name": "تصميم الدوائر المنطقية", "exam_day": "(1) السبت (2026-08-20)", "exam_period": "الفترة الثانية", "day_index": 1}, {"id": 3078, "code": "ITNT411", "name": "الأنظمة الموزعة", "exam_day": "(1) السبت (2026-08-20)", "exam_period": "الفترة الثانية", "day_index": 1}, {"id": 3079, "code": "ITNT313", "name": "برمجة الشبكات", "exam_day": "(1) السبت (2026-08-20)", "exam_period": "الفترة الثانية", "day_index": 1}, {"id": 3080, "code": "ITCY312", "name": "بروتوكولات وبرمجيات الشبكات", "exam_day": "(1) السبت (2026-08-20)", "exam_period": "الفترة الثانية", "day_index": 1}, {"id": 3081, "code": "ITCY411", "name": "أمن وطرق الدفاع بالشبكات", "exam_day": "(1) السبت (2026-08-20)", "exam_period": "الفترة الثانية", "day_index": 1}, {"id": 3082, "code": "ITDA405", "name": "أنطمة التوصية", "exam_day": "(1) السبت (2026-08-20)", "exam_period": "الفترة الثانية", "day_index": 1}, {"id": 3083, "code": "ITSE405", "name": "برمجة الشبكات", "exam_day": "(1) السبت (2026-08-20)", "exam_period": "الفترة الثانية", "day_index": 1}, {"id": 3084, "code": "ITNT304", "name": "السياسة الأمنية", "exam_day": "(2) الأحد (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 2}, {"id": 3085, "code": "ITDA223", "name": "الاحصاء والاحتمالات لعلم البيانات", "exam_day": "(2) الأحد (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 2}, {"id": 3086, "code": "ITWT325", "name": "برمجة الشبكات وخدمات الويب", "exam_day": "(2) الأحد (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 2}, {"id": 3087, "code": "ITDA403", "name": "نظرية الألعاب", "exam_day": "(2) الأحد (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 2}, {"id": 3088, "code": "ITSE311", "name": "تحليل متطلبات برمجيات", "exam_day": "(2) الأحد (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 2}, {"id": 3089, "code": "ITSE421", "name": "جودة واختبار البرمجيات", "exam_day": "(2) الأحد (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 2}, {"id": 3090, "code": "ITWT404", "name": "مواضيع مختارة", "exam_day": "(2) الأحد (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 2}, {"id": 3091, "code": "ITNT421", "name": "جودة خدمات الشبكات", "exam_day": "(3) الإثنين (2026-08-27)", "exam_period": "الفترة الاولى", "day_index": 3}, {"id": 3092, "code": "ITNT322", "name": "بروتوكولات وبرمجيات الشبكات", "exam_day": "(3) الإثنين (2026-08-27)", "exam_period": "الفترة الاولى", "day_index": 3}, {"id": 3093, "code": "ITGS122", "name": "مقدمة في البرمجة", "exam_day": "(3) الإثنين (2026-08-27)", "exam_period": "الفترة الاولى", "day_index": 3}, {"id": 3094, "code": "ITGS220", "name": "تراكيب البيانات", "exam_day": "(3) الإثنين (2026-08-27)", "exam_period": "الفترة الاولى", "day_index": 3}, {"id": 3095, "code": "ITSE321", "name": "بناء البرمجيات", "exam_day": "(3) الإثنين (2026-08-27)", "exam_period": "الفترة الاولى", "day_index": 3}, {"id": 3096, "code": "ITGS301", "name": "تصميم وتحليل الخوارزميات", "exam_day": "(3) الإثنين (2026-08-27)", "exam_period": "الفترة الثانية", "day_index": 3}, {"id": 3097, "code": "ITCY313", "name": "خوارزميات وبروتوكولات التشفير", "exam_day": "(3) الإثنين (2026-08-27)", "exam_period": "الفترة الثانية", "day_index": 3}, {"id": 3098, "code": "ITCY422", "name": "مبادي التحليل الجنائي الرقمي", "exam_day": "(3) الإثنين (2026-08-27)", "exam_period": "الفترة الثانية", "day_index": 3}, {"id": 3099, "code": "ITDA407", "name": "الحوسبة المتوازية والموزعة", "exam_day": "(4) الثلاثاء (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 4}, {"id": 3100, "code": "ITDA314", "name": "الجبر الخطي", "exam_day": "(4) الثلاثاء (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 4}, {"id": 3101, "code": "ITIS411", "name": "البنيان المؤسساتي", "exam_day": "(4) الثلاثاء (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 4}, {"id": 3102, "code": "ITWT303", "name": "مقدمة في رسوم الحاسب الآلي", "exam_day": "(4) الثلاثاء (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 4}, {"id": 3103, "code": "ITDA322", "name": "تصور البيانات", "exam_day": "(4) الثلاثاء (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 4}, {"id": 3104, "code": "ITSE414", "name": "أخلاقيات هندسة البرمجيات", "exam_day": "(4) الثلاثاء (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 4}, {"id": 3105, "code": "ITWT324", "name": "تطوير أنظمة الصوت والصورة", "exam_day": "(4) الثلاثاء (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 4}, {"id": 3106, "code": "ITGS113", "name": "الحلول التقنية", "exam_day": "(5) الإربعاء (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 5}, {"id": 3107, "code": "ITGS226", "name": "مقدمة في برمجة الانترنت", "exam_day": "(5) الإربعاء (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 5}, {"id": 3108, "code": "ITSE412", "name": "برمجة الانترنت المتقدمة", "exam_day": "(5) الإربعاء (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 5}, {"id": 3109, "code": "ITGS219", "name": "التحليل العددي", "exam_day": "(5) الإربعاء (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 5}, {"id": 3110, "code": "ITNT312", "name": "الشبكات المحلية", "exam_day": "(5) الإربعاء (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 5}, {"id": 3111, "code": "ITNT321", "name": "الشبكات المترامية", "exam_day": "(5) الإربعاء (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 5}, {"id": 3112, "code": "ITCY403", "name": "الذكاء الاصطناعي والامن السيبراني (لغة الالة)", "exam_day": "(5) الإربعاء (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 5}, {"id": 3113, "code": "ITDA421", "name": "اخلاقيات الذكاء الاصطناعي والاتجاهات المستقبلية", "exam_day": "(5) الإربعاء (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 5}, {"id": 3114, "code": "ITWT311", "name": "برمجة الإنترنت المتقدمة", "exam_day": "(5) الإربعاء (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 5}, {"id": 3115, "code": "ITDA402", "name": "ذكاء الاعمال", "exam_day": "(6) الخميس (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 6}, {"id": 3116, "code": "ITIS422", "name": "إدارة إستراتيجيات نظم المعلومات", "exam_day": "(6) الخميس (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 6}, {"id": 3117, "code": "ITSE322", "name": "لغة برمجة الحديثة - جافا متقدمة", "exam_day": "(6) الخميس (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 6}, {"id": 3118, "code": "ITWT312", "name": "أسس تصميم الانظمة التفاعلية", "exam_day": "(6) الخميس (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 6}, {"id": 3119, "code": "ITGS211", "name": "البرمجة الشيئية", "exam_day": "(6) الخميس (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 6}, {"id": 3120, "code": "ITDA311", "name": "تنقيب البيانات", "exam_day": "(6) الخميس (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 6}, {"id": 3121, "code": "ITIS404", "name": "تنقيب البيانات - الذكاء التجاري", "exam_day": "(6) الخميس (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 6}, {"id": 3122, "code": "ITSE302", "name": "تنقيب البيانات", "exam_day": "(6) الخميس (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 6}, {"id": 3123, "code": "ITWT422", "name": "تطوير تطبيقات الإنترنت المتنقل", "exam_day": "(6) الخميس (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 6}, {"id": 3124, "code": "ITGS213", "name": "مقدمة في هندسة البرمجيات", "exam_day": "(7) السبت (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 7}, {"id": 3125, "code": "ITDA412", "name": "تمييز الانماط", "exam_day": "(7) السبت (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 7}, {"id": 3126, "code": "ITSE424", "name": "أنماط تصميم البرمجيات", "exam_day": "(7) السبت (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 7}, {"id": 3127, "code": "ITWT424", "name": "تطوير تطبيقات الويب المنفصلة", "exam_day": "(7) السبت (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 7}, {"id": 3128, "code": "ITGS303", "name": "إدارة المشاريع", "exam_day": "(7) السبت (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 7}, {"id": 3129, "code": "ITNT412", "name": "تصميم وإدارة الشبكات", "exam_day": "(7) السبت (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 7}, {"id": 3130, "code": "ITNT311", "name": "اتصال بيانات", "exam_day": "(7) السبت (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 7}, {"id": 3131, "code": "ITCY324", "name": "الحوسبة السحابية", "exam_day": "(7) السبت (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 7}, {"id": 3132, "code": "ITCY412", "name": "مقدمة في أمن البرمجيات", "exam_day": "(7) السبت (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 7}, {"id": 3133, "code": "ITWT321", "name": "تصميم البرمجيات الشيئية لتطبيقات الانترنت", "exam_day": "(7) السبت (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 7}, {"id": 3134, "code": "ITDA312", "name": "هندسة البيانات", "exam_day": "(8) الأحد (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 8}, {"id": 3135, "code": "ITDA321", "name": "البيانات الضخمة", "exam_day": "(8) الأحد (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 8}, {"id": 3136, "code": "ITIS313", "name": "إدارة البيانات والمعلومات", "exam_day": "(8) الأحد (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 8}, {"id": 3137, "code": "ITSE413", "name": "التفاعل بين الإنسان والحاسوب", "exam_day": "(8) الأحد (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 8}, {"id": 3138, "code": "ITWT413", "name": "تطوير تطبيقات الإنترنت", "exam_day": "(8) الأحد (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 8}, {"id": 3139, "code": "ITGS217", "name": "التراكيب المنفصلة", "exam_day": "(9) الإثنين (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 9}, {"id": 3140, "code": "ITNT324", "name": "الإتصالات اللاسلكية والمحمولة", "exam_day": "(9) الإثنين (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 9}, {"id": 3141, "code": "ITDA413", "name": "معالجة اللغات الطبيعية", "exam_day": "(9) الإثنين (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 9}, {"id": 3142, "code": "ITSE304", "name": "برمجة التطبيقات الجوالة", "exam_day": "(9) الإثنين (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 9}, {"id": 3143, "code": "ITWT307", "name": "الحوسبة السحابية", "exam_day": "(9) الإثنين (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 9}, {"id": 3144, "code": "ITGS228", "name": "مقدمة في قواعد البيانات", "exam_day": "(9) الإثنين (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 9}, {"id": 3145, "code": "ITNT403", "name": "اساسيات الحوسبة فى كل مكان", "exam_day": "(9) الإثنين (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 9}, {"id": 3146, "code": "ITCY414", "name": "مقدمة في حوكمة الامن السيبرانى", "exam_day": "(9) الإثنين (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 9}, {"id": 3147, "code": "ITIS412", "name": "الأمن وإدارة المخاطر", "exam_day": "(9) الإثنين (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 9}, {"id": 3148, "code": "ITSE312", "name": "قواعد البيانات المتقدمة", "exam_day": "(9) الإثنين (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 9}, {"id": 3149, "code": "ITSE423", "name": "البرمجة المرئية", "exam_day": "(9) الإثنين (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 9}, {"id": 3150, "code": "ITIS325", "name": "قواعد البيانات المتقدمة", "exam_day": "(9) الإثنين (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 9}, {"id": 3151, "code": "ITWT313", "name": "قواعد البيانات المتقدمة", "exam_day": "(9) الإثنين (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 9}, {"id": 3152, "code": "ITDA308", "name": "قواعد البيانات غير المتجاسة", "exam_day": "(10) الثلاثاء (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 10}, {"id": 3153, "code": "ITSE422", "name": "إعادة إستخدام البرمجيات", "exam_day": "(10) الثلاثاء (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 10}, {"id": 3154, "code": "ITGS242", "name": "مقدمة في علم البيانات", "exam_day": "(10) الثلاثاء (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 10}, {"id": 3155, "code": "ITCY322", "name": "الهاكر الاخلاقي", "exam_day": "(10) الثلاثاء (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 10}, {"id": 3156, "code": "ITWT425", "name": "انترنت الاشياء", "exam_day": "(10) الثلاثاء (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 10}, {"id": 3157, "code": "ITGS240", "name": "مقدمة في الذكاء الاصطناعي", "exam_day": "(11) الإربعاء (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 11}, {"id": 3158, "code": "ITNT414", "name": "الحوسبة السحابية", "exam_day": "(11) الإربعاء (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 11}, {"id": 3159, "code": "ITDA323", "name": "تعلم الآلة", "exam_day": "(11) الإربعاء (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 11}, {"id": 3160, "code": "ITDA411", "name": "الشبكات العصبية", "exam_day": "(11) الإربعاء (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 11}, {"id": 3161, "code": "ITDA305", "name": "بحث واستلرجاع المعلومات", "exam_day": "(11) الإربعاء (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 11}, {"id": 3162, "code": "ITIS323", "name": "البنية التحتية لنظم المعلومات", "exam_day": "(11) الإربعاء (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 11}, {"id": 3163, "code": "ITSE409", "name": "الشبكات الاجتماعية", "exam_day": "(11) الإربعاء (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 11}, {"id": 3164, "code": "ITGS304", "name": "كتابة التقارير العلمية - لغة انجليزية", "exam_day": "(11) الإربعاء (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 11}, {"id": 3165, "code": "ITWT302", "name": "استرجاع المعلومات", "exam_day": "(11) الإربعاء (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 11}, {"id": 3166, "code": "ITWT301", "name": "التنقيب في البيانات", "exam_day": "(11) الإربعاء (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 11}, {"id": 3167, "code": "ITGS111", "name": "مقدمة في تقنية المعلومات", "exam_day": "(12) الخميس (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 12}, {"id": 3168, "code": "ITGS215", "name": "مقدمة في شبكات الحاسوب", "exam_day": "(12) الخميس (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 12}, {"id": 3169, "code": "ITNT422", "name": "شبكات السرعات العالية - الألياف البصرية", "exam_day": "(12) الخميس (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 12}, {"id": 3170, "code": "ITSE411", "name": "تصميم وهيكلة البرمجيات", "exam_day": "(12) الخميس (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 12}, {"id": 3171, "code": "ITWT420", "name": "القرصنة الأخلاقية", "exam_day": "(12) الخميس (2026-08-30)", "exam_period": "الفترة الاولى", "day_index": 12}, {"id": 3172, "code": "ITGS224", "name": "امن المعلومات", "exam_day": "(12) الخميس (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 12}, {"id": 3173, "code": "ITNT314", "name": "خورازميات و بروتوكولات التشفير", "exam_day": "(12) الخميس (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 12}, {"id": 3174, "code": "ITCY401", "name": "نظام تشغيل لينيكس", "exam_day": "(12) الخميس (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 12}, {"id": 3175, "code": "ITDA404", "name": "الوكيل والانظمة المعرفية", "exam_day": "(12) الخميس (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 12}, {"id": 3176, "code": "ITSE306", "name": "التشفير وأمن المعلومات", "exam_day": "(12) الخميس (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 12}, {"id": 3177, "code": "ITWT314", "name": "امن الانترنث", "exam_day": "(12) الخميس (2026-08-30)", "exam_period": "الفترة الثانية", "day_index": 12}];
+            window.datesMap = {};
+            console.log("Data Injected Successfully! Courses:", window.allCourses.length, "Exams:", window.allExams.length);
+        </script>
+        
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script>
+        const tg = window.Telegram?.WebApp;
+        if (tg) {
+            tg.expand();
+            tg.enableClosingConfirmation();
+            if (tg.disableVerticalSwipes) {
+                tg.disableVerticalSwipes();
+            }
+        }
+
+        function updateTableZoom(val) {
+            const tables = document.querySelectorAll('.grid-scroll table');
+            tables.forEach(t => t.style.zoom = val);
+            document.querySelectorAll('.zoom-slider').forEach(s => s.value = val);
+        }
+
+        let facultyData = [];
+        let examsData = [];
+        let datesMap = {};
+
+        // Builder state
+        let builderSubjects = []; // [{code, name}]
+        let solutions = [];
+        let currentSolIdx = 0;
+
+        // Search state
+        let searchSubjects = []; // [{code, name}]
+
+        // ===== Days / Times =====
+        const DAYS = ['السبت', 'الأحد', 'الإثنين', 'الثلاثاء', 'الإربعاء', 'الخميس'];
+        const TIMES = ['08:00 - 09:30', '09:30 - 11:00', '11:00 - 12:30', '12:30 - 14:00', '14:00 - 15:30'];
+        const PERIODS = ['الفترة الاولى', 'الفترة الثانية', 'الفترة الثالثة'];
+
+        let uniqueSubjects = [];
+
+        // ===== Load Data =====
+        async function initApp() {
+            try {
+                let f, e, d;
+
+                // إذا كانت البيانات محقونة مباشرةً في الصفحة (index_final.html) استخدمها فوراً
+                if (window.allCourses && window.allExams) {
+                    f = window.allCourses;
+                    e = window.allExams;
+                    d = window.datesMap || {};
+                } else {
+                    // وإلا جلب البيانات من الخادم
+                    const ts = new Date().getTime();
+                    const res = await Promise.all([
+                        fetch(`./faculty.json?v=${ts}`).then(r => {
+                            if (!r.ok) throw new Error('Faculty fetch not ok');
+                            return r.json();
+                        }).catch(() => {
+                            console.log("Fallback: Fetching faculty from API");
+                            return fetch(`/api/faculty?v=${ts}`).then(r => r.json()).catch(() => []);
+                        }),
+                        fetch(`./exams.json?v=${ts}`).then(r => {
+                            if (!r.ok) throw new Error('Exams fetch not ok');
+                            return r.json();
+                        }).catch(() => {
+                            console.log("Fallback: Fetching exams from API");
+                            return fetch(`/api/exams?v=${ts}`).then(r => r.json()).catch(() => []);
+                        }),
+                        fetch(`./dates.json?v=${ts}`).then(r => {
+                            if (!r.ok) throw new Error('Dates fetch not ok');
+                            return r.json();
+                        }).catch(() => ({}))
+                    ]);
+                    f = res[0]; e = res[1]; d = res[2];
+                }
+
+                facultyData = (f || []).filter(x => x.code && x.code.trim());
+                examsData = e || [];
+                datesMap = d || {};
+
+                // Pre-process unique subjects for faster search
+                const seen = new Set();
+                uniqueSubjects = [];
+
+                [...facultyData, ...examsData].forEach(item => {
+                    if (item.code && !seen.has(item.code)) {
+                        uniqueSubjects.push({
+                            code: item.code,
+                            name: item.name || '',
+                            // نحفظ النص كاملاً للبحث (عربي + كود)
+                            searchStr: ((item.name || '') + ' ' + (item.code || '')).toLowerCase()
+                        });
+                        seen.add(item.code);
+                    }
+                });
+
+                // Load from localStorage
+                const savedSearch = localStorage.getItem('searchSubjects');
+                if (savedSearch) searchSubjects = JSON.parse(savedSearch);
+
+                const savedBuilder = localStorage.getItem('builderSubjects');
+                if (savedBuilder) builderSubjects = JSON.parse(savedBuilder);
+
+                // Initial render
+                if (renderSearchTags) renderSearchTags();
+                if (renderBuilderTags) renderBuilderTags();
+
+            } catch (err) { console.error('Load failed', err); }
+        }
+
+        // ===== Top Tab Switching =====
+        function switchTopTab(tab) {
+            if (tab === 'search') {
+                document.getElementById('searchPage').classList.add('active');
+                document.getElementById('schedulePage').classList.remove('active');
+            } else {
+                document.getElementById('schedulePage').classList.add('active');
+                document.getElementById('searchPage').classList.remove('active');
+            }
+        }
+
+        // ===== Universal Search Box Setup =====
+        function setupSearch(inputId, dropId, tagsId, getArr, setArr, type, onChangeCallback) {
+            const inp = document.getElementById(inputId);
+            const drop = document.getElementById(dropId);
+            const tagsEl = document.getElementById(tagsId);
+
+            function renderTags() {
+                tagsEl.innerHTML = '';
+                const subjectsArr = getArr();
+
+                // Save to localStorage using the explicit type
+                localStorage.setItem(type + 'Subjects', JSON.stringify(subjectsArr));
+
+                subjectsArr.forEach(s => {
+                    const t = document.createElement('div');
+                    t.className = 'tag';
+                    t.innerHTML = `${s.name} <span class="tag-x" onclick="removeFrom('${type}','${s.code}')">✕</span>`;
+                    tagsEl.appendChild(t);
+                });
+                if (onChangeCallback) onChangeCallback();
+            }
+
+            let debounceTimer;
+            inp.addEventListener('input', () => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    const raw = inp.value.trim();
+                    if (!raw) { drop.style.display = 'none'; return; }
+
+                    // دعم البحث بكلمات متعددة وجزئية (عربي وإنجليزي)
+                    const words = raw.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+                    const results = uniqueSubjects.filter(s =>
+                        words.every(w => s.searchStr.includes(w))
+                    );
+
+                    drop.innerHTML = '';
+                    results.slice(0, 15).forEach(r => {
+                        const d = document.createElement('div');
+                        d.className = 'drop-item';
+                        d.innerHTML = `<span class="code">${r.code}</span><span class="name">${r.name}</span>`;
+                        d.onclick = () => {
+                            const current = getArr();
+                            if (!current.some(s => s.code === r.code)) {
+                                current.push({ code: r.code, name: r.name });
+                                renderTags();
+                            }
+                            inp.value = ''; drop.style.display = 'none';
+                        };
+                        drop.appendChild(d);
+                    });
+                    drop.style.display = results.length ? 'block' : 'none';
+                }, 150);
+            });
+
+            document.addEventListener('click', e => {
+                if (!e.target.closest(`#${inputId}`) && !e.target.closest(`#${dropId}`))
+                    drop.style.display = 'none';
+            });
+
+            return renderTags;
+        }
+
+        let renderSearchTags, renderBuilderTags;
+
+        window.removeFrom = (which, code) => {
+            if (which === 'search') {
+                searchSubjects = searchSubjects.filter(s => s.code !== code);
+                renderSearchTags();
+            } else {
+                builderSubjects = builderSubjects.filter(s => s.code !== code);
+                renderBuilderTags();
+            }
+        };
+
+        // ===== Inline Schedule (Search Page) =====
+        function onSearchSubjectsChange() {
+            const area = document.getElementById('inlineScheduleArea');
+            const empty = document.getElementById('emptyState1');
+            if (!searchSubjects.length) {
+                area.classList.add('hidden');
+                empty.classList.remove('hidden');
+                return;
+            }
+            area.classList.remove('hidden');
+            empty.classList.add('hidden');
+
+            const lectures = facultyData.filter(f => searchSubjects.some(s => s.code === f.code));
+            buildLectureGrid('lectureGridBody', lectures);
+            buildExamGrid('examGridBody', searchSubjects);
+        }
+
+        function showInlineTab(t) {
+            document.getElementById('inlineTabLec').classList.toggle('active', t === 'lec');
+            document.getElementById('inlineTabExam').classList.toggle('active', t === 'exam');
+            document.getElementById('inlineLecContent').classList.toggle('hidden', t !== 'lec');
+            document.getElementById('inlineExamContent').classList.toggle('hidden', t !== 'exam');
+        }
+
+        // ===== Build Lecture Grid (all groups shown) =====
+        function buildLectureGrid(tbodyId, lectures) {
+            const tbody = document.getElementById(tbodyId);
+            tbody.innerHTML = '';
+            DAYS.forEach(day => {
+                const tr = document.createElement('tr');
+                const dayTd = document.createElement('td');
+                dayTd.className = 'day-col';
+                dayTd.textContent = day;
+                tr.appendChild(dayTd);
+                TIMES.forEach(time => {
+                    const entries = lectures.filter(l => l.day && l.day.trim() === day && l.time === time);
+                    const td = document.createElement('td');
+                    if (entries.length) {
+                        entries.forEach(l => {
+                            const instructor = (l.instructor && l.instructor !== 'غير محدد') ? l.instructor : 'د. غير محدد';
+                            const room = (l.room && l.room !== 'غير محدد') ? l.room : 'قاعة غير محددة';
+
+                            const card = document.createElement('div');
+                            card.className = 'lec-card';
+                            card.innerHTML = `
+                                <div class="ln">${l.name}</div>
+                                <span class="lg">م${l.group}</span>
+                                <div class="lm">👤 ${instructor}</div>
+                                <div class="lm" style="color:var(--primary); font-weight:800;">📍 ${room}</div>`;
+                            td.appendChild(card);
+                        });
+                    } else {
+                        td.className = 'empty-cell';
+                    }
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+        }
+
+        // ===== Exam Clash Detection =====
+        function detectExamClashes(subjects) {
+            const exList = [];
+            subjects.forEach(s => {
+                const ex = examsData.find(e => e.code === s.code);
+                if (ex) exList.push({ code: s.code, name: s.name, ex });
+            });
+            const hardClashes = [], softClashes = [];
+            for (let i = 0; i < exList.length; i++) {
+                for (let j = i + 1; j < exList.length; j++) {
+                    const a = exList[i], b = exList[j];
+                    const dayA = (a.ex.exam_day || '').trim();
+                    const dayB = (b.ex.exam_day || '').trim();
+                    const palA = (a.ex.exam_period || '').trim();
+                    const palB = (b.ex.exam_period || '').trim();
+                    if (dayA === dayB) {
+                        (palA === palB ? hardClashes : softClashes).push([a, b]);
+                    }
+                }
+            }
+            return { hardClashes, softClashes };
+        }
+
+        // ===== Build Exam Grid (All days between min and max) =====
+        function buildExamGrid(tbodyId, subjects) {
+            const tbody = document.getElementById(tbodyId);
+            tbody.innerHTML = '';
+
+            const relevant = [];
+            subjects.forEach(s => {
+                const ex = examsData.find(e => e.code === s.code);
+                if (ex) relevant.push({ ...ex, subName: s.name });
+            });
+
+            if (!relevant.length) {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:40px;font-size:0.9rem;font-weight:600;">لا توجد امتحانات محددة لهذه المواد ✨</td></tr>`;
+                return;
+            }
+
+            // استخلاص رقم اليوم
+            const getDayNum = str => {
+                const m = str.match(/\((\d+)\)/);
+                return m ? parseInt(m[1]) : null;
+            };
+
+            // بناء خريطة للأيام الموجودة
+            const dayMap = {}; // num -> { text, periods: {p1:[],p2:[],p3:[]} }
+            let minNum = 999, maxNum = -1;
+
+            relevant.forEach(ex => {
+                const num = getDayNum(ex.exam_day);
+                if (num === null) return;
+                if (num < minNum) minNum = num;
+                if (num > maxNum) maxNum = num;
+
+                if (!dayMap[num]) {
+                    dayMap[num] = {
+                        text: ex.exam_day,
+                        periods: { 'الفترة الاولى': [], 'الفترة الثانية': [], 'الفترة الثالثة': [] }
+                    };
+                }
+                const k = ex.exam_period?.trim();
+                if (dayMap[num].periods[k]) dayMap[num].periods[k].push(ex);
+            });
+
+            // قائمة الأيام من الأصغر للأكبر (بما في ذلك الفراغات)
+            for (let d = minNum; d <= maxNum; d++) {
+                const tr = document.createElement('tr');
+                const data = dayMap[d];
+
+                if (!data) {
+                    // يوم فارغ - استحضار التاريخ من خريطة التواريخ
+                    const dateText = datesMap[d] || `اليوم (${d})`;
+                    tr.innerHTML = `<td class="day-col" style="height:50px;font-size:0.72rem;line-height:1.6;color:var(--text-muted);opacity:0.8;">
+                                        ${dateText.replace(/(\(\d+\))/, '<span style="display:block;font-size:0.62rem;color:#8899bb;">$1</span>')}
+                                    </td>
+                                    <td class="empty-cell"></td><td class="empty-cell"></td><td class="empty-cell"></td>`;
+                    tbody.appendChild(tr);
+                    continue;
+                }
+
+                // فحص التعارض
+                const periods = data.periods;
+                const hardDay = PERIODS.some(p => periods[p].length > 1);
+                const allInDay = Object.values(periods).flat();
+                const softDay = allInDay.length > 1 && !hardDay;
+                if (hardDay) tr.style.background = 'hsla(350, 100%, 98%, 1)';
+                else if (softDay) tr.style.background = 'hsla(45, 100%, 98%, 1)';
+
+                // خلية اليوم
+                const dayTd = document.createElement('td');
+                dayTd.className = 'day-col';
+                dayTd.style.cssText = 'height:75px;font-size:0.72rem;line-height:1.6;';
+                dayTd.innerHTML = data.text.replace(/(\(\d+\))/, '<span style="display:block;font-size:0.62rem;color:#8899bb;">$1</span>');
+                tr.appendChild(dayTd);
+
+                PERIODS.forEach(pName => {
+                    const td = document.createElement('td');
+                    const entries = periods[pName] || [];
+                    const isClashCell = entries.length > 1;
+                    if (entries.length) {
+                        if (isClashCell) td.style.background = 'hsla(350, 100%, 96%, 1)';
+                        entries.forEach(ex => {
+                            const card = document.createElement('div');
+                            card.className = 'exam-card';
+                            if (isClashCell) card.style.borderColor = 'var(--accent)';
+                            card.innerHTML = `<div class="en">${ex.subName}</div><div class="ec">${ex.code}</div>`;
+                            td.appendChild(card);
+                        });
+                    } else {
+                        td.className = 'empty-cell';
+                    }
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            }
+        }
+
+        // ===== SOLVER (Builder Page) =====
+        function runSolver() {
+            if (!builderSubjects.length) {
+                if (tg) tg.showAlert('يرجى اختيار مادة واحدة على الأقل!');
+                else alert('يرجى اختيار مادة واحدة على الأقل!');
+                return;
+            }
+
+            // Show Loading
+            const btn = document.querySelector('.action-btn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '⏳ جاري البحث...';
+            btn.disabled = true;
+
+            setTimeout(() => {
+                const subjectMap = {};
+                builderSubjects.forEach(sub => {
+                    subjectMap[sub.code] = {};
+                    facultyData.filter(f => f.code === sub.code).forEach(f => {
+                        if (!subjectMap[sub.code][f.group]) subjectMap[sub.code][f.group] = [];
+                        subjectMap[sub.code][f.group].push(f);
+                    });
+                });
+
+                const missing = builderSubjects.filter(s => !Object.keys(subjectMap[s.code]).length);
+                if (missing.length) {
+                    const msg = `⚠️ لا توجد بيانات للمادة: ${missing.map(m => m.name).join('، ')}`;
+                    btn.innerHTML = originalText; btn.disabled = false;
+                    if (tg) tg.showAlert(msg); else alert(msg);
+                    return;
+                }
+
+                const codes = Object.keys(subjectMap);
+                const allSols = [];
+                let counter = 0;
+
+                function findCombos(idx, path, statuses, conflicts) {
+                    if (counter > 2000) return;
+                    if (idx === codes.length) {
+                        counter++;
+                        const groups = {};
+                        builderSubjects.forEach(s => {
+                            const f = path.find(l => l.code === s.code);
+                            if (f) groups[s.code] = f.group;
+                        });
+                        allSols.push({ schedule: path, statuses, groups, totalConflicts: conflicts });
+                        return;
+                    }
+                    const code = codes[idx];
+                    const groupsForCode = Object.keys(subjectMap[code]);
+                    for (const grp of groupsForCode) {
+                        const lecs = subjectMap[code][grp];
+                        let clash = false;
+                        for (const l of lecs) {
+                            if (path.some(ex => ex.day === l.day && ex.time === l.time)) { clash = true; break; }
+                        }
+                        findCombos(idx + 1, path.concat(lecs), { ...statuses, [code]: !clash }, conflicts + (clash ? 1 : 0));
+                    }
+                }
+
+                findCombos(0, [], {}, 0);
+                allSols.sort((a, b) => a.totalConflicts - b.totalConflicts);
+                solutions = allSols.slice(0, 30);
+                currentSolIdx = 0;
+
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+
+                if (!solutions.length) {
+                    if (tg) tg.showAlert('عذراً، لم نجد جداول مناسبة.');
+                    return;
+                }
+
+                renderProposals();
+                document.getElementById('proposalsArea').classList.remove('hidden');
+                document.getElementById('proposalsArea').scrollIntoView({ behavior: 'smooth' });
+            }, 50);
+        }
+
+        function renderProposals() {
+            const list = document.getElementById('proposalsList');
+            const badge = document.getElementById('propBadge');
+            document.getElementById('proposalsArea').classList.remove('hidden');
+            list.innerHTML = '';
+
+            const zeroCount = solutions.filter(s => s.totalConflicts === 0).length;
+            badge.textContent = zeroCount > 0
+                ? `✅ ${zeroCount} جدول بدون تعارض`
+                : `⚠️ جميع الجداول فيها تعارض`;
+            badge.style.color = zeroCount > 0 ? 'var(--secondary)' : 'var(--accent)';
+            badge.style.fontWeight = '900';
+
+            // فحص تعارض الامتحانات مرة واحدة (ثابت لكل الجداول)
+            const { hardClashes, softClashes } = detectExamClashes(builderSubjects);
+
+            // رسالة تحذير الامتحانات (تظهر مرة واحدة فوق الكروت)
+            if (hardClashes.length) {
+                const w = document.createElement('div');
+                w.className = 'warn-hard';
+                w.innerHTML = `🚨 <div><b>تعارض في الامتحانات!</b><br>` +
+                    hardClashes.map(([a, b]) =>
+                        `${a.name} و ${b.name} — نفس اليوم ونفس الفترة`
+                    ).join('<br>') + `</div>`;
+                list.appendChild(w);
+            }
+            if (softClashes.length) {
+                const w = document.createElement('div');
+                w.className = 'warn-soft';
+                w.innerHTML = `⚠️ <div><b>تنبيه: امتحانات في نفس اليوم</b><br>` +
+                    softClashes.map(([a, b]) =>
+                        `${a.name} و ${b.name} — نفس اليوم (فترات مختلفة)`
+                    ).join('<br>') + `</div>`;
+                list.appendChild(w);
+            }
+
+            let shownDivider = false;
+
+            solutions.forEach((sol, idx) => {
+                // فاصل بين الجداول النظيفة والمتعارضة
+                if (!shownDivider && sol.totalConflicts > 0 && zeroCount > 0) {
+                    const div = document.createElement('div');
+                    div.className = 'section-divider';
+                    div.textContent = '⚠️ الجداول التالية تحتوي على تعارض';
+                    list.appendChild(div);
+                    shownDivider = true;
+                }
+
+                const card = document.createElement('div');
+                card.className = 'prop-card anim';
+                card.onclick = () => openDetail(idx);
+                const clean = sol.totalConflicts === 0;
+
+                let html = `<div class="prop-head">
+            <div class="prop-title">الجدول ${idx + 1}</div>
+            <div class="${clean ? 'pill-ok' : 'pill-err'}">${clean ? '✓ بدون تعارض' : '⚠️ ' + sol.totalConflicts + ' تعارض'}</div>
+        </div>`;
+
+                builderSubjects.forEach(s => {
+                    const ok = sol.statuses[s.code];
+                    const grp = sol.groups[s.code] || '—';
+                    html += `<div class="sub-row">
+                <div class="sub-name">${s.name} <span style="color:var(--text-muted);font-size:0.75rem;font-weight:600;">(م${grp})</span></div>
+                <div class="${ok ? 'pill-ok' : 'pill-err'}">${ok ? '✓' : '✗'}</div>
+            </div>`;
+                });
+
+                html += `<div style="margin-top:12px;font-size:0.8rem;color:var(--primary);text-align:left;font-weight:800;opacity:0.8;">إعرض التفاصيل ←</div>`;
+                card.innerHTML = html;
+                list.appendChild(card);
+            });
+        }
+
+        // ===== Detail View =====
+        function openDetail(idx) {
+            if (tg) tg.expand();
+            currentSolIdx = idx;
+            document.getElementById('builderView').classList.add('hidden');
+            document.getElementById('detailView').classList.remove('hidden');
+            renderDetail();
+        }
+
+        function closeDetail() {
+            if (tg) tg.expand();
+            document.getElementById('detailView').classList.add('hidden');
+            document.getElementById('builderView').classList.remove('hidden');
+        }
+
+        function moveSol(dir) {
+            const next = currentSolIdx + dir;
+            if (next >= 0 && next < solutions.length) {
+                currentSolIdx = next;
+                renderDetail();
+            }
+        }
+
+        function showDetTab(t) {
+            if (tg) tg.expand();
+            document.getElementById('detTabLec').classList.toggle('active', t === 'lec');
+            document.getElementById('detTabExam').classList.toggle('active', t === 'exam');
+            document.getElementById('detLecContent').classList.toggle('hidden', t !== 'lec');
+            document.getElementById('detExamContent').classList.toggle('hidden', t !== 'exam');
+        }
+
+        function renderDetail() {
+            const sol = solutions[currentSolIdx];
+            const clean = sol.totalConflicts === 0;
+            document.getElementById('detTitle').textContent = `الجدول ${currentSolIdx + 1}`;
+            document.getElementById('solCounter').textContent = `${currentSolIdx + 1} / ${solutions.length}`;
+            document.getElementById('detBadge').innerHTML =
+                `<span class="${clean ? 'pill-ok' : 'pill-err'}">${clean ? '✓ لا تعارض' : '⚠️ ' + sol.totalConflicts + ' تعارض'}</span>`;
+            document.getElementById('btnPrev').disabled = currentSolIdx === 0;
+            document.getElementById('btnNext').disabled = currentSolIdx === solutions.length - 1;
+
+            // Lecture grid for this solution
+            buildLectureGrid('detLecBody', sol.schedule);
+
+            // Exam grid + clash warnings
+            buildExamGrid('detExamBody', builderSubjects);
+
+            // أظهر تحذيرات الامتحانات فوق جدول النهائي
+            const examWarnEl = document.getElementById('detExamWarnings');
+            if (examWarnEl) examWarnEl.innerHTML = '';
+            const { hardClashes, softClashes } = detectExamClashes(builderSubjects);
+            let warningHTML = '';
+            if (hardClashes.length) {
+                warningHTML += `<div class="warn-hard">🚨 <div><b>تعارض في الامتحانات!</b><br>` +
+                    hardClashes.map(([a, b]) => `${a.name} و ${b.name} — نفس اليوم ونفس الفترة`).join('<br>') +
+                    `</div></div>`;
+            }
+            if (softClashes.length) {
+                warningHTML += `<div class="warn-soft">⚠️ <div><b>نفس يوم الامتحان</b><br>` +
+                    softClashes.map(([a, b]) => `${a.name} و ${b.name} — فترات مختلفة`).join('<br>') +
+                    `</div></div>`;
+            }
+            if (examWarnEl) examWarnEl.innerHTML = warningHTML;
+        }
+
+        // ===== Save Grid as Image & Send to Bot =====
+        async function saveGridAsImage(tableId, title) {
+            const overlay = document.getElementById('loadingOverlay');
+            document.getElementById('loadingMsg').textContent = 'جاري المعالجة وإرسال الجدول...';
+            overlay.classList.remove('hidden');
+
+            try {
+                // 1. Preparation: Get the table and create a robust clone
+                const originalTable = document.getElementById(tableId);
+                const container = document.createElement('div');
+
+                // Style container for perfect capture - DARKK MODE
+                container.style.cssText = `
+                    position: absolute;
+                    left: -9999px;
+                    top: 0;
+                    background: #111111;
+                    padding: 0;
+                    width: fit-content;
+                    font-family: 'Cairo', sans-serif;
+                    direction: rtl;
+                `;
+
+                const clone = originalTable.cloneNode(true);
+                clone.style.cssText = `
+                    width: auto;
+                    min-width: 1200px;
+                    border-collapse: collapse;
+                    background: #111111;
+                    margin: 0;
+                `;
+
+                const allCells = clone.querySelectorAll('th, td');
+                allCells.forEach(cell => {
+                    cell.style.border = '1px solid #2a2a2a';
+                    cell.style.background = '#111111';
+                    cell.style.color = '#e5e5e5';
+                    cell.style.padding = '16px 10px';
+                    cell.style.textAlign = 'center';
+                    cell.style.verticalAlign = 'middle';
+                    // Wipe out all class styling overrides
+                    cell.className = '';
+                });
+
+                const headers = clone.querySelectorAll('th');
+                headers.forEach(th => {
+                    th.style.position = 'static';
+                    th.style.background = '#1a1a1a';
+                    th.style.color = '#ffffff';
+                    th.style.fontWeight = 'bold';
+                    th.style.fontSize = '14px';
+                    // Reformat header text to strictly match original "10:00 - 8:30" format if it uses <br>
+                    th.innerHTML = th.innerHTML.replace('<br>', ' - ');
+                });
+
+                // Day Col background
+                const originalDayCols = originalTable.querySelectorAll('tr > td:first-child');
+                const cloneDayCols = clone.querySelectorAll('tr > td:first-child');
+                cloneDayCols.forEach(dayCol => {
+                    dayCol.style.position = 'static';
+                    // Make it look just like rest of headers
+                    dayCol.style.background = '#1a1a1a';
+                    dayCol.style.color = '#ffffff';
+                    dayCol.style.fontWeight = 'bold';
+                    dayCol.style.fontSize = '14px';
+                });
+
+                // Strip the Cards and reformat the text explicitly
+                const cards = clone.querySelectorAll('.lec-card, .exam-card');
+                cards.forEach(card => {
+                    card.style.background = 'transparent';
+                    card.style.border = 'none';
+                    card.style.boxShadow = 'none';
+                    card.style.padding = '0';
+                    card.style.margin = '0 auto 8px auto';
+
+                    const nameEl = card.querySelector('.ln, .en');
+                    const groupEl = card.querySelector('.lg, .ec'); // Group
+                    const instRmEls = card.querySelectorAll('.lm');
+
+                    if (nameEl) {
+                        let courseName = nameEl.textContent;
+                        let groupText = groupEl ? groupEl.textContent.trim() : '';
+                        if (groupText && !groupText.includes('(')) {
+                            // If it's pure text like "مA" or "ITGS"
+                            // Format: الشبكات اللاسلكية (A)
+                            groupText = groupText.replace('م', '');
+                            courseName = `${courseName} (${groupText})`;
+                        }
+
+                        let content = `<div style="color:#ffffff; font-size:14.5px; margin-bottom:6px;">${courseName}</div>`;
+
+                        if (instRmEls && instRmEls.length > 0) {
+                            let instText = instRmEls[0].textContent.replace('👤 ', '').trim();
+                            let roomText = instRmEls.length > 1 ? instRmEls[1].textContent.replace('📍 ', '').trim() : '';
+
+                            // Format: د. محمد (الخوارزمي 1)
+                            let subText = roomText ? `${instText} (${roomText})` : instText;
+                            content += `<div style="color:#888888; font-size:12.5px;">${subText}</div>`;
+                        }
+                        card.innerHTML = content;
+                    }
+                });
+
+                // We don't add the blue header anymore
+                container.appendChild(clone);
+                document.body.appendChild(container);
+
+                // 2. Capture using html2canvas
+                const canvas = await html2canvas(container, {
+                    scale: 1.5, // High quality
+                    useCORS: true,
+                    backgroundColor: '#111111',
+                    logging: false,
+                    allowTaint: true,
+                    onclone: (clonedDoc) => {
+                        const el = clonedDoc.body.querySelector('div');
+                        if (el) el.style.position = 'relative';
+                    }
+                });
+
+                // Cleanup
+                document.body.removeChild(container);
+
+                // 3. Process image (JPEG 0.8 for optimal payload size on mobile)
+                const base64Jpeg = canvas.toDataURL('image/jpeg', 0.8);
+
+                // 4. Send directly to Bot Chat
+                const urlParams = new URLSearchParams(window.location.search);
+                const explicitUid = urlParams.get('uid');
+                const tgUserId = (tg && tg.initDataUnsafe?.user?.id) ? tg.initDataUnsafe.user.id : parseInt(explicitUid);
+
+                const initData = (tg && tg.initData) ? tg.initData : '';
+                if (tgUserId) {
+                    const response = await fetch('/api/send_image', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Telegram-Init-Data': initData
+                        },
+                        body: JSON.stringify({
+                            user_id: tgUserId,
+                            image: base64Jpeg,
+                            caption: `📊 *${title}*\n\n`
+                        })
+                    });
+                    if (response.ok) {
+                        if (tg) tg.showAlert('✅ تم تصدير الجدول وإرساله لشات البوت بنجاح!');
+                        else alert('✅ تم تصدير الجدول وإرساله لشات البوت بنجاح!');
+                    } else {
+                        const err = await response.text();
+                        if (tg) tg.showAlert('❌ فشل إرسال الجدول للبوت: ' + err);
+                        else alert('❌ فشل إرسال الجدول للبوت: ' + err);
+                    }
+                } else {
+                    if (tg) tg.showAlert('⚠️ لم نتمكن من تحديد حسابك. جرب كتابة /start في البوت أولاً.');
+                    else alert('⚠️ الخلل من التطبيق. لم نجد هويتك.');
+                }
+
+                overlay.classList.add('hidden');
+            } catch (err) {
+                overlay.classList.add('hidden');
+                console.error('Capture Error:', err);
+                const errorMsg = '❌ حدث خطأ أثناء سحب الجدول. يرجى المحاولة مرة أخرى.';
+                if (tg) tg.showAlert(errorMsg);
+                else alert(errorMsg);
+            }
+        }
+
+        // ===== Init =====
+        initApp().then(() => {
+            renderSearchTags = setupSearch('searchInput1', 'dropdown1', 'tags1', () => searchSubjects, (v) => searchSubjects = v, 'search', onSearchSubjectsChange);
+            renderBuilderTags = setupSearch('searchInput2', 'dropdown2', 'tags2', () => builderSubjects, (v) => builderSubjects = v, 'builder', null);
+
+            // Initial render of saved tags
+            renderSearchTags();
+            renderBuilderTags();
+        });
+    </script>
+</body>
+
+</html>

@@ -40,16 +40,19 @@ FACULTY_FILE = os.path.join(BASE_DIR, "webapp", "faculty.json")
 KEY_FILE = os.path.join(BASE_DIR, "secret.key")
 
 WEBAPP_URL = os.getenv("WEBAPP_URL")
-if TURSO_DB_URL:
-    # تحويل الرابط تلقائياً ليعمل عبر HTTP/REST الهادئ بدون مشاكل الـ WebSockets
-    TURSO_DB_URL = TURSO_DB_URL.replace("wss://", "https://").replace("libsql://", "https://")
-# --- Turso (libSQL) Connection Settings ---
+# 1. قراءة المتغيرات أولاً من البيئة
 TURSO_DB_URL = os.getenv("TURSO_DB_URL")
 TURSO_AUTH_TOKEN = os.getenv("TURSO_AUTH_TOKEN")
+
+# 2. تعديل بروتوكول الرابط بعد قراءته مباشرة
+if TURSO_DB_URL:
+    TURSO_DB_URL = TURSO_DB_URL.replace("wss://", "https://").replace("libsql://", "https://")
+
+# 3. التحقق من وجود القيم (الشرط الموجود لديك سابقاً)
 if not TURSO_DB_URL or not TURSO_AUTH_TOKEN:
     raise ValueError(
         "لم يتم العثور على TURSO_DB_URL أو TURSO_AUTH_TOKEN! "
-        "يرجى إضافتهم في Environment Variables على Render (شوف لوحة Turso تبويب Connect)."
+        "يرجى إضافتهم في Environment Variables على Render."
     )
 
 file_lock = threading.Lock()

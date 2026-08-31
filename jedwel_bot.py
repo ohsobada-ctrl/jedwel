@@ -27,7 +27,7 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 TOKEN = os.getenv("TOKEN")
 if not TOKEN:
-    raise ValueError("لا يوجد توكن في ملف .env! يرجى التحقق.")
+    raise ValueError("لم يتم العثور على التوكن (TOKEN)! يرجى إضافته في قائمة Environment Variables على Render.")
 ADMIN_ID = 1084115596
 
 bot = telebot.TeleBot(TOKEN)

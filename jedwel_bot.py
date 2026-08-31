@@ -4,7 +4,7 @@ import os
 import threading
 import http.server
 import socketserver
-import sqlite3
+import sqlite3  # يبقى مستوردًا فقط لأجل sqlite3.Row في أماكن قديمة إن وجدت
 import subprocess
 import time
 import base64
@@ -12,6 +12,9 @@ import io
 import re
 import shutil
 from datetime import datetime, timedelta
+
+# pyrefly: ignore [missing-import]
+import libsql_client
 
 from telebot.types import (
     InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo,
@@ -34,18 +37,132 @@ bot = telebot.TeleBot(TOKEN)
 
 EXAMS_FILE = os.path.join(BASE_DIR, "webapp", "exams.json")
 FACULTY_FILE = os.path.join(BASE_DIR, "webapp", "faculty.json")
-DB_FILE = os.path.join(BASE_DIR, "jedwel.db")
 KEY_FILE = os.path.join(BASE_DIR, "secret.key")
-MASTER_CREDS_FILE = os.path.join(BASE_DIR, "master_creds.enc.json")
 
 WEBAPP_URL = os.getenv("WEBAPP_URL")
+
+# --- Turso (libSQL) Connection Settings ---
+TURSO_DB_URL = os.getenv("TURSO_DB_URL")
+TURSO_AUTH_TOKEN = os.getenv("TURSO_AUTH_TOKEN")
+if not TURSO_DB_URL or not TURSO_AUTH_TOKEN:
+    raise ValueError(
+        "لم يتم العثور على TURSO_DB_URL أو TURSO_AUTH_TOKEN! "
+        "يرجى إضافتهم في Environment Variables على Render (شوف لوحة Turso تبويب Connect)."
+    )
 
 file_lock = threading.Lock()
 db_lock = threading.Lock()
 
+# =========================================================================
+# طبقة توافق (Shim) تحاكي واجهة sqlite3 لكن تتصل فعليًا بقاعدة Turso البعيدة
+# الهدف: نخلي بقية الكود (execute / fetchone / fetchall / commit / close)
+# يشتغل كما هو تمامًا بدون إعادة كتابة كل استعلام يدويًا.
+# =========================================================================
+
+class _TursoRow:
+    """يحاكي سلوك sqlite3.Row: يدعم row[0] ، row['col'] ، dict(row) ، وفك التغليف (a, b = row)."""
+    __slots__ = ("_cols", "_vals")
+
+    def __init__(self, cols, vals):
+        self._cols = cols
+        self._vals = list(vals)
+
+    def keys(self):
+        return list(self._cols)
+
+    def __getitem__(self, key):
+        if isinstance(key, str):
+            return self._vals[self._cols.index(key)]
+        return self._vals[key]
+
+    def __iter__(self):
+        return iter(self._vals)
+
+    def __len__(self):
+        return len(self._vals)
+
+    def __repr__(self):
+        return f"<TursoRow {dict(zip(self._cols, self._vals))}>"
+
+
+class _TursoCursor:
+    def __init__(self, client):
+        self._client = client
+        self._rows = []
+        self._cols = []
+        self._pos = 0
+        self.lastrowid = None
+        self.rowcount = -1
+
+    def execute(self, sql, params=None):
+        params = list(params) if params else []
+        result = self._client.execute(sql, params)
+        self._cols = list(result.columns or [])
+        self._rows = [list(r) for r in result.rows]
+        self._pos = 0
+        self.rowcount = len(self._rows)
+
+        if sql.strip().lower().startswith("insert"):
+            try:
+                lr = self._client.execute("SELECT last_insert_rowid()")
+                self.lastrowid = lr.rows[0][0] if lr.rows else None
+            except Exception:
+                self.lastrowid = None
+        return self
+
+    def executemany(self, sql, seq_of_params):
+        for params in seq_of_params:
+            self.execute(sql, params)
+        return self
+
+    def fetchone(self):
+        if self._pos >= len(self._rows):
+            return None
+        row = _TursoRow(self._cols, self._rows[self._pos])
+        self._pos += 1
+        return row
+
+    def fetchall(self):
+        rows = [_TursoRow(self._cols, r) for r in self._rows[self._pos:]]
+        self._pos = len(self._rows)
+        return rows
+
+    def close(self):
+        pass
+
+
+class _TursoConnection:
+    """يحاكي sqlite3.Connection. لا حاجة لضبط row_factory يدويًا: الصفوف دائمًا تدعم كل الأنماط."""
+
+    def __init__(self):
+        self._client = libsql_client.create_client_sync(TURSO_DB_URL, auth_token=TURSO_AUTH_TOKEN)
+        self.row_factory = None  # موجود فقط للتوافق مع أسطر قديمة، بدون تأثير فعلي
+
+    def cursor(self):
+        return _TursoCursor(self._client)
+
+    def execute(self, sql, params=None):
+        return self.cursor().execute(sql, params)
+
+    def commit(self):
+        # كل عملية execute على Turso تُنفَّذ وتُثبَّت فورًا (لا حاجة لـ commit يدوي)
+        pass
+
+    def close(self):
+        try:
+            self._client.close()
+        except Exception:
+            pass
+
+
+def get_conn():
+    """بديل مباشر لـ sqlite3.connect(DB_FILE) في كل الكود."""
+    return _TursoConnection()
+
+
 # --- Database Initialization ---
 def init_db():
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_conn()
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS master_data 
                  (id INTEGER PRIMARY KEY, username TEXT, password TEXT, college TEXT)''')
@@ -61,7 +178,7 @@ def init_db():
     try:
         c.execute("ALTER TABLE exams ADD COLUMN day_index INTEGER DEFAULT 0")
         conn.commit()
-    except:
+    except Exception:
         pass
         
     conn.close()
@@ -70,20 +187,10 @@ init_db()
 
 # --- Cryptography Setup ---
 def get_cipher():
-    # 🔑 نقرأ المفتاح من Environment Variable لضمان ثباته عبر كل عمليات إعادة النشر على Render
-    # (قرص Render مؤقت ويُمسح بالكامل عند كل Redeploy، فتخزين المفتاح في ملف محلي فقط غير كافٍ)
-    env_key = os.getenv("MASTER_ENC_KEY")
-    if env_key:
-        return Fernet(env_key.encode())
-
-    # وضع احتياطي للتطوير المحلي فقط — لن يصمد على Render بدون Environment Variable
     if not os.path.exists(KEY_FILE):
         key = Fernet.generate_key()
         with open(KEY_FILE, "wb") as f:
             f.write(key)
-        print("⚠️⚠️⚠️ MASTER_ENC_KEY غير موجود في Environment Variables على Render!")
-        print("⚠️ بيانات الماستر ستُفقد نهائياً عند أي إعادة نشر قادمة إذا لم تضف هذا المتغير الآن:")
-        print(f"MASTER_ENC_KEY={key.decode()}")
     else:
         with open(KEY_FILE, "rb") as f:
             key = f.read()
@@ -93,78 +200,30 @@ def get_cipher():
 def save_master_creds(username, password, college):
     cipher = get_cipher()
     encrypted_pass = cipher.encrypt(password.encode()).decode()
-
-    # 1) نخزنها محلياً في SQLite للاستخدام الفوري بنفس الجلسة الحالية
     with db_lock:
         try:
-            conn = sqlite3.connect(DB_FILE)
+            conn = get_conn()
             c = conn.cursor()
             c.execute("DELETE FROM master_data")
             c.execute("INSERT INTO master_data (username, password, college) VALUES (?, ?, ?)", (username, encrypted_pass, college))
             conn.commit()
             conn.close()
+            return True
         except Exception as e:
-            print(f"Error saving credentials to sqlite: {e}")
+            print(f"Error saving credentials: {e}")
             return False
 
-    # 2) نخزنها في ملف مشفّر مُتتبَّع بـ git، ونرفعه لـ GitHub فوراً
-    #    هذا هو الجزء الضروري للبقاء بعد أي Redeploy على Render (القرص المحلي مؤقت)
-    try:
-        with file_lock:
-            with open(MASTER_CREDS_FILE, "w", encoding="utf-8") as f:
-                json.dump({"username": username, "password": encrypted_pass, "college": college}, f)
-        threading.Thread(target=_push_master_creds_to_github, daemon=True).start()
-    except Exception as e:
-        print(f"⚠️ فشل حفظ ملف بيانات الماستر المشفر محلياً: {e}")
-
-    return True
-
-def _push_master_creds_to_github():
-    try:
-        subprocess.run(["git", "add", "master_creds.enc.json"], check=True, cwd=BASE_DIR)
-        subprocess.run(["git", "commit", "-m", "🔒 تحديث بيانات الماستر المشفرة"], check=True, cwd=BASE_DIR)
-        subprocess.run(["git", "push"], check=True, cwd=BASE_DIR)
-        print("✅ تم رفع بيانات الماستر المشفرة إلى GitHub بنجاح.")
-    except Exception as e:
-        # قد يفشل "commit" فقط إذا لم يوجد تغيير جديد، هذا طبيعي وليس خطأ فعلي
-        print(f"ℹ️ ملاحظة أثناء رفع بيانات الماستر لـ GitHub: {e}")
-
 def load_master_creds():
-    cipher = get_cipher()
-
-    # الأولوية: الملف المشفر المُتتبَّع بـ git (يصل تلقائياً مع كل نشر جديد من المستودع)
-    if os.path.exists(MASTER_CREDS_FILE):
-        try:
-            with file_lock:
-                with open(MASTER_CREDS_FILE, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-            decrypted_pass = cipher.decrypt(data["password"].encode()).decode()
-            # نعيد مزامنة SQLite المحلي من نفس القيم لضمان الاتساق بين المصدرين
-            with db_lock:
-                try:
-                    conn = sqlite3.connect(DB_FILE)
-                    c = conn.cursor()
-                    c.execute("DELETE FROM master_data")
-                    c.execute("INSERT INTO master_data (username, password, college) VALUES (?, ?, ?)",
-                              (data["username"], data["password"], data["college"]))
-                    conn.commit()
-                    conn.close()
-                except Exception as e:
-                    print(f"Error syncing sqlite from file: {e}")
-            return {"master_user": data["username"], "master_pass": decrypted_pass, "college": data["college"]}
-        except Exception as e:
-            print(f"⚠️ فشل قراءة/فك تشفير ملف بيانات الماستر: {e}")
-
-    # احتياط: لو الملف غير موجود لأي سبب، نحاول القراءة من SQLite المحلي
     with db_lock:
         try:
-            conn = sqlite3.connect(DB_FILE)
+            conn = get_conn()
             c = conn.cursor()
             c.execute("SELECT username, password, college FROM master_data LIMIT 1")
             row = c.fetchone()
             conn.close()
             if row:
                 username, encrypted_pass, college = row
+                cipher = get_cipher()
                 try:
                     decrypted_pass = cipher.decrypt(encrypted_pass.encode()).decode()
                 except:
@@ -178,7 +237,7 @@ def get_db_data(table):
     if table not in ["exams", "faculty"]: return []
     with db_lock:
         try:
-            conn = sqlite3.connect(DB_FILE)
+            conn = get_conn()
             conn.row_factory = sqlite3.Row
             c = conn.cursor()
             c.execute(f"SELECT * FROM {table}")
@@ -192,7 +251,7 @@ def get_db_data(table):
 def save_schedules(new_exams, new_faculty):
     with db_lock:
         try:
-            conn = sqlite3.connect(DB_FILE)
+            conn = get_conn()
             c = conn.cursor()
 
             c.execute("DELETE FROM exams")
@@ -229,7 +288,7 @@ def build_static_webapp(exams, faculty):
         
         dates_map = {}
         try:
-            conn = sqlite3.connect(DB_FILE)
+            conn = get_conn()
             c = conn.cursor()
             c.execute("SELECT value FROM settings WHERE key = 'exam_dates_map'")
             row = c.fetchone()
@@ -262,7 +321,7 @@ def build_static_webapp(exams, faculty):
 def save_user_schedule_to_db(user_id, selected_courses):
     try:
         with db_lock:
-            conn = sqlite3.connect(DB_FILE)
+            conn = get_conn()
             c = conn.cursor()
             c.execute("INSERT INTO user_schedules (user_id, schedule_json) VALUES (?, ?)",
                       (user_id, json.dumps(selected_courses)))
@@ -271,22 +330,39 @@ def save_user_schedule_to_db(user_id, selected_courses):
     except Exception as db_err:
         print(f"Error saving user schedule: {db_err}")
 
+# --- Database Export Helper (يحل محل نسخ ملف .db المحلي القديم) ---
+def export_full_backup_json():
+    """
+    يصدّر كل جداول Turso (master_data, exams, faculty, user_schedules, settings)
+    إلى ملف JSON واحد، ويرجع مسار الملف المؤقت.
+    ملاحظة: كلمة مرور الماستر تُصدَّر كما هي مخزّنة (مشفّرة بـ Fernet)، ما بتنكشف بنص واضح.
+    """
+    conn = get_conn()
+    c = conn.cursor()
+    dump = {}
+    for table in ["master_data", "exams", "faculty", "user_schedules", "settings"]:
+        c.execute(f"SELECT * FROM {table}")
+        dump[table] = [dict(row) for row in c.fetchall()]
+    conn.close()
+
+    backup_path = os.path.join(BASE_DIR, f"jedwel_backup_{int(time.time())}.json")
+    with open(backup_path, "w", encoding="utf-8") as f:
+        json.dump(dump, f, ensure_ascii=False, indent=2)
+    return backup_path
+
+
 # --- Automatic Database Backup Background Thread ---
 def auto_backup_loop():
-    """وظيفة دائرية تقوم بعمل النسخ الاحتياطي التلقائي لـ jedwel.db وإرسالها للأدمن كل 24 ساعة"""
+    """وظيفة دائرية تصدّر نسخة من بيانات Turso وترسلها للأدمن كل 24 ساعة (كطبقة أمان إضافية)"""
     while True:
         try:
             time.sleep(86400) # كل 24 ساعة
-            if not os.path.exists(DB_FILE): continue
-            
-            backup_path = os.path.join(BASE_DIR, "jedwel_backup_auto.db")
-            with db_lock:
-                shutil.copy2(DB_FILE, backup_path)
-                
+            backup_path = export_full_backup_json()
+
             if os.path.exists(backup_path):
                 with open(backup_path, "rb") as doc:
                     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-                    caption = f"📦 **نسخة احتياطية تلقائية لقاعدة البيانات (jedwel.db)**\n📅 التوقيت: `{timestamp}`"
+                    caption = f"📦 **نسخة احتياطية تلقائية من قاعدة بيانات Turso**\n📅 التوقيت: `{timestamp}`"
                     bot.send_document(ADMIN_ID, doc, caption=caption, parse_mode="Markdown")
                 os.remove(backup_path)
                 print(f"[Backup] Automatic backup sent to admin at {timestamp}")
@@ -397,14 +473,12 @@ def admin_manual_backup(call):
     bot.answer_callback_query(call.id)
     if call.from_user.id != ADMIN_ID: return
     try:
-        backup_path = os.path.join(BASE_DIR, "jedwel_backup_manual.db")
-        with db_lock:
-            shutil.copy2(DB_FILE, backup_path)
-            
+        backup_path = export_full_backup_json()
+
         if os.path.exists(backup_path):
             with open(backup_path, "rb") as doc:
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-                caption = f"📦 **نسخة احتياطية يدوية لقاعدة البيانات (jedwel.db)**\n📅 التوقيت: `{timestamp}`"
+                caption = f"📦 **نسخة احتياطية يدوية من قاعدة بيانات Turso**\n📅 التوقيت: `{timestamp}`"
                 bot.send_document(call.message.chat.id, doc, caption=caption, parse_mode="Markdown")
             os.remove(backup_path)
     except Exception as e:
@@ -486,7 +560,7 @@ def process_exam_start_date(message):
             raise ValueError("صيغة التاريخ غير مدعومة")
         
         with db_lock:
-            conn = sqlite3.connect(DB_FILE)
+            conn = get_conn()
             c = conn.cursor()
             c.execute("SELECT exam_day, MIN(id) as first_id FROM exams GROUP BY exam_day ORDER BY first_id ASC")
             rows = c.fetchall()
@@ -546,7 +620,7 @@ def process_edit_search(message, table):
     code = message.text.strip().upper()
     
     with db_lock:
-        conn = sqlite3.connect(DB_FILE)
+        conn = get_conn()
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
         c.execute(f"SELECT * FROM {table} WHERE code = ?", (code,))
@@ -598,7 +672,7 @@ def process_edit_save(message, table, field, row_id):
     new_val = message.text.strip()
     try:
         with db_lock:
-            conn = sqlite3.connect(DB_FILE)
+            conn = get_conn()
             c = conn.cursor()
             c.execute(f"UPDATE {table} SET {field} = ? WHERE id = ?", (new_val, row_id))
             conn.commit()
@@ -643,7 +717,7 @@ def admin_add_exam_final(call):
     code, day_idx, period = parts[3], int(parts[4]), parts[5]
     
     with db_lock:
-        conn = sqlite3.connect(DB_FILE)
+        conn = get_conn()
         c = conn.cursor()
         c.execute("SELECT name FROM faculty WHERE code = ? LIMIT 1", (code,))
         row = c.fetchone()

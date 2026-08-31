@@ -36,6 +36,7 @@ EXAMS_FILE = os.path.join(BASE_DIR, "webapp", "exams.json")
 FACULTY_FILE = os.path.join(BASE_DIR, "webapp", "faculty.json")
 DB_FILE = os.path.join(BASE_DIR, "jedwel.db")
 KEY_FILE = os.path.join(BASE_DIR, "secret.key")
+MASTER_CREDS_FILE = os.path.join(BASE_DIR, "master_creds.enc.json")
 
 WEBAPP_URL = os.getenv("WEBAPP_URL")
 
@@ -69,10 +70,20 @@ init_db()
 
 # --- Cryptography Setup ---
 def get_cipher():
+    # 🔑 نقرأ المفتاح من Environment Variable لضمان ثباته عبر كل عمليات إعادة النشر على Render
+    # (قرص Render مؤقت ويُمسح بالكامل عند كل Redeploy، فتخزين المفتاح في ملف محلي فقط غير كافٍ)
+    env_key = os.getenv("MASTER_ENC_KEY")
+    if env_key:
+        return Fernet(env_key.encode())
+
+    # وضع احتياطي للتطوير المحلي فقط — لن يصمد على Render بدون Environment Variable
     if not os.path.exists(KEY_FILE):
         key = Fernet.generate_key()
         with open(KEY_FILE, "wb") as f:
             f.write(key)
+        print("⚠️⚠️⚠️ MASTER_ENC_KEY غير موجود في Environment Variables على Render!")
+        print("⚠️ بيانات الماستر ستُفقد نهائياً عند أي إعادة نشر قادمة إذا لم تضف هذا المتغير الآن:")
+        print(f"MASTER_ENC_KEY={key.decode()}")
     else:
         with open(KEY_FILE, "rb") as f:
             key = f.read()
@@ -82,6 +93,8 @@ def get_cipher():
 def save_master_creds(username, password, college):
     cipher = get_cipher()
     encrypted_pass = cipher.encrypt(password.encode()).decode()
+
+    # 1) نخزنها محلياً في SQLite للاستخدام الفوري بنفس الجلسة الحالية
     with db_lock:
         try:
             conn = sqlite3.connect(DB_FILE)
@@ -90,12 +103,59 @@ def save_master_creds(username, password, college):
             c.execute("INSERT INTO master_data (username, password, college) VALUES (?, ?, ?)", (username, encrypted_pass, college))
             conn.commit()
             conn.close()
-            return True
         except Exception as e:
-            print(f"Error saving credentials: {e}")
+            print(f"Error saving credentials to sqlite: {e}")
             return False
 
+    # 2) نخزنها في ملف مشفّر مُتتبَّع بـ git، ونرفعه لـ GitHub فوراً
+    #    هذا هو الجزء الضروري للبقاء بعد أي Redeploy على Render (القرص المحلي مؤقت)
+    try:
+        with file_lock:
+            with open(MASTER_CREDS_FILE, "w", encoding="utf-8") as f:
+                json.dump({"username": username, "password": encrypted_pass, "college": college}, f)
+        threading.Thread(target=_push_master_creds_to_github, daemon=True).start()
+    except Exception as e:
+        print(f"⚠️ فشل حفظ ملف بيانات الماستر المشفر محلياً: {e}")
+
+    return True
+
+def _push_master_creds_to_github():
+    try:
+        subprocess.run(["git", "add", "master_creds.enc.json"], check=True, cwd=BASE_DIR)
+        subprocess.run(["git", "commit", "-m", "🔒 تحديث بيانات الماستر المشفرة"], check=True, cwd=BASE_DIR)
+        subprocess.run(["git", "push"], check=True, cwd=BASE_DIR)
+        print("✅ تم رفع بيانات الماستر المشفرة إلى GitHub بنجاح.")
+    except Exception as e:
+        # قد يفشل "commit" فقط إذا لم يوجد تغيير جديد، هذا طبيعي وليس خطأ فعلي
+        print(f"ℹ️ ملاحظة أثناء رفع بيانات الماستر لـ GitHub: {e}")
+
 def load_master_creds():
+    cipher = get_cipher()
+
+    # الأولوية: الملف المشفر المُتتبَّع بـ git (يصل تلقائياً مع كل نشر جديد من المستودع)
+    if os.path.exists(MASTER_CREDS_FILE):
+        try:
+            with file_lock:
+                with open(MASTER_CREDS_FILE, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+            decrypted_pass = cipher.decrypt(data["password"].encode()).decode()
+            # نعيد مزامنة SQLite المحلي من نفس القيم لضمان الاتساق بين المصدرين
+            with db_lock:
+                try:
+                    conn = sqlite3.connect(DB_FILE)
+                    c = conn.cursor()
+                    c.execute("DELETE FROM master_data")
+                    c.execute("INSERT INTO master_data (username, password, college) VALUES (?, ?, ?)",
+                              (data["username"], data["password"], data["college"]))
+                    conn.commit()
+                    conn.close()
+                except Exception as e:
+                    print(f"Error syncing sqlite from file: {e}")
+            return {"master_user": data["username"], "master_pass": decrypted_pass, "college": data["college"]}
+        except Exception as e:
+            print(f"⚠️ فشل قراءة/فك تشفير ملف بيانات الماستر: {e}")
+
+    # احتياط: لو الملف غير موجود لأي سبب، نحاول القراءة من SQLite المحلي
     with db_lock:
         try:
             conn = sqlite3.connect(DB_FILE)
@@ -105,7 +165,6 @@ def load_master_creds():
             conn.close()
             if row:
                 username, encrypted_pass, college = row
-                cipher = get_cipher()
                 try:
                     decrypted_pass = cipher.decrypt(encrypted_pass.encode()).decode()
                 except:

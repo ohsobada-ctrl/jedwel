@@ -40,7 +40,9 @@ FACULTY_FILE = os.path.join(BASE_DIR, "webapp", "faculty.json")
 KEY_FILE = os.path.join(BASE_DIR, "secret.key")
 
 WEBAPP_URL = os.getenv("WEBAPP_URL")
-
+if TURSO_DB_URL:
+    # تحويل الرابط تلقائياً ليعمل عبر HTTP/REST الهادئ بدون مشاكل الـ WebSockets
+    TURSO_DB_URL = TURSO_DB_URL.replace("wss://", "https://").replace("libsql://", "https://")
 # --- Turso (libSQL) Connection Settings ---
 TURSO_DB_URL = os.getenv("TURSO_DB_URL")
 TURSO_AUTH_TOKEN = os.getenv("TURSO_AUTH_TOKEN")

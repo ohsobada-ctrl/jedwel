@@ -809,15 +809,27 @@ def push_to_github(chat_id):
 
 def scrape_process(chat_id, creds):
     chrome_options = Options()
-    chrome_options.add_argument("--window-size=1200,800")
-    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--window-size=1920,1080")
     
     driver = None
     try:
-        driver = webdriver.Chrome(options=chrome_options)
+        try:
+            driver = webdriver.Chrome(options=chrome_options)
+        except Exception as chrome_err:
+            bot.send_message(
+                chat_id, 
+                "⚠️ **تنبيه:** خادم الاستضافة المجاني (Render) لا يحتوي على متصفح Chrome لتشغيل السحب السحابي المباشر.\n\n"
+                "💡 **الحل البسيط جداً:**\n"
+                "قم بتشغيل البوت من حاسوبك محلياً واضغط على **'📊 سحب الجداول الآن'** مرة واحدة عند بداية الفصل، وسيقوم البوت بسحب الجداول وتحديثها فوراً لجميع الطلاب على السيرفر!",
+                parse_mode="Markdown"
+            )
+            return
+
         wait = WebDriverWait(driver, 30)
-        
         bot.send_message(chat_id, "🌐 جاري فتح الكروم والدخول للمنظومة...")
         driver.get("https://sms.uot.edu.ly/eng/login_ing.php")
         

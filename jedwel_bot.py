@@ -270,53 +270,8 @@ def save_schedules(new_exams, new_faculty):
             print(f"Error saving to database: {e}")
             return
 
-    with file_lock:
-        with open(EXAMS_FILE, "w", encoding="utf-8") as f:
-            json.dump(new_exams, f, ensure_ascii=False, indent=4)
-        with open(FACULTY_FILE, "w", encoding="utf-8") as f:
-            json.dump(new_faculty, f, ensure_ascii=False, indent=4)
-        build_static_webapp(new_exams, new_faculty)
-
-def build_static_webapp(exams, faculty):
-    try:
-        template_path = os.path.join(BASE_DIR, "webapp", "index.html")
-        output_path = os.path.join(BASE_DIR, "webapp", "index_final.html")
-        if not os.path.exists(template_path): return
-        
-        with open(template_path, "r", encoding="utf-8") as f:
-            html = f.read()
-        
-        dates_map = {}
-        try:
-            conn = get_conn()
-            c = conn.cursor()
-            c.execute("SELECT value FROM settings WHERE key = 'exam_dates_map'")
-            row = c.fetchone()
-            conn.close()
-            if row:
-                dates_map = json.loads(row[0])
-        except:
-            pass
-        
-        data_script = f"""
-        <script>
-            window.allCourses = {json.dumps(faculty, ensure_ascii=False)};
-            window.allExams = {json.dumps(exams, ensure_ascii=False)};
-            window.datesMap = {json.dumps(dates_map, ensure_ascii=False)};
-            console.log("Data Injected Successfully! Courses:", window.allCourses.length, "Exams:", window.allExams.length);
-        </script>
-        """
-        target_script = '<script src="https://telegram.org/js/telegram-web-app.js"></script>'
-        if target_script in html:
-            final_html = html.replace(target_script, data_script + '\n' + target_script)
-        else:
-            final_html = html.replace('</head>', data_script + '\n</head>')
-
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.write(final_html)
-        print("[Info] Created index_final.html with embedded data.")
-    except Exception as e:
-        print(f"[Error] Error building static webapp: {e}")
+    # Turso هو مصدر الحقيقة الوحيد الآن؛ الموقع يقرأ دائمًا من /api/faculty و/api/exams
+    # مباشرة (شوف do_GET بالأسفل)، فما عاد فيه حاجة لبناء ملف HTML ثابت ولا رفعه لـ GitHub.
 
 def save_user_schedule_to_db(user_id, selected_courses):
     try:
@@ -591,19 +546,8 @@ def process_exam_start_date(message):
             c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", ("exam_dates_map", json.dumps(index_to_date)))
             conn.commit()
             conn.close()
-            
-        with file_lock:
-            with open("webapp/dates.json", "w", encoding="utf-8") as f:
-                json.dump(index_to_date, f, ensure_ascii=False, indent=4)
-                
-            bot.send_message(message.chat.id, f"✅ تم تحديث تواريخ {len(index_to_date)} يوماً بنجاح!")
-            exams = get_db_data("exams")
-            faculty = get_db_data("faculty")
-            with open(EXAMS_FILE, "w", encoding="utf-8") as f:
-                json.dump(exams, f, ensure_ascii=False, indent=4)
-            with open(FACULTY_FILE, "w", encoding="utf-8") as f:
-                json.dump(faculty, f, ensure_ascii=False, indent=4)
-            build_static_webapp(exams, faculty)
+
+        bot.send_message(message.chat.id, f"✅ تم تحديث تواريخ {len(index_to_date)} يوماً بنجاح! (الموقع يقرأ التحديث فورًا من /api)")
         
     except Exception as e:
         bot.send_message(message.chat.id, f"❌ خطأ: تأكد من كتابة التاريخ بشكل صحيح (2024-05-12)\nالتفاصيل: {e}")
@@ -678,16 +622,7 @@ def process_edit_save(message, table, field, row_id):
             conn.commit()
             conn.close()
             
-        bot.send_message(message.chat.id, "✅ تم التعديل بنجاح!")
-        
-        with file_lock:
-            exams = get_db_data("exams")
-            faculty = get_db_data("faculty")
-            with open(EXAMS_FILE, "w", encoding="utf-8") as f:
-                json.dump(exams, f, ensure_ascii=False, indent=4)
-            with open(FACULTY_FILE, "w", encoding="utf-8") as f:
-                json.dump(faculty, f, ensure_ascii=False, indent=4)
-            build_static_webapp(exams, faculty)
+        bot.send_message(message.chat.id, "✅ تم التعديل بنجاح! (الموقع يقرأ التحديث فورًا من /api)")
     except Exception as e:
         bot.send_message(message.chat.id, f"❌ فشل التعديل: {e}")
 
@@ -736,16 +671,7 @@ def admin_add_exam_final(call):
         conn.commit()
         conn.close()
 
-    bot.send_message(call.message.chat.id, f"✅ تم إضافة {name} إلى جدول الامتحانات بنجاح!")
-    
-    with file_lock:
-        exams = get_db_data("exams")
-        faculty = get_db_data("faculty")
-        with open(EXAMS_FILE, "w", encoding="utf-8") as f:
-            json.dump(exams, f, ensure_ascii=False, indent=4)
-        with open(FACULTY_FILE, "w", encoding="utf-8") as f:
-            json.dump(faculty, f, ensure_ascii=False, indent=4)
-        build_static_webapp(exams, faculty)
+    bot.send_message(call.message.chat.id, f"✅ تم إضافة {name} إلى جدول الامتحانات بنجاح! (الموقع يقرأ التحديث فورًا من /api)")
 
 # --- Scraping Logic ---
 from selenium import webdriver
@@ -929,16 +855,6 @@ def parse_faculty_schedule(driver, exam_data):
     except Exception as e:
         print(f"Error parsing faculty schedule: {e}")
         return []
-
-def push_to_github(chat_id):
-    try:
-        bot.send_message(chat_id, "🔄 جاري رفع الجداول المحدثة إلى GitHub...")
-        subprocess.run(["git", "add", "webapp/faculty.json", "webapp/exams.json"], check=True)
-        subprocess.run(["git", "commit", "-m", "🔄 تحديث الجداول آلياً"], check=True)
-        subprocess.run(["git", "push"], check=True)
-        bot.send_message(chat_id, "🚀 تم تحديث البيانات على GitHub بنجاح!")
-    except Exception as e:
-        bot.send_message(chat_id, f"⚠️ فشل التحديث التلقائي لـ GitHub: {e}")
 
 def scrape_process(chat_id, creds):
     chrome_options = Options()

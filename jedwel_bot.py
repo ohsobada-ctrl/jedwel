@@ -53,7 +53,7 @@ if TURSO_DB_URL:
 if not TURSO_DB_URL or not TURSO_AUTH_TOKEN:
     raise ValueError(
         "لم يتم العثور على TURSO_DB_URL أو TURSO_AUTH_TOKEN! "
-        "يرجى إضافتهم في Environment Variables على Render (شوف لوحة Turso تبويب Connect)."
+        "يرجى إضافتهم في Environment Variables على Render."
     )
 
 file_lock = threading.Lock()
@@ -181,7 +181,6 @@ def init_db():
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, schedule_json TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     c.execute('''CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)''')
     
-    # قيود منع التكرار على مستوى الحقول المفتاحية
     try:
         c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_faculty_unique ON faculty (code, \"group\", day, time)")
         c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_exams_unique ON exams (code, exam_day, exam_period)")
@@ -262,7 +261,6 @@ def get_db_data(table):
 def save_schedules(new_exams, new_faculty):
     """
     يقوم بحذف الجدول القديم بالكامل وإعادة إدخال التحديثات دفعة واحدة (Batch Execution)
-    لتجنب التكرار وضمان السرعة وعدم استهلاك الاتصالات.
     """
     print(f"[Database Sync] بداية حفظ البيانات: {len(new_faculty)} محاضرة | {len(new_exams)} امتحان")
     with db_lock:
@@ -270,11 +268,9 @@ def save_schedules(new_exams, new_faculty):
             conn = get_conn()
             stmts = []
 
-            # 1. مسح الترتيب السابق كاملاً لتفادي التكرار نهائياً
             stmts.append("DELETE FROM exams")
             stmts.append("DELETE FROM faculty")
 
-            # 2. بناء استعلامات الإدخال الجديدة لجدول الامتحانات
             for ex in new_exams:
                 code = ex.get("code")
                 name = ex.get("name")
@@ -286,7 +282,6 @@ def save_schedules(new_exams, new_faculty):
                     [code, name, exam_day, exam_period, day_index]
                 ))
 
-            # 3. بناء استعلامات الإدخال الجديدة لجدول المحاضرات
             for f in new_faculty:
                 code = f.get("code")
                 name = f.get("name")
@@ -300,10 +295,9 @@ def save_schedules(new_exams, new_faculty):
                     [code, name, group_val, day, time_val, instructor, room]
                 ))
 
-            # 4. التنفيذ دفعة واحدة على Turso
             conn.batch(stmts)
             conn.close()
-            print("[Database Sync] ✅ تم إحلال وتحديث كامل البيانات بنجاح بدون تكرار.")
+            print("[Database Sync] ✅ تم إحلال وتحديث كامل البيانات بنجاح.")
 
         except Exception as e:
             print(f"[Database Sync Error] فشل تحديث قاعدة البيانات: {e}")
@@ -320,14 +314,22 @@ def save_schedules(new_exams, new_faculty):
         except Exception as file_err:
             print(f"[File Error] فشل كتابة ملفات JSON المحلية: {file_err}")
 
+# =========================================================================
+# دالة حقن البيانات المباشرة داخل index.html (حل مشكلة الصفحة البيضاء)
+# =========================================================================
 def build_static_webapp(exams, faculty):
     try:
-        template_path = os.path.join(BASE_DIR, "webapp", "index.html")
-        output_path = os.path.join(BASE_DIR, "webapp", "index_final.html")
-        if not os.path.exists(template_path): return
+        html_path = os.path.join(BASE_DIR, "webapp", "index.html")
+        if not os.path.exists(html_path):
+            print("[Error] webapp/index.html not found!")
+            return
         
-        with open(template_path, "r", encoding="utf-8") as f:
+        with open(html_path, "r", encoding="utf-8") as f:
             html = f.read()
+            
+        # تنظيف أي حقن قديم لتفادي التكرار
+        clean_pattern = r'<script id="injected-data">\s*window\.allCourses[\s\S]*?</script>'
+        html = re.sub(clean_pattern, '', html)
         
         dates_map = {}
         try:
@@ -342,22 +344,22 @@ def build_static_webapp(exams, faculty):
             pass
         
         data_script = f"""
-        <script>
+        <script id="injected-data">
             window.allCourses = {json.dumps(faculty, ensure_ascii=False)};
             window.allExams = {json.dumps(exams, ensure_ascii=False)};
             window.datesMap = {json.dumps(dates_map, ensure_ascii=False)};
-            console.log("Data Injected Successfully! Courses:", window.allCourses.length, "Exams:", window.allExams.length);
         </script>
         """
+        
         target_script = '<script src="https://telegram.org/js/telegram-web-app.js"></script>'
         if target_script in html:
-            final_html = html.replace(target_script, data_script + '\n' + target_script)
+            final_html = html.replace(target_script, target_script + '\n' + data_script)
         else:
             final_html = html.replace('</head>', data_script + '\n</head>')
 
-        with open(output_path, "w", encoding="utf-8") as f:
+        with open(html_path, "w", encoding="utf-8") as f:
             f.write(final_html)
-        print("[Info] Created index_final.html with embedded data.")
+        print("[Info] Successfully injected data directly into webapp/index.html")
     except Exception as e:
         print(f"[Error] Error building static webapp: {e}")
 
@@ -613,7 +615,7 @@ def process_exam_start_date(message):
             current_date = start_date
             index_to_date = {}
             for idx in day_indices:
-                while current_date.weekday() == 4: # Friday
+                while current_date.weekday() == 4: # الجمعة عطلة
                     current_date += timedelta(days=1)
                 day_name = arabic_days[current_date.weekday()]
                 formatted_date = f"({idx}) {day_name} {current_date.strftime('%Y-%m-%d')}"
@@ -627,9 +629,6 @@ def process_exam_start_date(message):
             conn.close()
             
         with file_lock:
-            with open("webapp/dates.json", "w", encoding="utf-8") as f:
-                json.dump(index_to_date, f, ensure_ascii=False, indent=4)
-                
             bot.send_message(message.chat.id, f"✅ تم تحديث تواريخ {len(index_to_date)} يوماً بنجاح!")
             exams = get_db_data("exams")
             faculty = get_db_data("faculty")
@@ -797,7 +796,7 @@ def run_dummy_server():
     except Exception as e:
         print(f"[HTTP Error] Failed to start dummy server: {e}")
 
-# 1. تشغيل سيرفر الويب الوهمي لـ Render
+# 1. تشغيل سيرفر الويب الوهمي لـ Render (آمن ولا يظهر الملفات)
 threading.Thread(target=run_dummy_server, daemon=True).start()
 
 # 2. تشغيل التنسيق التلقائي للنسخ الاحتياطي
@@ -810,6 +809,14 @@ threading.Thread(target=auto_backup_loop, daemon=True).start()
 
 if __name__ == "__main__":
     print("[Bot] Cleaning up old sessions...")
+
+    # بناء الحقن المبدئي للبيانات داخل index.html عند إقلاع البوت
+    try:
+        exams_init = get_db_data("exams")
+        faculty_init = get_db_data("faculty")
+        build_static_webapp(exams_init, faculty_init)
+    except Exception as e:
+        print(f"[Warning] Initial WebApp build failed: {e}")
 
     # تنظيف الـ Webhook وأي جلسات معلقة على سيرفرات تلجرام
     try:

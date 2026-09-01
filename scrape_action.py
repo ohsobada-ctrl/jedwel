@@ -4,9 +4,13 @@
 يسجّل دخول، يسحب جدول الامتحانات وجدول الكلية، ويحفظهم مباشرة في Turso.
 يرسل تحديثات الحالة للأدمن عبر تيليجرام مباشرة (بدون الحاجة لتشغيل البوت نفسه).
 
-كل القيم الحساسة تُقرأ من GitHub Actions Secrets (متغيرات بيئة وقت التشغيل):
-TURSO_DB_URL, TURSO_AUTH_TOKEN, BOT_TOKEN, ADMIN_CHAT_ID,
-MASTER_USER, MASTER_PASS, MASTER_COLLEGE
+بيانات الماستر (اليوزر/الباسورد/الكلية) تُقرأ مباشرة من جدول master_data
+بـTurso (نفس المصدر اللي يستخدمه البوت)، ويُفك تشفير الباسورد بنفس مفتاح
+Fernet الثابت (FERNET_KEY) المشترك بين Render وGitHub Actions — بدل ما
+تتكرر بيانات الماستر يدويًا كأسرار منفصلة هنا.
+
+كل القيم تُقرأ من GitHub Actions Secrets (متغيرات بيئة وقت التشغيل):
+TURSO_DB_URL, TURSO_AUTH_TOKEN, BOT_TOKEN, ADMIN_CHAT_ID, FERNET_KEY
 """
 
 import os
@@ -14,6 +18,7 @@ import re
 import time
 import requests
 import libsql_client
+from cryptography.fernet import Fernet
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait, Select
@@ -25,9 +30,29 @@ TURSO_DB_URL = os.environ["TURSO_DB_URL"].replace("wss://", "https://").replace(
 TURSO_AUTH_TOKEN = os.environ["TURSO_AUTH_TOKEN"]
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 ADMIN_CHAT_ID = os.environ["ADMIN_CHAT_ID"]
-MASTER_USER = os.environ["MASTER_USER"]
-MASTER_PASS = os.environ["MASTER_PASS"]
-MASTER_COLLEGE = os.environ.get("MASTER_COLLEGE", "it")  # "it" أو "eng"
+FERNET_KEY = os.environ["FERNET_KEY"]
+
+
+def load_master_creds_from_turso(client):
+    """يسحب بيانات الماستر (username/password/college) من جدول master_data بـTurso
+    ويفك تشفير الباسورد بمفتاح Fernet الثابت. يرمي استثناء واضح لو الصف غير موجود
+    أو لو المفتاح غير صحيح (بيانات مشفّرة بمفتاح مختلف)."""
+    result = client.execute("SELECT username, password, college FROM master_data LIMIT 1")
+    if not result.rows:
+        raise RuntimeError("لا توجد بيانات ماستر محفوظة في Turso (جدول master_data فاضي).")
+
+    username, encrypted_pass, college = result.rows[0]
+    cipher = Fernet(FERNET_KEY.encode() if isinstance(FERNET_KEY, str) else FERNET_KEY)
+    try:
+        password = cipher.decrypt(encrypted_pass.encode()).decode()
+    except Exception as e:
+        raise RuntimeError(
+            "فشل فك تشفير باسورد الماستر — على الأغلب FERNET_KEY على GitHub "
+            "غير مطابق لنفس المفتاح المستخدم على Render وقت الحفظ."
+        ) from e
+
+    return {"master_user": username, "master_pass": password, "college": college or "it"}
+
 
 
 def notify(text: str) -> None:

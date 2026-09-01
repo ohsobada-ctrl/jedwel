@@ -4,13 +4,14 @@
 يسجّل دخول، يسحب جدول الامتحانات وجدول الكلية، ويحفظهم مباشرة في Turso.
 يرسل تحديثات الحالة للأدمن عبر تيليجرام مباشرة (بدون الحاجة لتشغيل البوت نفسه).
 
-بيانات الماستر (اليوزر/الباسورد/الكلية) تُقرأ مباشرة من جدول master_data
-بـTurso (نفس المصدر اللي يستخدمه البوت)، ويُفك تشفير الباسورد بنفس مفتاح
-Fernet الثابت (FERNET_KEY) المشترك بين Render وGitHub Actions — بدل ما
-تتكرر بيانات الماستر يدويًا كأسرار منفصلة هنا.
-
-كل القيم تُقرأ من GitHub Actions Secrets (متغيرات بيئة وقت التشغيل):
+كل القيم الحساسة تُقرأ من GitHub Actions Secrets (متغيرات بيئة وقت التشغيل):
 TURSO_DB_URL, TURSO_AUTH_TOKEN, BOT_TOKEN, ADMIN_CHAT_ID, FERNET_KEY
+
+بيانات الماستر (رقم القيد/الباسورد/الكلية) ما عادت تُقرأ من أسرار منفصلة
+(MASTER_USER / MASTER_PASS / MASTER_COLLEGE)؛ بدلها يقرأها السكربت مباشرة
+من صف master_data في Turso ويفك تشفير الباسورد بـ FERNET_KEY (نفس المفتاح
+المستخدم في jedwel_bot.py). هذا يعني أي تحديث لبيانات الماستر من داخل
+البوت (زر "تحديث حساب الماستر") ينعكس تلقائياً هنا بدون تحديث أي سر يدوياً.
 """
 
 import os
@@ -31,28 +32,6 @@ TURSO_AUTH_TOKEN = os.environ["TURSO_AUTH_TOKEN"]
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 ADMIN_CHAT_ID = os.environ["ADMIN_CHAT_ID"]
 FERNET_KEY = os.environ["FERNET_KEY"]
-
-
-def load_master_creds_from_turso(client):
-    """يسحب بيانات الماستر (username/password/college) من جدول master_data بـTurso
-    ويفك تشفير الباسورد بمفتاح Fernet الثابت. يرمي استثناء واضح لو الصف غير موجود
-    أو لو المفتاح غير صحيح (بيانات مشفّرة بمفتاح مختلف)."""
-    result = client.execute("SELECT username, password, college FROM master_data LIMIT 1")
-    if not result.rows:
-        raise RuntimeError("لا توجد بيانات ماستر محفوظة في Turso (جدول master_data فاضي).")
-
-    username, encrypted_pass, college = result.rows[0]
-    cipher = Fernet(FERNET_KEY.encode() if isinstance(FERNET_KEY, str) else FERNET_KEY)
-    try:
-        password = cipher.decrypt(encrypted_pass.encode()).decode()
-    except Exception as e:
-        raise RuntimeError(
-            "فشل فك تشفير باسورد الماستر — على الأغلب FERNET_KEY على GitHub "
-            "غير مطابق لنفس المفتاح المستخدم على Render وقت الحفظ."
-        ) from e
-
-    return {"master_user": username, "master_pass": password, "college": college or "it"}
-
 
 
 def notify(text: str) -> None:
@@ -76,6 +55,34 @@ def notify(text: str) -> None:
             print(f"[Telegram notify] فشلت المحاولة البديلة أيضًا (كود {resp2.status_code}): {resp2.text[:300]}")
     except Exception as e:
         print(f"[Telegram notify error] {e}")
+
+
+def load_master_creds_from_turso():
+    """يقرأ بيانات الماستر (username/password/college) مباشرة من جدول master_data
+    في Turso، ويفك تشفير الباسورد بمفتاح FERNET_KEY الثابت (المشترك مع Render).
+    """
+    client = libsql_client.create_client_sync(TURSO_DB_URL, auth_token=TURSO_AUTH_TOKEN)
+    try:
+        result = client.execute("SELECT username, password, college FROM master_data LIMIT 1")
+        if not result.rows:
+            raise RuntimeError(
+                "لا توجد بيانات ماستر محفوظة في Turso (جدول master_data فارغ). "
+                "يرجى إعداد حساب الماستر أولاً من داخل البوت."
+            )
+        username, encrypted_pass, college = result.rows[0]
+        cipher = Fernet(FERNET_KEY.encode())
+        try:
+            password = cipher.decrypt(encrypted_pass.encode()).decode()
+        except Exception as decrypt_err:
+            raise RuntimeError(
+                f"تعذّر فك تشفير باسورد الماستر بمفتاح FERNET_KEY الحالي: {decrypt_err}"
+            )
+        return username, password, (college or "it")
+    finally:
+        client.close()
+
+
+MASTER_USER, MASTER_PASS, MASTER_COLLEGE = load_master_creds_from_turso()
 
 
 def build_chrome() -> webdriver.Chrome:

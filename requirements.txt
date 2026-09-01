@@ -3,3 +3,4 @@ selenium>=4.0.0
 cryptography
 python-dotenv
 libsql-client
+cryptography

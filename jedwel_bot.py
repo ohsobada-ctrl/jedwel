@@ -4,7 +4,7 @@ import os
 import threading
 import http.server
 import socketserver
-import sqlite3  # يبقى مستوردًا لأجل sqlite3.Row
+import sqlite3
 import subprocess
 import time
 import base64
@@ -13,6 +13,14 @@ import re
 import shutil
 import requests
 from datetime import datetime, timedelta
+
+# Selenium Imports
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import Select
 
 # pyrefly: ignore [missing-import]
 import libsql_client
@@ -31,7 +39,7 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 TOKEN = os.getenv("TOKEN")
 if not TOKEN:
-    raise ValueError("لم يتم العثور على التوكن (TOKEN)! يرجى إضافته في قائمة Environment Variables على Render.")
+    raise ValueError("لم يتم العثور على التوكن (TOKEN)! يرجى إضافته في قائمة Environment Variables.")
 ADMIN_ID = 1084115596
 
 bot = telebot.TeleBot(TOKEN)
@@ -47,47 +55,29 @@ TURSO_DB_URL = os.getenv("TURSO_DB_URL")
 TURSO_AUTH_TOKEN = os.getenv("TURSO_AUTH_TOKEN")
 
 if TURSO_DB_URL:
-    # تحويل الرابط تلقائياً ليعمل عبر HTTP/REST الهادئ بدون مشاكل الـ WebSockets
     TURSO_DB_URL = TURSO_DB_URL.replace("wss://", "https://").replace("libsql://", "https://")
 
 if not TURSO_DB_URL or not TURSO_AUTH_TOKEN:
-    raise ValueError(
-        "لم يتم العثور على TURSO_DB_URL أو TURSO_AUTH_TOKEN! "
-        "يرجى إضافتهم في Environment Variables على Render."
-    )
+    raise ValueError("لم يتم العثور على TURSO_DB_URL أو TURSO_AUTH_TOKEN!")
 
 file_lock = threading.Lock()
 db_lock = threading.Lock()
 
 # =========================================================================
-# طبقة توافق (Shim) تحاكي واجهة sqlite3 لكن تتصل فعليًا بقاعدة Turso البعيدة
+# Turso Database Compatibility Shim
 # =========================================================================
 
 class _TursoRow:
-    """يحاكي سلوك sqlite3.Row: يدعم row[0] ، row['col'] ، dict(row) ، وفك التغليف (a, b = row)."""
     __slots__ = ("_cols", "_vals")
-
     def __init__(self, cols, vals):
         self._cols = cols
         self._vals = list(vals)
-
-    def keys(self):
-        return list(self._cols)
-
+    def keys(self): return list(self._cols)
     def __getitem__(self, key):
-        if isinstance(key, str):
-            return self._vals[self._cols.index(key)]
+        if isinstance(key, str): return self._vals[self._cols.index(key)]
         return self._vals[key]
-
-    def __iter__(self):
-        return iter(self._vals)
-
-    def __len__(self):
-        return len(self._vals)
-
-    def __repr__(self):
-        return f"<TursoRow {dict(zip(self._cols, self._vals))}>"
-
+    def __iter__(self): return iter(self._vals)
+    def __len__(self): return len(self._vals)
 
 class _TursoCursor:
     def __init__(self, client):
@@ -120,8 +110,7 @@ class _TursoCursor:
         return self
 
     def fetchone(self):
-        if self._pos >= len(self._rows):
-            return None
+        if self._pos >= len(self._rows): return None
         row = _TursoRow(self._cols, self._rows[self._pos])
         self._pos += 1
         return row
@@ -131,83 +120,51 @@ class _TursoCursor:
         self._pos = len(self._rows)
         return rows
 
-    def close(self):
-        pass
-
+    def close(self): pass
 
 class _TursoConnection:
-    """يحاكي sqlite3.Connection."""
-
     def __init__(self):
         self._client = libsql_client.create_client_sync(TURSO_DB_URL, auth_token=TURSO_AUTH_TOKEN)
         self.row_factory = None
 
-    def cursor(self):
-        return _TursoCursor(self._client)
-
-    def execute(self, sql, params=None):
-        return self.cursor().execute(sql, params)
-
-    def commit(self):
-        pass
-
-    def batch(self, stmts):
-        """تنفيذ مجموعة استعلامات دفعة واحدة في طلب واحد إلى Turso"""
-        return self._client.batch(stmts)
-
+    def cursor(self): return _TursoCursor(self._client)
+    def execute(self, sql, params=None): return self.cursor().execute(sql, params)
+    def commit(self): pass
+    def batch(self, stmts): return self._client.batch(stmts)
     def close(self):
-        try:
-            self._client.close()
-        except Exception:
-            pass
+        try: self._client.close()
+        except Exception: pass
 
-
-def get_conn():
-    """بديل مباشر لـ sqlite3.connect(DB_FILE)"""
-    return _TursoConnection()
-
+def get_conn(): return _TursoConnection()
 
 # --- Database Initialization ---
 def init_db():
     conn = get_conn()
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS master_data 
-                 (id INTEGER PRIMARY KEY, username TEXT, password TEXT, college TEXT)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS exams 
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT, name TEXT, exam_day TEXT, exam_period TEXT, day_index INTEGER)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS faculty 
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT, name TEXT, "group" TEXT, day TEXT, time TEXT, instructor TEXT, room TEXT)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS user_schedules 
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, schedule_json TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS master_data (id INTEGER PRIMARY KEY, username TEXT, password TEXT, college TEXT)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS exams (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT, name TEXT, exam_day TEXT, exam_period TEXT, day_index INTEGER)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS faculty (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT, name TEXT, "group" TEXT, day TEXT, time TEXT, instructor TEXT, room TEXT)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS user_schedules (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, schedule_json TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     c.execute('''CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)''')
     
     try:
         c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_faculty_unique ON faculty (code, \"group\", day, time)")
         c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_exams_unique ON exams (code, exam_day, exam_period)")
-    except Exception:
-        pass
-
-    try:
         c.execute("ALTER TABLE exams ADD COLUMN day_index INTEGER DEFAULT 0")
-    except Exception:
-        pass
-        
+    except Exception: pass
     conn.close()
 
 init_db()
 
-# --- Cryptography Setup ---
+# --- Cryptography & Credential Helpers ---
 def get_cipher():
     if not os.path.exists(KEY_FILE):
         key = Fernet.generate_key()
-        with open(KEY_FILE, "wb") as f:
-            f.write(key)
+        with open(KEY_FILE, "wb") as f: f.write(key)
     else:
-        with open(KEY_FILE, "rb") as f:
-            key = f.read()
+        with open(KEY_FILE, "rb") as f: key = f.read()
     return Fernet(key)
 
-# --- Database & Credentials Helpers ---
 def save_master_creds(username, password, college):
     cipher = get_cipher()
     encrypted_pass = cipher.encrypt(password.encode()).decode()
@@ -234,13 +191,10 @@ def load_master_creds():
             if row:
                 username, encrypted_pass, college = row
                 cipher = get_cipher()
-                try:
-                    decrypted_pass = cipher.decrypt(encrypted_pass.encode()).decode()
-                except:
-                    decrypted_pass = encrypted_pass
+                try: decrypted_pass = cipher.decrypt(encrypted_pass.encode()).decode()
+                except: decrypted_pass = encrypted_pass
                 return {"master_user": username, "master_pass": decrypted_pass, "college": college}
-        except:
-            pass
+        except: pass
         return None
 
 def get_db_data(table):
@@ -259,46 +213,27 @@ def get_db_data(table):
             return []
 
 def save_schedules(new_exams, new_faculty):
-    """
-    يقوم بحذف الجدول القديم بالكامل وإعادة إدخال التحديثات دفعة واحدة (Batch Execution)
-    """
     print(f"[Database Sync] بداية حفظ البيانات: {len(new_faculty)} محاضرة | {len(new_exams)} امتحان")
     with db_lock:
         try:
             conn = get_conn()
-            stmts = []
-
-            stmts.append("DELETE FROM exams")
-            stmts.append("DELETE FROM faculty")
+            stmts = ["DELETE FROM exams", "DELETE FROM faculty"]
 
             for ex in new_exams:
-                code = ex.get("code")
-                name = ex.get("name")
-                exam_day = ex.get("exam_day")
-                exam_period = ex.get("exam_period")
-                day_index = ex.get("day_index", 0)
                 stmts.append((
                     "INSERT INTO exams (code, name, exam_day, exam_period, day_index) VALUES (?, ?, ?, ?, ?)",
-                    [code, name, exam_day, exam_period, day_index]
+                    [ex.get("code"), ex.get("name"), ex.get("exam_day"), ex.get("exam_period"), ex.get("day_index", 0)]
                 ))
 
             for f in new_faculty:
-                code = f.get("code")
-                name = f.get("name")
-                group_val = f.get("group")
-                day = f.get("day")
-                time_val = f.get("time")
-                instructor = f.get("instructor")
-                room = f.get("room")
                 stmts.append((
                     "INSERT INTO faculty (code, name, [group], day, time, instructor, room) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    [code, name, group_val, day, time_val, instructor, room]
+                    [f.get("code"), f.get("name"), f.get("group"), f.get("day"), f.get("time"), f.get("instructor"), f.get("room")]
                 ))
 
             conn.batch(stmts)
             conn.close()
-            print("[Database Sync] ✅ تم إحلال وتحديث كامل البيانات بنجاح.")
-
+            print("[Database Sync] ✅ تم تحديث قاعدة البيانات بنجاح.")
         except Exception as e:
             print(f"[Database Sync Error] فشل تحديث قاعدة البيانات: {e}")
             return
@@ -306,30 +241,18 @@ def save_schedules(new_exams, new_faculty):
     with file_lock:
         try:
             os.makedirs(os.path.dirname(EXAMS_FILE), exist_ok=True)
-            with open(EXAMS_FILE, "w", encoding="utf-8") as f:
-                json.dump(new_exams, f, ensure_ascii=False, indent=4)
-            with open(FACULTY_FILE, "w", encoding="utf-8") as f:
-                json.dump(new_faculty, f, ensure_ascii=False, indent=4)
+            with open(EXAMS_FILE, "w", encoding="utf-8") as f: json.dump(new_exams, f, ensure_ascii=False, indent=4)
+            with open(FACULTY_FILE, "w", encoding="utf-8") as f: json.dump(new_faculty, f, ensure_ascii=False, indent=4)
             build_static_webapp(new_exams, new_faculty)
         except Exception as file_err:
-            print(f"[File Error] فشل كتابة ملفات JSON المحلية: {file_err}")
+            print(f"[File Error] فشل كتابة الملفات المحلية: {file_err}")
 
-# =========================================================================
-# دالة حقن البيانات المباشرة داخل index.html (حل مشكلة الصفحة البيضاء)
-# =========================================================================
 def build_static_webapp(exams, faculty):
     try:
         html_path = os.path.join(BASE_DIR, "webapp", "index.html")
-        if not os.path.exists(html_path):
-            print("[Error] webapp/index.html not found!")
-            return
-        
-        with open(html_path, "r", encoding="utf-8") as f:
-            html = f.read()
-            
-        # تنظيف أي حقن قديم لتفادي التكرار
-        clean_pattern = r'<script id="injected-data">\s*window\.allCourses[\s\S]*?</script>'
-        html = re.sub(clean_pattern, '', html)
+        if not os.path.exists(html_path): return
+        with open(html_path, "r", encoding="utf-8") as f: html = f.read()
+        html = re.sub(r'<script id="injected-data">\s*window\.allCourses[\s\S]*?</script>', '', html)
         
         dates_map = {}
         try:
@@ -338,10 +261,8 @@ def build_static_webapp(exams, faculty):
             c.execute("SELECT value FROM settings WHERE key = 'exam_dates_map'")
             row = c.fetchone()
             conn.close()
-            if row:
-                dates_map = json.loads(row[0])
-        except:
-            pass
+            if row: dates_map = json.loads(row[0])
+        except: pass
         
         data_script = f"""
         <script id="injected-data">
@@ -350,16 +271,10 @@ def build_static_webapp(exams, faculty):
             window.datesMap = {json.dumps(dates_map, ensure_ascii=False)};
         </script>
         """
-        
         target_script = '<script src="https://telegram.org/js/telegram-web-app.js"></script>'
-        if target_script in html:
-            final_html = html.replace(target_script, target_script + '\n' + data_script)
-        else:
-            final_html = html.replace('</head>', data_script + '\n</head>')
+        final_html = html.replace(target_script, target_script + '\n' + data_script) if target_script in html else html.replace('</head>', data_script + '\n</head>')
 
-        with open(html_path, "w", encoding="utf-8") as f:
-            f.write(final_html)
-        print("[Info] Successfully injected data directly into webapp/index.html")
+        with open(html_path, "w", encoding="utf-8") as f: f.write(final_html)
     except Exception as e:
         print(f"[Error] Error building static webapp: {e}")
 
@@ -368,50 +283,272 @@ def save_user_schedule_to_db(user_id, selected_courses):
         with db_lock:
             conn = get_conn()
             c = conn.cursor()
-            c.execute("INSERT INTO user_schedules (user_id, schedule_json) VALUES (?, ?)",
-                      (user_id, json.dumps(selected_courses)))
+            c.execute("INSERT INTO user_schedules (user_id, schedule_json) VALUES (?, ?)", (user_id, json.dumps(selected_courses)))
             conn.close()
     except Exception as db_err:
         print(f"Error saving user schedule: {db_err}")
 
-# --- Database Export Helper ---
-def export_full_backup_json():
-    conn = get_conn()
-    c = conn.cursor()
-    dump = {}
-    for table in ["master_data", "exams", "faculty", "user_schedules", "settings"]:
-        c.execute(f"SELECT * FROM {table}")
-        dump[table] = [dict(row) for row in c.fetchall()]
-    conn.close()
+# =========================================================================
+# Scraping Logic (Selenium)
+# =========================================================================
 
-    backup_path = os.path.join(BASE_DIR, f"jedwel_backup_{int(time.time())}.json")
-    with open(backup_path, "w", encoding="utf-8") as f:
-        json.dump(dump, f, ensure_ascii=False, indent=2)
-    return backup_path
+def parse_exam_schedule(driver):
+    try:
+        tbody = driver.find_element(By.TAG_NAME, "tbody")
+        rows = tbody.find_elements(By.TAG_NAME, "tr")
+        all_days_raw = []
+        periods_list = ["الفترة الاولى", "الفترة الثانية", "الفترة الثالثة", "الفترة الرابعة"]
 
+        for row in rows:
+            if "اليوم" in row.text and "الفترة" in row.text: continue
+            cells = row.find_elements(By.TAG_NAME, "td")
+            if len(cells) < 2: continue
+            
+            day_text = cells[0].text.strip()
+            day_periods_data = []
+            
+            for i in range(1, 5):
+                period_exams = []
+                if i < len(cells):
+                    spans = cells[i].find_elements(By.TAG_NAME, "span")
+                    for span in spans:
+                        text = span.text.strip()
+                        if not text: continue
+                        match = re.search(r"^(.*?)\s*\(\s*([\w\d]+)\s*\)$", text)
+                        if match:
+                            period_exams.append({"code": match.group(2).strip(), "name": match.group(1).strip()})
+                day_periods_data.append(period_exams)
+            all_days_raw.append({"day_text": day_text, "periods": day_periods_data})
 
-# --- Automatic Database Backup Background Thread ---
-def auto_backup_loop():
-    while True:
+        if not all_days_raw: return []
+
+        is_p4_empty_everywhere = True
+        for day in all_days_raw:
+            if day["periods"][3]:
+                is_p4_empty_everywhere = False
+                break
+        
+        day_13_idx = -1
+        for idx, day in enumerate(all_days_raw):
+            if "(13)" in day["day_text"]:
+                day_13_idx = idx
+                break
+        
+        if day_13_idx != -1:
+            all_after_13_empty = True
+            for i in range(day_13_idx, len(all_days_raw)):
+                for p in all_days_raw[i]["periods"]:
+                    if p:
+                        all_after_13_empty = False
+                        break
+                if not all_after_13_empty: break
+            
+            if all_after_13_empty:
+                all_days_raw = all_days_raw[:day_13_idx]
+
+        final_exams = []
+        max_periods = 3 if is_p4_empty_everywhere else 4
+        
+        for idx, day in enumerate(all_days_raw):
+            for p_idx in range(max_periods):
+                p_name = periods_list[p_idx]
+                exams_in_p = day["periods"][p_idx]
+                
+                if exams_in_p:
+                    for ex in exams_in_p:
+                        if not ex.get("code") or not ex.get("name") or ex["name"] in ["غير معروف", "فارغ", ""]:
+                            continue
+                            
+                        final_exams.append({
+                            "code": ex["code"].strip(),
+                            "name": ex["name"].strip(),
+                            "exam_day": day["day_text"].strip(),
+                            "exam_period": p_name.strip(),
+                            "day_index": idx + 1
+                        })
+        
+        unique_exams = []
+        seen_exams = set()
+        for ex in final_exams:
+            key = (ex["code"], ex["exam_day"], ex["exam_period"])
+            if key not in seen_exams:
+                unique_exams.append(ex)
+                seen_exams.add(key)
+                
+        return unique_exams
+    except Exception as e:
+        print(f"Error parsing exams: {e}")
+        return []
+
+def parse_faculty_schedule(driver, exam_data):
+    try:
+        table = driver.find_element(By.TAG_NAME, "table")
+        rows = table.find_elements(By.TAG_NAME, "tr")
+        if not rows: return []
+        
+        headers = rows[0].find_elements(By.TAG_NAME, "td")
+        time_slots = [h.text.strip() for h in headers[1:] if h.text.strip()]
+        
+        faculty_data = []
+        seen_lectures = set()
+        for row in rows[1:]:
+            cells = row.find_elements(By.TAG_NAME, "td")
+            if not cells: continue
+            
+            day = cells[0].text.strip()
+            if not day: continue
+            
+            for i in range(1, len(cells)):
+                cell = cells[i]
+                time_range = time_slots[i-1] if (i-1) < len(time_slots) else f"الفترة {i}"
+                
+                try:
+                    children = cell.find_elements(By.XPATH, "./*")
+                    current_course = None
+                    
+                    for child in children:
+                        tag = child.tag_name.lower()
+                        if tag == "p":
+                            course_text = child.text.strip()
+                            course_full_name = (child.get_attribute("title") or "").strip()
+                            
+                            if not course_text or "غير معروف" in course_full_name: continue
+                                
+                            match = re.search(r"([\w\d]+)\s*\(\s*([A-Za-z0-9]+)\s*\)", course_text)
+                            code = match.group(1).strip() if match else course_text
+                            group = match.group(2).strip() if match else "A"
+                            
+                            if code == "غير معروف": continue
+
+                            lecture_key = (code, group, day, time_range)
+                            if lecture_key not in seen_lectures:
+                                current_course = {
+                                    "code": code,
+                                    "name": course_full_name or code,
+                                    "group": group,
+                                    "day": day,
+                                    "time": time_range,
+                                    "instructor": "غير محدد",
+                                    "room": "غير محدد"
+                                }
+                                faculty_data.append(current_course)
+                                seen_lectures.add(lecture_key)
+                            else: current_course = None
+                                
+                        elif tag == "div" and current_course:
+                            div_text = child.text.strip()
+                            if not div_text: continue
+                            
+                            parts = re.split(r'\(|قاعة|مدرج', div_text)
+                            inst_match = parts[0].replace("أستاذ المقرر", "").strip()
+                            if inst_match and len(inst_match) > 2:
+                                current_course["instructor"] = inst_match
+                            
+                            try:
+                                room_tag = child.find_element(By.TAG_NAME, "a")
+                                room_text = (room_tag.text.strip("()") or room_tag.get_attribute("title") or "").strip()
+                                if room_text: current_course["room"] = room_text
+                            except:
+                                room_search = re.search(r'\((.*?)\)', div_text)
+                                if room_search: current_course["room"] = room_search.group(1).strip()
+                                elif len(parts) > 1:
+                                    room_text = div_text.replace(inst_match, "").strip("() ").replace("أستاذ المقرر", "").strip()
+                                    if room_text: current_course["room"] = room_text
+                except Exception as e:
+                    print(f"Error in cell parsing: {e}")
+                    
+        return faculty_data
+    except Exception as e:
+        print(f"Error parsing faculty schedule: {e}")
+        return []
+
+def scrape_process(chat_id, creds):
+    chrome_options = Options()
+    chrome_options.add_argument("--headless=new")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--window-size=1920,1080")
+    
+    driver = None
+    try:
         try:
-            time.sleep(86400) # كل 24 ساعة
-            backup_path = export_full_backup_json()
+            driver = webdriver.Chrome(options=chrome_options)
+        except Exception:
+            bot.send_message(
+                chat_id, 
+                "⚠️ **تنبيه:** خادم الاستضافة المجاني (Render) لا يحتوي على متصفح Chrome لتشغيل السحب السحابي المباشر.\n\n"
+                "💡 **الحل البسيط جداً:**\n"
+                "قم بتشغيل البوت من حاسوبك محلياً واضغط على **'📊 سحب الجداول الآن'** مرة واحدة عند بداية الفصل، وسيقوم البوت بسحب الجداول وتحديثها فوراً لجميع الطلاب على السيرفر!",
+                parse_mode="Markdown"
+            )
+            return
 
-            if os.path.exists(backup_path):
-                with open(backup_path, "rb") as doc:
-                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-                    caption = f"📦 **نسخة احتياطية تلقائية من قاعدة بيانات Turso**\n📅 التوقيت: `{timestamp}`"
-                    bot.send_document(ADMIN_ID, doc, caption=caption, parse_mode="Markdown")
-                os.remove(backup_path)
-                print(f"[Backup] Automatic backup sent to admin at {timestamp}")
-        except Exception as e:
-            print(f"[Backup Error] Failed automatic backup: {e}")
+        wait = WebDriverWait(driver, 30)
+        bot.send_message(chat_id, "🌐 جاري فتح الكروم والدخول للمنظومة...")
+        driver.get("https://sms.uot.edu.ly/eng/login_ing.php")
+        
+        fac_dropdown = wait.until(EC.element_to_be_clickable((By.ID, "fac")))
+        select = Select(fac_dropdown)
+        target_text = "تقنية المعلومات" if creds['college'] == 'it' else "الهندسة"
+        select.select_by_visible_text(target_text)
+        
+        driver.find_element(By.ID, "email").send_keys(creds['master_user'])
+        driver.find_element(By.ID, "login-password").send_keys(creds['master_pass'])
+        driver.find_element(By.NAME, "btnlogin").click()
+        
+        wait.until(EC.url_contains("student"))
+        bot.send_message(chat_id, "✅ تم الدخول بنجاح! جاري سحب جدول الامتحانات...")
+        
+        def open_schedule_menu():
+            try:
+                item = wait.until(EC.element_to_be_clickable((By.XPATH, "//a[contains(., 'الجداول')]")))
+                driver.execute_script("arguments[0].click();", item)
+            except:
+                item = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "a.nav-link.nav-schedule")))
+                driver.execute_script("arguments[0].click();", item)
 
-# --- Telegram Command Handlers ---
+        open_schedule_menu()
+        exam_link = wait.until(EC.element_to_be_clickable((By.XPATH, "//p[contains(text(), 'جدول الامتحانات النهائية')]")))
+        driver.execute_script("arguments[0].click();", exam_link)
+        wait.until(EC.presence_of_element_located((By.TAG_NAME, "tbody")))
+        time.sleep(2)
+        exam_data = parse_exam_schedule(driver)
+        bot.send_message(chat_id, f"📝 تم سحب {len(exam_data)} مادة من جدول الامتحانات.")
+        
+        open_schedule_menu()
+        faculty_link = wait.until(EC.element_to_be_clickable((By.XPATH, "//p[contains(text(), 'جدول الكلية')]")))
+        driver.execute_script("arguments[0].click();", faculty_link)
+        wait.until(EC.presence_of_element_located((By.TAG_NAME, "table")))
+        time.sleep(2)
+        
+        bot.send_message(chat_id, "🏫 جاري سحب جدول الكلية وتنسيق البيانات...")
+        faculty_data = parse_faculty_schedule(driver, exam_data)
+        
+        save_schedules(exam_data, faculty_data)
+        
+        status_msg = (
+            "✅ اكتملت العملية بنجاح!\n\n"
+            f"📝 تم تحديث {len(exam_data)} مادة في جدول الامتحانات\n"
+            f"🏫 تم تحديث {len(faculty_data)} محاضرة في جدول الكلية\n\n"
+            "📂 الجداول الآن محدثة وجاهزة."
+        )
+        bot.send_message(chat_id, status_msg)
+        
+    except Exception as e:
+        bot.send_message(chat_id, f"❌ حدث خطأ أثناء السحب: {str(e)}")
+    finally:
+        time.sleep(5)
+        if driver: driver.quit()
+
+# =========================================================================
+# Telegram Handlers & Unified HTTP Web Server
+# =========================================================================
+
 @bot.message_handler(commands=['start', 'help'])
 def start(message):
     user_id = message.from_user.id
-    target_url = WEBAPP_URL if WEBAPP_URL else "https://trycloudflare.com"
+    target_url = WEBAPP_URL if WEBAPP_URL else "https://jedwel.onrender.com"
     user_url = f"{target_url}/?uid={message.chat.id}"
     
     reply_markup = ReplyKeyboardMarkup(resize_keyboard=True)
@@ -425,107 +562,27 @@ def start(message):
              markup.add(InlineKeyboardButton("✅ تحديث حساب الماستر", callback_data="setup_master"))
              markup.add(InlineKeyboardButton("📊 سحب الجداول الآن", callback_data="scrape_schedule"))
              markup.add(InlineKeyboardButton("🛠️ إدارة البيانات يدوياً", callback_data="admin_manage_data"))
-             markup.add(InlineKeyboardButton("📦 أخذ نسخة احتياطية الآن", callback_data="admin_manual_backup"))
         else:
              markup.add(InlineKeyboardButton("🔑 إعداد حساب الماستر", callback_data="setup_master"))
         
-        bot.send_message(message.chat.id, "👋 أهلاً بك يا أدمن في نظام الجدولة الذكي!\n\nهنا نقدر نسحب الجداول ونصمم جداول بدون تعارض.", reply_markup=markup)
-        
-        notice = (
-            "💡 **كيف تصمم جدولك؟**\n\n"
-            "اضغط على زر **Mini App** بالأسفل لفتح الواجهة الذكية واختيار موادك بدون تعارضات."
-        )
-        bot.send_message(message.chat.id, notice, reply_markup=reply_markup, parse_mode="Markdown")
+        bot.send_message(message.chat.id, "👋 أهلاً بك يا أدمن في نظام الجدولة الذكي!", reply_markup=markup)
+        bot.send_message(message.chat.id, "💡 اضغط على زر **Mini App** بالأسفل لفتح الواجهة الذكية.", reply_markup=reply_markup, parse_mode="Markdown")
     else:
-        welcome_text = (
-            "👋 **أهلاً بك في نظام الجدولة الذكي!**\n\n"
-            "🚀 اضغط على زر **Mini App** بالأسفل لفتح واجهة تصميم جدولك الدراسي وتفادي التعارضات تلقائياً بكبسة زر."
-        )
+        welcome_text = "👋 **أهلاً بك في نظام الجدولة الذكي!**\n\n🚀 اضغط على زر **Mini App** بالأسفل لفتح الواجهة."
         bot.send_message(message.chat.id, welcome_text, reply_markup=reply_markup, parse_mode="Markdown")
 
-# --- Telegram Inline Query Search ---
-@bot.inline_handler(func=lambda query: len(query.query.strip()) > 0)
-def inline_search_courses(inline_query):
-    query_text = inline_query.query.strip().lower()
-    
-    faculty_data = get_db_data("faculty")
-    exams_data = get_db_data("exams")
-    
-    matches = [f for f in faculty_data if query_text in f.get('code','').lower() or query_text in f.get('name','').lower()]
-    
-    results = []
-    seen_codes = set()
-    
-    for m in matches:
-        code = m.get('code')
-        if code in seen_codes: continue
-        seen_codes.add(code)
-        
-        name = m.get('name', code)
-        lecs = [l for l in faculty_data if l.get('code') == code]
-        
-        ex = next((e for e in exams_data if e.get('code') == code), None)
-        exam_info = f"📅 **الامتحان النهائي:** {ex['exam_day']} ({ex['exam_period']})" if ex else "📝 **الامتحان النهائي:** غير محدد"
-        
-        lecs_text = ""
-        groups_list = []
-        for l in lecs:
-            group = l.get('group', 'A')
-            day = l.get('day', '')
-            time_slot = l.get('time', '')
-            room = l.get('room', 'غير محددة')
-            instructor = l.get('instructor', 'غير محدد')
-            
-            groups_list.append(f"م{group}")
-            lecs_text += f"🔹 **مجموعة ({group}):** {day} {time_slot}\n"
-            lecs_text += f"    📍 القاعة: `{room}` | 👤 الأستاذ: {instructor}\n\n"
-            
-        groups_str = " ، ".join(sorted(list(set(groups_list))))
-        
-        content = (
-            f"🎓 **تفاصيل مادة: {name}** (`{code}`)\n"
-            f"👥 **المجموعات المتاحة:** {groups_str}\n"
-            f"─────────────────\n\n"
-            f"{lecs_text}"
-            f"─────────────────\n"
-            f"{exam_info}\n\n"
-            f"⚡ _تمت المشاركة فوراً عبر بوت جدولي الذكي_"
-        )
-        
-        description_snippet = f"المجموعات: {groups_str} | {exam_info.replace('**','').replace('📅 ','').replace('📝 ','')}"
-        
-        result_article = InlineQueryResultArticle(
-            id=code,
-            title=f"📘 {name} ({code})",
-            description=description_snippet,
-            input_message_content=InputTextMessageContent(content, parse_mode="Markdown")
-        )
-        results.append(result_article)
-        if len(results) >= 15: break
-        
-    bot.answer_inline_query(inline_query.id, results, cache_time=10)
-
-# --- Manual Backup Button for Admin ---
-@bot.callback_query_handler(func=lambda call: call.data == "admin_manual_backup")
-def admin_manual_backup(call):
-    bot.answer_callback_query(call.id)
+@bot.callback_query_handler(func=lambda call: call.data == "scrape_schedule")
+def handle_scrape(call):
     if call.from_user.id != ADMIN_ID: return
-    try:
-        backup_path = export_full_backup_json()
+    creds = load_master_creds()
+    if not creds:
+        bot.send_message(call.message.chat.id, "❌ يرجى إعداد بيانات الماستر أولاً.")
+        return
+    bot.answer_callback_query(call.id, "⏳ بدأت العملية...")
+    threading.Thread(target=scrape_process, args=(call.message.chat.id, creds)).start()
 
-        if os.path.exists(backup_path):
-            with open(backup_path, "rb") as doc:
-                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-                caption = f"📦 **نسخة احتياطية يدوية من قاعدة بيانات Turso**\n📅 التوقيت: `{timestamp}`"
-                bot.send_document(call.message.chat.id, doc, caption=caption, parse_mode="Markdown")
-            os.remove(backup_path)
-    except Exception as e:
-        bot.send_message(call.message.chat.id, f"❌ حدث خطأ أثناء النسخ الاحتياطي: {e}")
-
-# --- Admin Setup & Manage Handlers ---
 @bot.callback_query_handler(func=lambda call: call.data == "setup_master")
 def setup_master(call):
-    bot.answer_callback_query(call.id)
     if call.from_user.id != ADMIN_ID: return
     markup = InlineKeyboardMarkup()
     markup.add(InlineKeyboardButton("💻 تقنية المعلومات", callback_data="master_college_it"))
@@ -534,7 +591,6 @@ def setup_master(call):
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("master_college_"))
 def set_master_college(call):
-    bot.answer_callback_query(call.id)
     if call.from_user.id != ADMIN_ID: return
     college = call.data.split("_")[-1]
     msg = bot.send_message(call.message.chat.id, f"👤 أرسل رقم القيد للكلية المختارة ({'تقنية المعلومات' if college=='it' else 'الهندسة'}):")
@@ -549,338 +605,86 @@ def get_master_user(message, college):
 def get_master_pass(message, username, college):
     if message.from_user.id != ADMIN_ID: return
     password = message.text.strip()
-    try:
-        bot.delete_message(message.chat.id, message.message_id)
-    except:
-        pass
-        
-    saved = save_master_creds(username, password, college)
-    if saved:
-        bot.send_message(message.chat.id, "✅ تم حفظ بيانات الماستر بنجاح!\n\nتوا تقدر تضغط على 'سحب الجداول الآن'.")
+    if save_master_creds(username, password, college):
+        bot.send_message(message.chat.id, "✅ تم حفظ بيانات الماستر بنجاح!")
     else:
         bot.send_message(message.chat.id, "❌ حدث خطأ أثناء حفظ البيانات.")
 
-@bot.callback_query_handler(func=lambda call: call.data == "admin_manage_data")
-def admin_manage_data(call):
-    bot.answer_callback_query(call.id)
-    if call.from_user.id != ADMIN_ID: return
-    markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton("📅 تحديث تواريخ الامتحانات", callback_data="admin_update_exam_dates"))
-    markup.add(InlineKeyboardButton("✍️ تعديل مادة في جدول المحاضرات", callback_data="admin_edit_faculty"))
-    markup.add(InlineKeyboardButton("✍️ تعديل مادة في جدول الامتحانات", callback_data="admin_edit_exams"))
-    markup.add(InlineKeyboardButton("🔙 العودة", callback_data="admin_main_menu"))
-    bot.edit_message_text("🛠️ واجهة إدارة البيانات يدوياً:", call.message.chat.id, call.message.message_id, reply_markup=markup)
-
-@bot.callback_query_handler(func=lambda call: call.data == "admin_main_menu")
-def admin_return_main(call):
-    bot.answer_callback_query(call.id)
-    start(call.message)
-
-@bot.callback_query_handler(func=lambda call: call.data == "admin_update_exam_dates")
-def admin_ask_exam_start_date(call):
-    bot.answer_callback_query(call.id)
-    msg = bot.send_message(call.message.chat.id, "📅 أرسل تاريخ أول يوم في الامتحانات (بصيغة YYYY-MM-DD):\nمثال: 2024-05-12")
-    bot.register_next_step_handler(msg, process_exam_start_date)
-
-def process_exam_start_date(message):
-    if message.from_user.id != ADMIN_ID: return
-    date_str = message.text.strip()
+@bot.message_handler(content_types=['web_app_data'])
+def handle_web_app_data(message):
     try:
-        start_date = None
-        for fmt in ("%Y-%m-%d", "%d-%m-%Y"):
-            try:
-                start_date = datetime.strptime(date_str, fmt)
-                break
-            except:
-                continue
-        
-        if not start_date:
-            raise ValueError("صيغة التاريخ غير مدعومة")
-        
-        with db_lock:
-            conn = get_conn()
-            c = conn.cursor()
-            c.execute("SELECT exam_day, MIN(id) as first_id FROM exams GROUP BY exam_day ORDER BY first_id ASC")
-            rows = c.fetchall()
-            if not rows:
-                bot.send_message(message.chat.id, "⚠️ لا توجد بيانات امتحانات لتحديثها.")
-                return
-            for i, (d_name, _) in enumerate(rows):
-                c.execute("UPDATE exams SET day_index = ? WHERE exam_day = ?", (i + 1, d_name))
-            
-            c.execute("SELECT DISTINCT day_index FROM exams ORDER BY day_index ASC")
-            day_indices = [row[0] for row in c.fetchall()]
-            arabic_days = ["الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"]
-            
-            current_date = start_date
-            index_to_date = {}
-            for idx in day_indices:
-                while current_date.weekday() == 4: # الجمعة عطلة
-                    current_date += timedelta(days=1)
-                day_name = arabic_days[current_date.weekday()]
-                formatted_date = f"({idx}) {day_name} {current_date.strftime('%Y-%m-%d')}"
-                index_to_date[idx] = formatted_date
-                current_date += timedelta(days=1)
-            
-            for idx, date_text in index_to_date.items():
-                c.execute("UPDATE exams SET exam_day = ? WHERE day_index = ?", (date_text, idx))
-                
-            c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", ("exam_dates_map", json.dumps(index_to_date)))
-            conn.close()
-            
-        with file_lock:
-            bot.send_message(message.chat.id, f"✅ تم تحديث تواريخ {len(index_to_date)} يوماً بنجاح!")
-            exams = get_db_data("exams")
-            faculty = get_db_data("faculty")
-            with open(EXAMS_FILE, "w", encoding="utf-8") as f:
-                json.dump(exams, f, ensure_ascii=False, indent=4)
-            with open(FACULTY_FILE, "w", encoding="utf-8") as f:
-                json.dump(faculty, f, ensure_ascii=False, indent=4)
-            build_static_webapp(exams, faculty)
-        
-    except Exception as e:
-        bot.send_message(message.chat.id, f"❌ خطأ: تأكد من كتابة التاريخ بشكل صحيح (2024-05-12)\nالتفاصيل: {e}")
+        user_id = message.from_user.id
+        raw_data = json.loads(message.web_app_data.data)
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("admin_edit_"))
-def admin_edit_search(call):
-    bot.answer_callback_query(call.id)
-    table = "faculty" if "faculty" in call.data else "exams"
-    msg = bot.send_message(call.message.chat.id, f"🔍 أرسل رمز المادة (Code) المراد تعديلها في جدول {'المحاضرات' if table=='faculty' else 'الامتحانات'}:")
-    bot.register_next_step_handler(msg, process_edit_search, table)
-
-def process_edit_search(message, table):
-    if message.from_user.id != ADMIN_ID: return
-    code = message.text.strip().upper()
-    
-    with db_lock:
-        conn = get_conn()
-        conn.row_factory = sqlite3.Row
-        c = conn.cursor()
-        c.execute(f"SELECT * FROM {table} WHERE code = ?", (code,))
-        rows = c.fetchall()
-        
-        if not rows and table == "exams":
-            c.execute("SELECT * FROM faculty WHERE code = ? LIMIT 1", (code,))
-            f_row = c.fetchone()
-            conn.close()
-            if f_row:
-                item = dict(f_row)
-                markup = InlineKeyboardMarkup()
-                markup.add(InlineKeyboardButton(f"➕ إضافة {code} لجدول الامتحانات", callback_data=f"admin_add_exam_{code}"))
-                bot.send_message(message.chat.id, f"🔍 المادة ({item['name']}) موجودة في جدول المحاضرات فقط.\nهل تريد إضافتها لجدول الامتحانات؟", reply_markup=markup)
-            else:
-                bot.send_message(message.chat.id, f"❌ لم يتم العثور على المادة {code} في أي جدول.")
+        if isinstance(raw_data, dict) and raw_data.get('type') == 'schedule_image':
+            image_data = raw_data.get('image', '')
+            if ',' in image_data: image_data = image_data.split(',', 1)[1]
+            image_file = io.BytesIO(base64.b64decode(image_data))
+            image_file.name = 'schedule.png'
+            bot.send_photo(message.chat.id, image_file, caption="📅 جدول المحاضرات المختار")
             return
-            
-        conn.close()
-        
-    if not rows:
-        bot.send_message(message.chat.id, f"❌ لم يتم العثور على المادة {code} في جدول {table}.")
-        return
-        
-    for row in rows:
-        item = dict(row)
-        markup = InlineKeyboardMarkup()
-        if table == "faculty":
-            text = f"📍 مادة: {item['name']} ({item['code']})\n👥 المجموعة: {item['group']}\n📅 اليوم: {item['day']}\n⏰ الوقت: {item['time']}\n👤 الأستاذ: {item['instructor']}\n🏢 القاعة: {item['room']}"
-            markup.add(InlineKeyboardButton("تعديل الوقت", callback_data=f"editdb_faculty_time_{item['id']}"))
-            markup.add(InlineKeyboardButton("تعديل القاعة", callback_data=f"editdb_faculty_room_{item['id']}"))
-        else:
-            text = f"📝 مادة: {item['name']} ({item['code']})\n📅 اليوم: {item['exam_day']}\n⏰ الفترة: {item['exam_period']}"
-            markup.add(InlineKeyboardButton("تعديل يوم الامتحان", callback_data=f"editdb_exams_exam_day_{item['id']}"))
-            markup.add(InlineKeyboardButton("تعديل الفترة", callback_data=f"editdb_exams_exam_period_{item['id']}"))
-            
-        bot.send_message(message.chat.id, text, reply_markup=markup)
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("editdb_"))
-def admin_edit_field_step1(call):
-    bot.answer_callback_query(call.id)
-    parts = call.data.split("_")
-    table, field, row_id = parts[1], parts[2], parts[3]
-    msg = bot.send_message(call.message.chat.id, f"📝 أرسل القيمة الجديدة لـ ({field}):")
-    bot.register_next_step_handler(msg, process_edit_save, table, field, row_id)
-
-def process_edit_save(message, table, field, row_id):
-    if message.from_user.id != ADMIN_ID: return
-    new_val = message.text.strip()
-    try:
-        with db_lock:
-            conn = get_conn()
-            c = conn.cursor()
-            c.execute(f"UPDATE {table} SET {field} = ? WHERE id = ?", (new_val, row_id))
-            conn.close()
-            
-        bot.send_message(message.chat.id, "✅ تم التعديل بنجاح!")
-        
-        with file_lock:
-            exams = get_db_data("exams")
-            faculty = get_db_data("faculty")
-            with open(EXAMS_FILE, "w", encoding="utf-8") as f:
-                json.dump(exams, f, ensure_ascii=False, indent=4)
-            with open(FACULTY_FILE, "w", encoding="utf-8") as f:
-                json.dump(faculty, f, ensure_ascii=False, indent=4)
-            build_static_webapp(exams, faculty)
+        selected_courses = raw_data if isinstance(raw_data, list) else []
+        if selected_courses:
+            save_user_schedule_to_db(user_id, selected_courses)
+            bot.send_message(message.chat.id, "✅ تم حفظ جدولك بنجاح!")
     except Exception as e:
-        bot.send_message(message.chat.id, f"❌ فشل التعديل: {e}")
+        bot.send_message(message.chat.id, f"❌ حدث خطأ في معالجة الجدول: {str(e)}")
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("admin_add_exam_"))
-def admin_add_exam_step1(call):
-    bot.answer_callback_query(call.id)
-    code = call.data.replace("admin_add_exam_", "")
-    msg = bot.send_message(call.message.chat.id, f"➕ إضافة مادة {code}:\nأرسل (رقم اليوم) في جدول الامتحانات:\nمثال: إذا كان امتحانها في اليوم 13، أرسل 13")
-    bot.register_next_step_handler(msg, admin_add_exam_step2, code)
-
-def admin_add_exam_step2(message, code):
-    if message.from_user.id != ADMIN_ID: return
-    try:
-        day_idx = int(message.text.strip())
-        markup = InlineKeyboardMarkup()
-        markup.add(InlineKeyboardButton("الفترة الأولى", callback_data=f"save_new_exam_{code}_{day_idx}_الفترة الاولى"))
-        markup.add(InlineKeyboardButton("الفترة الثانية", callback_data=f"save_new_exam_{code}_{day_idx}_الفترة الثانية"))
-        markup.add(InlineKeyboardButton("الفترة الثالثة", callback_data=f"save_new_exam_{code}_{day_idx}_الفترة الثالثة"))
-        bot.send_message(message.chat.id, f"📅 اختر الفترة لليوم {day_idx}:", reply_markup=markup)
-    except:
-        bot.send_message(message.chat.id, "❌ يرجى إرسال رقم اليوم بشكل صحيح (عدد فقط).")
-
-@bot.callback_query_handler(func=lambda call: call.data.startswith("save_new_exam_"))
-def admin_add_exam_step3(call):
-    bot.answer_callback_query(call.id)
-    parts = call.data.split("_")
-    code = parts[3]
-    day_idx = int(parts[4])
-    period = parts[5]
-
-    try:
-        with db_lock:
-            conn = get_conn()
-            c = conn.cursor()
-            c.execute("SELECT name FROM faculty WHERE code = ? LIMIT 1", (code,))
-            row = c.fetchone()
-            name = row[0] if row else code
-            
-            c.execute("INSERT INTO exams (code, name, exam_day, exam_period, day_index) VALUES (?, ?, ?, ?, ?)",
-                      (code, name, f"اليوم {day_idx}", period, day_idx))
-            conn.close()
-
-        bot.send_message(call.message.chat.id, f"✅ تم إدراج المادة {name} ({code}) في جدول الامتحانات!")
-        
-        with file_lock:
-            exams = get_db_data("exams")
-            faculty = get_db_data("faculty")
-            build_static_webapp(exams, faculty)
-    except Exception as e:
-        bot.send_message(call.message.chat.id, f"❌ فشل الحفظ: {e}")
-
-
-# =========================================================================
-# سيرفر HTTP المباشر لخدمة الـ WebApp وتلقي طلبات API على Render
-# =========================================================================
-
-class SafeHandler(http.server.BaseHTTPRequestHandler):
-    def log_message(self, format, *args):
-        pass
+# Unified HTTP Handler
+class UnifiedHandler(http.server.SimpleHTTPRequestHandler):
+    def log_message(self, format, *args): pass
 
     def do_GET(self):
-        try:
+        req_path = self.path.split('?')[0]
+        if req_path == '/api/faculty':
+            self.send_json_response(get_db_data("faculty"))
+        elif req_path == '/api/exams':
+            self.send_json_response(get_db_data("exams"))
+        else:
             webapp_dir = os.path.join(BASE_DIR, "webapp")
-            req_path = self.path.split('?')[0]
-            
-            if req_path == "/" or req_path == "/index.html":
-                file_path = os.path.join(webapp_dir, "index.html")
-                content_type = "text/html; charset=utf-8"
-            else:
-                rel_path = req_path.lstrip('/')
-                file_path = os.path.abspath(os.path.join(webapp_dir, rel_path))
-                
-                # منع الهجمات لـ Path Traversal
-                if not file_path.startswith(webapp_dir):
-                    self.send_error(403, "Forbidden")
-                    return
-                
-                if req_path.endswith('.css'):
-                    content_type = "text/css; charset=utf-8"
-                elif req_path.endswith('.js'):
-                    content_type = "application/javascript; charset=utf-8"
-                elif req_path.endswith('.json'):
-                    content_type = "application/json; charset=utf-8"
-                elif req_path.endswith('.png'):
-                    content_type = "image/png"
-                elif req_path.endswith('.jpg') or req_path.endswith('.jpeg'):
-                    content_type = "image/jpeg"
-                else:
-                    content_type = "text/plain; charset=utf-8"
-
+            file_path = os.path.join(webapp_dir, "index.html" if req_path in ["/", ""] else req_path.lstrip('/'))
             if os.path.exists(file_path) and os.path.isfile(file_path):
-                with open(file_path, "rb") as f:
-                    content = f.read()
                 self.send_response(200)
-                self.send_header("Content-Type", content_type)
-                self.send_header("Content-Length", str(len(content)))
-                self.send_header("Access-Control-Allow-Origin", "*")
                 self.end_headers()
-                self.wfile.write(content)
+                with open(file_path, "rb") as f: self.wfile.write(f.read())
             else:
                 self.send_error(404, "File Not Found")
-        except Exception as e:
-            print(f"[HTTP GET Error] {e}")
-            self.send_error(500, "Internal Server Error")
 
     def do_POST(self):
-        try:
-            req_path = self.path.split('?')[0]
-            if req_path == "/api/save_schedule":
-                content_length = int(self.headers.get('Content-Length', 0))
-                post_data = self.rfile.read(content_length)
-                data = json.loads(post_data.decode('utf-8'))
-                
-                user_id = data.get("user_id")
-                selected_courses = data.get("selected_courses", [])
-                
-                if user_id and selected_courses:
-                    save_user_schedule_to_db(user_id, selected_courses)
-                    response_body = json.dumps({"status": "success"}).encode('utf-8')
-                    self.send_response(200)
-                else:
-                    response_body = json.dumps({"status": "error", "message": "Invalid parameters"}).encode('utf-8')
-                    self.send_response(400)
-                    
-                self.send_header("Content-Type", "application/json")
-                self.send_header("Access-Control-Allow-Origin", "*")
-                self.send_header("Content-Length", str(len(response_body)))
-                self.end_headers()
-                self.wfile.write(response_body)
-            else:
-                self.send_error(404, "Endpoint Not Found")
-        except Exception as e:
-            print(f"[HTTP POST Error] {e}")
-            self.send_error(500, "Internal Server Error")
+        if self.path.split('?')[0] == '/api/save_schedule':
+            content_length = int(self.headers.get('Content-Length', 0))
+            data = json.loads(self.rfile.read(content_length).decode('utf-8'))
+            if data.get("user_id") and data.get("selected_courses"):
+                save_user_schedule_to_db(data["user_id"], data["selected_courses"])
+                self.send_json_response({"status": "success"})
+            else: self.send_error(400, "Invalid Parameters")
+        else: self.send_error(404)
 
+    def send_json_response(self, data):
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+        self.wfile.write(json.dumps(data, ensure_ascii=False).encode('utf-8'))
 
 def run_http_server():
     port = int(os.getenv("PORT", 8080))
-    server = socketserver.TCPServer(("", port), SafeHandler)
+    server = socketserver.TCPServer(("", port), UnifiedHandler)
     print(f"[Web Server] HTTP server started on port {port}")
     server.serve_forever()
 
-
 if __name__ == "__main__":
-    # 1. إعداد واجهة الـ static webapp البدائية من البيانات المخزنة
     exams_init = get_db_data("exams")
     faculty_init = get_db_data("faculty")
     build_static_webapp(exams_init, faculty_init)
 
-    # 2. تشغيل السيرفر المباشر للـ WebApp في خلفية النظام
-    http_thread = threading.Thread(target=run_http_server, daemon=True)
-    http_thread.start()
+    threading.Thread(target=run_http_server, daemon=True).start()
 
-    # 3. تشغيل خيط النسخ الاحتياطي التلقائي
-    backup_thread = threading.Thread(target=auto_backup_loop, daemon=True)
-    backup_thread.start()
-
-    # 4. بدء تشغيل البوت واستقبال التحديثات
-    print("[Bot] Starting bot polling...")
-    bot.infinity_polling(
-    skip_pending=True,
-    timeout=60,
-    long_polling_timeout=60
-)
+    print("[Bot] Removing webhooks and starting bot polling...")
+    try:
+        bot.remove_webhook()
+    except Exception:
+        pass
+        
+    bot.infinity_polling(skip_pending=True, timeout=60, long_polling_timeout=60)

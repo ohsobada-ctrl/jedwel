@@ -31,13 +31,24 @@ MASTER_COLLEGE = os.environ.get("MASTER_COLLEGE", "it")  # "it" أو "eng"
 
 
 def notify(text: str) -> None:
-    """يرسل رسالة تيليجرام للأدمن مباشرة عبر Bot API (بدون تشغيل البوت نفسه)."""
+    """يرسل رسالة تيليجرام للأدمن مباشرة عبر Bot API (بدون تشغيل البوت نفسه).
+    يتأكد فعليًا من نجاح الإرسال (كود 200)، ولو فشل بسبب صيغة Markdown مكسورة
+    (رموز backtick/asterisk/underscore غير متطابقة داخل نص ديناميكي مثل رسالة خطأ)
+    يعيد المحاولة كنص عادي بدون تنسيق حتى لا تضيع الرسالة بصمت."""
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     try:
-        requests.post(
-            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+        resp = requests.post(
+            url,
             json={"chat_id": ADMIN_CHAT_ID, "text": text, "parse_mode": "Markdown"},
             timeout=15,
         )
+        if resp.status_code == 200:
+            return
+        print(f"[Telegram notify] فشل الإرسال بصيغة Markdown (كود {resp.status_code}): {resp.text[:300]}")
+        # إعادة المحاولة بدون parse_mode حتى تصل الرسالة حتى لو فيها رموز تكسر التنسيق
+        resp2 = requests.post(url, json={"chat_id": ADMIN_CHAT_ID, "text": text}, timeout=15)
+        if resp2.status_code != 200:
+            print(f"[Telegram notify] فشلت المحاولة البديلة أيضًا (كود {resp2.status_code}): {resp2.text[:300]}")
     except Exception as e:
         print(f"[Telegram notify error] {e}")
 
@@ -319,7 +330,15 @@ def main():
             "📂 الجداول محدثة الآن في Turso وجاهزة لكل الطلاب."
         )
     except Exception as e:
-        notify(f"❌ فشل سحب الجداول عبر GitHub Actions:\n`{str(e)}`")
+        extra = ""
+        try:
+            if driver:
+                extra = f"\n🔗 الرابط وقت الخطأ: {driver.current_url}\n📄 عنوان الصفحة: {driver.title}"
+        except Exception:
+            pass
+        notify(
+            f"❌ فشل سحب الجداول عبر GitHub Actions:\n{type(e).__name__}: {str(e)[:300]}{extra}"
+        )
         raise
     finally:
         if driver:

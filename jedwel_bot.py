@@ -770,7 +770,24 @@ def admin_add_exam_step3(call):
             build_static_webapp(exams, faculty)
     except Exception as e:
         bot.send_message(call.message.chat.id, f"❌ فشل الحفظ: {e}")
+import threading
+import http.server
+import socketserver
 
+def run_dummy_server():
+    port = int(os.getenv("PORT", 8080))
+    handler = http.server.SimpleHTTPRequestHandler
+    with socketserver.TCPServer(("", port), handler) as httpd:
+        print(f"[HTTP] Dummy server running on port {port}")
+        httpd.serve_forever()
+
+# تشغيل سيرفر وهمي لتلبية متطلبات Render Web Service
+threading.Thread(target=run_dummy_server, daemon=True).start()
+
+if __name__ == "__main__":
+    bot.remove_webhook()
+    print("[Bot] Starting polling...")
+    bot.infinity_polling(skip_pending=True)
 # --- Start Threads & Polling ---
 threading.Thread(target=auto_backup_loop, daemon=True).start()
 

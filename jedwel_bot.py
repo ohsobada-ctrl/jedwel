@@ -11,6 +11,7 @@ import base64
 import io
 import re
 import shutil
+import requests
 from datetime import datetime, timedelta
 
 # pyrefly: ignore [missing-import]
@@ -772,29 +773,51 @@ def admin_add_exam_step3(call):
         bot.send_message(call.message.chat.id, f"❌ فشل الحفظ: {e}")
 
 
-# تشغيل سيرفر وهمي لتلبية متطلبات Render Web Service
+# =========================================================================
+# تشغيل المهام الجانبية والسيرفر الوهمي الآمن (Safe HTTP Server)
+# =========================================================================
+
+class SafeHandler(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-type", "text/html; charset=utf-8")
+        self.end_headers()
+        self.wfile.write(b"Bot is running successfully.")
+
+    def log_message(self, format, *args):
+        # تعطيل طباعة لوجات الطلبات اليومية للحفاظ على نظافة الـ Logs
+        pass
+
+def run_dummy_server():
+    port = int(os.getenv("PORT", 8080))
+    try:
+        with socketserver.TCPServer(("", port), SafeHandler) as httpd:
+            print(f"[HTTP] Safe dummy server running on port {port}")
+            httpd.serve_forever()
+    except Exception as e:
+        print(f"[HTTP Error] Failed to start dummy server: {e}")
+
+# 1. تشغيل سيرفر الويب الوهمي لـ Render
 threading.Thread(target=run_dummy_server, daemon=True).start()
 
-if __name__ == "__main__":
-    bot.remove_webhook()
-    print("[Bot] Starting polling...")
-    bot.infinity_polling(skip_pending=True)
-# --- Start Threads & Polling ---
+# 2. تشغيل التنسيق التلقائي للنسخ الاحتياطي
 threading.Thread(target=auto_backup_loop, daemon=True).start()
 
-if __name__ == "__main__":
-    import time
-    import requests
 
+# =========================================================================
+# بدء تشغيل البوت والـ Polling
+# =========================================================================
+
+if __name__ == "__main__":
     print("[Bot] Cleaning up old sessions...")
-    
-    # تفريغ الـ Webhook وإلغاء أي جلسة Polling سابقة على سيرفرات تلجرام
+
+    # تنظيف الـ Webhook وأي جلسات معلقة على سيرفرات تلجرام
     try:
         requests.get(f"https://api.telegram.org/bot{TOKEN}/deleteWebhook?drop_pending_updates=True", timeout=5)
     except Exception as e:
         print(f"Warning clearing webhook: {e}")
 
-    # الانتظار 5 ثواني لضمان موت الجلسة القديمة على Render تماماً
+    # مهلة زمنية لإغلاق النسخة القديمة تماماً على Render أثناء الـ Deploy
     time.sleep(5)
 
     print("[Bot] Starting polling successfully...")

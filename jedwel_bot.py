@@ -776,14 +776,18 @@ threading.Thread(target=auto_backup_loop, daemon=True).start()
 
 if __name__ == "__main__":
     import time
+    import requests
+
+    print("[Bot] Cleaning up old sessions...")
     
-    # 1. إزالة الـ Webhook وتنظيف أي جلسات معلقة
-    bot.remove_webhook()
-    
-    # 2. مهلة زمنية صغيرة لضمان إغلاق النسخة القديمة على Render أثناء الـ Redeploy
-    time.sleep(3)
-    
-    print("[Bot] Bot initialized successfully. Starting polling...")
-    
-    # 3. تشغيل الـ Polling بدون skip_pending لتدفئة الاتصال وتفادي تعارض الـ offset
-    bot.infinity_polling(timeout=20, long_polling_timeout=20)
+    # تفريغ الـ Webhook وإلغاء أي جلسة Polling سابقة على سيرفرات تلجرام
+    try:
+        requests.get(f"https://api.telegram.org/bot{TOKEN}/deleteWebhook?drop_pending_updates=True", timeout=5)
+    except Exception as e:
+        print(f"Warning clearing webhook: {e}")
+
+    # الانتظار 5 ثواني لضمان موت الجلسة القديمة على Render تماماً
+    time.sleep(5)
+
+    print("[Bot] Starting polling successfully...")
+    bot.infinity_polling(timeout=10, long_polling_timeout=5, skip_pending=True)

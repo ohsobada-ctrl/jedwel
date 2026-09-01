@@ -11,6 +11,7 @@ import base64
 import io
 import re
 import shutil
+import requests
 from datetime import datetime, timedelta
 
 # pyrefly: ignore [missing-import]
@@ -32,6 +33,10 @@ TOKEN = os.getenv("TOKEN")
 if not TOKEN:
     raise ValueError("لم يتم العثور على التوكن (TOKEN)! يرجى إضافته في قائمة Environment Variables على Render.")
 ADMIN_ID = 1084115596
+
+# --- GitHub Actions (سحب الجداول عن بُعد) ---
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+GITHUB_REPO = os.getenv("GITHUB_REPO")  # مثال: "username/jedwel-scraper"
 
 bot = telebot.TeleBot(TOKEN)
 
@@ -679,281 +684,10 @@ def admin_add_exam_final(call):
 
     bot.send_message(call.message.chat.id, f"✅ تم إضافة {name} إلى جدول الامتحانات بنجاح! (الموقع يقرأ التحديث فورًا من /api)")
 
-# --- Scraping Logic ---
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.support.ui import Select
-
-def parse_exam_schedule(driver):
-    try:
-        tbody = driver.find_element(By.TAG_NAME, "tbody")
-        rows = tbody.find_elements(By.TAG_NAME, "tr")
-        all_days_raw = []
-        periods_list = ["الفترة الاولى", "الفترة الثانية", "الفترة الثالثة", "الفترة الرابعة"]
-
-        for row in rows:
-            if "اليوم" in row.text and "الفترة" in row.text: continue
-            cells = row.find_elements(By.TAG_NAME, "td")
-            if len(cells) < 2: continue
-            
-            day_text = cells[0].text.strip()
-            day_periods_data = []
-            
-            for i in range(1, 5):
-                period_exams = []
-                if i < len(cells):
-                    spans = cells[i].find_elements(By.TAG_NAME, "span")
-                    for span in spans:
-                        text = span.text.strip()
-                        if not text: continue
-                        match = re.search(r"^(.*?)\s*\(\s*([\w\d]+)\s*\)$", text)
-                        if match:
-                            period_exams.append({"code": match.group(2).strip(), "name": match.group(1).strip()})
-                day_periods_data.append(period_exams)
-            all_days_raw.append({"day_text": day_text, "periods": day_periods_data})
-
-        if not all_days_raw: return []
-
-        is_p4_empty_everywhere = True
-        for day in all_days_raw:
-            if day["periods"][3]:
-                is_p4_empty_everywhere = False
-                break
-        
-        day_13_idx = -1
-        for idx, day in enumerate(all_days_raw):
-            if "(13)" in day["day_text"]:
-                day_13_idx = idx
-                break
-        
-        if day_13_idx != -1:
-            all_after_13_empty = True
-            for i in range(day_13_idx, len(all_days_raw)):
-                for p in all_days_raw[i]["periods"]:
-                    if p:
-                        all_after_13_empty = False
-                        break
-                if not all_after_13_empty: break
-            
-            if all_after_13_empty:
-                all_days_raw = all_days_raw[:day_13_idx]
-
-        final_exams = []
-        max_periods = 3 if is_p4_empty_everywhere else 4
-        
-        for idx, day in enumerate(all_days_raw):
-            for p_idx in range(max_periods):
-                p_name = periods_list[p_idx]
-                exams_in_p = day["periods"][p_idx]
-                
-                if exams_in_p:
-                    for ex in exams_in_p:
-                        if not ex.get("code") or not ex.get("name") or ex["name"] in ["غير معروف", "فارغ", ""]:
-                            continue
-                            
-                        final_exams.append({
-                            "code": ex["code"].strip(),
-                            "name": ex["name"].strip(),
-                            "exam_day": day["day_text"].strip(),
-                            "exam_period": p_name.strip(),
-                            "day_index": idx + 1
-                        })
-        
-        unique_exams = []
-        seen_exams = set()
-        for ex in final_exams:
-            key = (ex["code"], ex["exam_day"], ex["exam_period"])
-            if key not in seen_exams:
-                unique_exams.append(ex)
-                seen_exams.add(key)
-                
-        return unique_exams
-    except Exception as e:
-        print(f"Error parsing exams: {e}")
-        return []
-
-def parse_faculty_schedule(driver, exam_data):
-    try:
-        table = driver.find_element(By.TAG_NAME, "table")
-        rows = table.find_elements(By.TAG_NAME, "tr")
-        if not rows: return []
-        
-        headers = rows[0].find_elements(By.TAG_NAME, "td")
-        time_slots = [h.text.strip() for h in headers[1:] if h.text.strip()]
-        
-        faculty_data = []
-        seen_lectures = set()
-        for row in rows[1:]:
-            cells = row.find_elements(By.TAG_NAME, "td")
-            if not cells: continue
-            
-            day = cells[0].text.strip()
-            if not day: continue
-            
-            for i in range(1, len(cells)):
-                cell = cells[i]
-                time_range = time_slots[i-1] if (i-1) < len(time_slots) else f"الفترة {i}"
-                
-                try:
-                    children = cell.find_elements(By.XPATH, "./*")
-                    current_course = None
-                    
-                    for child in children:
-                        tag = child.tag_name.lower()
-                        if tag == "p":
-                            course_text = child.text.strip()
-                            course_full_name = (child.get_attribute("title") or "").strip()
-                            
-                            if not course_text or "غير معروف" in course_full_name:
-                                continue
-                                
-                            match = re.search(r"([\w\d]+)\s*\(\s*([A-Za-z0-9]+)\s*\)", course_text)
-                            code = match.group(1).strip() if match else course_text
-                            group = match.group(2).strip() if match else "A"
-                            
-                            if code == "غير معروف": continue
-
-                            lecture_key = (code, group, day, time_range)
-                            if lecture_key not in seen_lectures:
-                                current_course = {
-                                    "code": code,
-                                    "name": course_full_name or code,
-                                    "group": group,
-                                    "day": day,
-                                    "time": time_range,
-                                    "instructor": "غير محدد",
-                                    "room": "غير محدد"
-                                }
-                                faculty_data.append(current_course)
-                                seen_lectures.add(lecture_key)
-                            else:
-                                current_course = None
-                                
-                        elif tag == "div" and current_course:
-                            div_text = child.text.strip()
-                            if not div_text: continue
-                            
-                            parts = re.split(r'\(|قاعة|مدرج', div_text)
-                            inst_match = parts[0].replace("أستاذ المقرر", "").strip()
-                            if inst_match and len(inst_match) > 2:
-                                current_course["instructor"] = inst_match
-                            
-                            try:
-                                room_tag = child.find_element(By.TAG_NAME, "a")
-                                room_text = (room_tag.text.strip("()") or room_tag.get_attribute("title") or "").strip()
-                                if room_text:
-                                    current_course["room"] = room_text
-                            except:
-                                room_search = re.search(r'\((.*?)\)', div_text)
-                                if room_search:
-                                    current_course["room"] = room_search.group(1).strip()
-                                elif len(parts) > 1:
-                                    room_text = div_text.replace(inst_match, "").strip("() ").replace("أستاذ المقرر", "").strip()
-                                    if room_text:
-                                        current_course["room"] = room_text
-                except Exception as e:
-                    print(f"Error in cell parsing: {e}")
-                    
-        return faculty_data
-    except Exception as e:
-        print(f"Error parsing faculty schedule: {e}")
-        return []
-
-def scrape_process(chat_id, creds):
-    chrome_options = Options()
-    chrome_options.add_argument("--headless=new")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--window-size=1920,1080")
-    
-    driver = None
-    try:
-        try:
-            driver = webdriver.Chrome(options=chrome_options)
-        except Exception as chrome_err:
-            bot.send_message(
-                chat_id, 
-                "⚠️ **تنبيه:** خادم الاستضافة المجاني (Render) لا يحتوي على متصفح Chrome لتشغيل السحب السحابي المباشر.\n\n"
-                "💡 **الحل البسيط جداً:**\n"
-                "قم بتشغيل البوت من حاسوبك محلياً واضغط على **'📊 سحب الجداول الآن'** مرة واحدة عند بداية الفصل، وسيقوم البوت بسحب الجداول وتحديثها فوراً لجميع الطلاب على السيرفر!",
-                parse_mode="Markdown"
-            )
-            return
-
-        wait = WebDriverWait(driver, 30)
-        bot.send_message(chat_id, "🌐 جاري فتح الكروم والدخول للمنظومة...")
-        driver.get("https://sms.uot.edu.ly/eng/login_ing.php")
-        
-        fac_dropdown = wait.until(EC.element_to_be_clickable((By.ID, "fac")))
-        select = Select(fac_dropdown)
-        target_text = "تقنية المعلومات" if creds['college'] == 'it' else "الهندسة"
-        select.select_by_visible_text(target_text)
-        
-        driver.find_element(By.ID, "email").send_keys(creds['master_user'])
-        driver.find_element(By.ID, "login-password").send_keys(creds['master_pass'])
-        driver.find_element(By.NAME, "btnlogin").click()
-        
-        wait.until(EC.url_contains("student"))
-        bot.send_message(chat_id, "✅ تم الدخول بنجاح! جاري سحب جدول الامتحانات...")
-        
-        def open_schedule_menu():
-            try:
-                item = wait.until(EC.element_to_be_clickable((By.XPATH, "//a[contains(., 'الجداول')]")))
-                driver.execute_script("arguments[0].click();", item)
-            except:
-                item = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "a.nav-link.nav-schedule")))
-                driver.execute_script("arguments[0].click();", item)
-
-        open_schedule_menu()
-        exam_link = wait.until(EC.element_to_be_clickable((By.XPATH, "//p[contains(text(), 'جدول الامتحانات النهائية')]")))
-        driver.execute_script("arguments[0].click();", exam_link)
-        wait.until(EC.presence_of_element_located((By.TAG_NAME, "tbody")))
-        time.sleep(2)
-        exam_data = parse_exam_schedule(driver)
-        bot.send_message(chat_id, f"📝 تم سحب {len(exam_data)} مادة من جدول الامتحانات.")
-        
-        open_schedule_menu()
-        faculty_link = wait.until(EC.element_to_be_clickable((By.XPATH, "//p[contains(text(), 'جدول الكلية')]")))
-        driver.execute_script("arguments[0].click();", faculty_link)
-        wait.until(EC.presence_of_element_located((By.TAG_NAME, "table")))
-        time.sleep(2)
-        
-        bot.send_message(chat_id, "🏫 جاري سحب جدول الكلية وتنسيق البيانات...")
-        faculty_data = parse_faculty_schedule(driver, exam_data)
-        
-       # حفظ البيانات في Turso
-        save_schedules(exam_data, faculty_data)
-        
-        # حفظ نسخة في ملفات JSON المحلية للـ WebApp
-        try:
-            with file_lock:
-                with open(EXAMS_FILE, "w", encoding="utf-8") as f:
-                    json.dump(exam_data, f, ensure_ascii=False, indent=4)
-                with open(FACULTY_FILE, "w", encoding="utf-8") as f:
-                    json.dump(faculty_data, f, ensure_ascii=False, indent=4)
-        except Exception as json_err:
-            print(f"JSON export error: {json_err}")
-
-        # حذف السطر الذي كان يتسبب في الخطأ:
-        # push_to_github(chat_id)
-        
-        status_msg = (
-            "✅ اكتملت العملية بنجاح!\n\n"
-            f"📝 تم تحديث {len(exam_data)} مادة في جدول الامتحانات\n"
-            f"🏫 تم تحديث {len(faculty_data)} محاضرة في جدول الكلية\n\n"
-            "📂 الجداول الآن محدثة وجاهزة."
-        )
-        bot.send_message(chat_id, status_msg)
-        
-    except Exception as e:
-        bot.send_message(chat_id, f"❌ حدث خطأ أثناء السحب: {str(e)}")
-    finally:
-        time.sleep(5)
-        if driver: driver.quit()
+# --- Scraping Logic (تشغيل عن بُعد عبر GitHub Actions) ---
+# السحب الفعلي (فتح الموقع بمتصفح Chrome حقيقي، تسجيل الدخول، جلب الجداول)
+# ينفَّذ الآن على GitHub Actions عبر سكربت مستقل (scrape_action.py)، وليس هنا على Render،
+# لأن Render المجاني لا يوفر متصفح Chrome. هذا الزر فقط يطلق التشغيل عن بُعد.
 
 @bot.callback_query_handler(func=lambda call: call.data == "scrape_schedule")
 def handle_scrape(call):
@@ -962,9 +696,28 @@ def handle_scrape(call):
     if not creds:
         bot.send_message(call.message.chat.id, "❌ يرجى إعداد بيانات الماستر أولاً.")
         return
-    
-    bot.answer_callback_query(call.id, "⏳ بدأت العملية...")
-    threading.Thread(target=scrape_process, args=(call.message.chat.id, creds)).start()
+
+    if not GITHUB_TOKEN or not GITHUB_REPO:
+        bot.send_message(call.message.chat.id, "❌ إعدادات GitHub Actions ناقصة (GITHUB_TOKEN / GITHUB_REPO) على Render.")
+        return
+
+    bot.answer_callback_query(call.id, "⏳ جاري تشغيل السحب عبر GitHub...")
+    try:
+        resp = requests.post(
+            f"https://api.github.com/repos/{GITHUB_REPO}/dispatches",
+            headers={
+                "Authorization": f"Bearer {GITHUB_TOKEN}",
+                "Accept": "application/vnd.github+json",
+            },
+            json={"event_type": "scrape-schedule"},
+            timeout=15,
+        )
+        if resp.status_code == 204:
+            bot.send_message(call.message.chat.id, "🚀 تم إطلاق عملية السحب على GitHub Actions!\nراح توصلك رسائل بالتحديثات هنا أول بأول خلال دقيقة أو دقيقتين.")
+        else:
+            bot.send_message(call.message.chat.id, f"❌ فشل تشغيل GitHub Action (كود {resp.status_code}):\n{resp.text[:300]}")
+    except Exception as e:
+        bot.send_message(call.message.chat.id, f"❌ خطأ أثناء الاتصال بـ GitHub: {e}")
 
 # --- Web App Data Handler (Image & Text Data) ---
 @bot.message_handler(content_types=['web_app_data'])

@@ -773,100 +773,110 @@ def admin_add_exam_step3(call):
 
 
 # =========================================================================
-# سيرفر HTTP المباشر لخدمة الـ WebApp على Render
+# سيرفر HTTP المباشر لخدمة الـ WebApp وتلقي طلبات API على Render
 # =========================================================================
 
 class SafeHandler(http.server.BaseHTTPRequestHandler):
-    def do_GET(self):
-        try:
-            # تحديد مسار مجلد webapp
-            webapp_dir = os.path.join(BASE_DIR, "webapp")
-            
-            # تحديد اسم الملف المطلوب من الرابط
-            req_path = self.path.split('?')[0] # تجاهل الـ URL parameters مثل ?uid=...
-            if req_path in ["/", "/index.html"]:
-                filename = "index.html"
-            else:
-                filename = req_path.lstrip("/")
-                
-            file_path = os.path.join(webapp_dir, filename)
-
-            # التحقق من وجود الملف ومنعه من الخروج خارج مجلد webapp (حماية للأمان)
-            if os.path.exists(file_path) and os.path.isfile(file_path) and os.path.commonpath([file_path, webapp_dir]) == webapp_dir:
-                
-                # تحديد نوع الملف (MIME Type)
-                content_type = "text/html; charset=utf-8"
-                if filename.endswith(".json"):
-                    content_type = "application/json; charset=utf-8"
-                elif filename.endswith(".js"):
-                    content_type = "application/javascript; charset=utf-8"
-                elif filename.endswith(".css"):
-                    content_type = "text/css; charset=utf-8"
-                elif filename.endswith(".png"):
-                    content_type = "image/png"
-                elif filename.endswith(".jpg") or filename.endswith(".jpeg"):
-                    content_type = "image/jpeg"
-
-                with open(file_path, "rb") as f:
-                    content = f.read()
-
-                self.send_response(200)
-                self.send_header("Content-Type", content_type)
-                self.send_header("Access-Control-Allow-Origin", "*") # للسماح للـ WebApp بالقراءة
-                self.end_headers()
-                self.wfile.write(content)
-            else:
-                self.send_response(404)
-                self.end_headers()
-                self.wfile.write(b"404 Not Found")
-
-        except Exception as e:
-            self.send_response(500)
-            self.end_headers()
-            self.wfile.write(f"Server Error: {e}".encode())
-
     def log_message(self, format, *args):
         pass
 
-def run_dummy_server():
+    def do_GET(self):
+        try:
+            webapp_dir = os.path.join(BASE_DIR, "webapp")
+            req_path = self.path.split('?')[0]
+            
+            if req_path == "/" or req_path == "/index.html":
+                file_path = os.path.join(webapp_dir, "index.html")
+                content_type = "text/html; charset=utf-8"
+            else:
+                rel_path = req_path.lstrip('/')
+                file_path = os.path.abspath(os.path.join(webapp_dir, rel_path))
+                
+                # منع الهجمات لـ Path Traversal
+                if not file_path.startswith(webapp_dir):
+                    self.send_error(403, "Forbidden")
+                    return
+                
+                if req_path.endswith('.css'):
+                    content_type = "text/css; charset=utf-8"
+                elif req_path.endswith('.js'):
+                    content_type = "application/javascript; charset=utf-8"
+                elif req_path.endswith('.json'):
+                    content_type = "application/json; charset=utf-8"
+                elif req_path.endswith('.png'):
+                    content_type = "image/png"
+                elif req_path.endswith('.jpg') or req_path.endswith('.jpeg'):
+                    content_type = "image/jpeg"
+                else:
+                    content_type = "text/plain; charset=utf-8"
+
+            if os.path.exists(file_path) and os.path.isfile(file_path):
+                with open(file_path, "rb") as f:
+                    content = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", content_type)
+                self.send_header("Content-Length", str(len(content)))
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(content)
+            else:
+                self.send_error(404, "File Not Found")
+        except Exception as e:
+            print(f"[HTTP GET Error] {e}")
+            self.send_error(500, "Internal Server Error")
+
+    def do_POST(self):
+        try:
+            req_path = self.path.split('?')[0]
+            if req_path == "/api/save_schedule":
+                content_length = int(self.headers.get('Content-Length', 0))
+                post_data = self.rfile.read(content_length)
+                data = json.loads(post_data.decode('utf-8'))
+                
+                user_id = data.get("user_id")
+                selected_courses = data.get("selected_courses", [])
+                
+                if user_id and selected_courses:
+                    save_user_schedule_to_db(user_id, selected_courses)
+                    response_body = json.dumps({"status": "success"}).encode('utf-8')
+                    self.send_response(200)
+                else:
+                    response_body = json.dumps({"status": "error", "message": "Invalid parameters"}).encode('utf-8')
+                    self.send_response(400)
+                    
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Content-Length", str(len(response_body)))
+                self.end_headers()
+                self.wfile.write(response_body)
+            else:
+                self.send_error(404, "Endpoint Not Found")
+        except Exception as e:
+            print(f"[HTTP POST Error] {e}")
+            self.send_error(500, "Internal Server Error")
+
+
+def run_http_server():
     port = int(os.getenv("PORT", 8080))
-    try:
-        with socketserver.TCPServer(("", port), SafeHandler) as httpd:
-            print(f"[HTTP] Safe dummy server running on port {port}")
-            httpd.serve_forever()
-    except Exception as e:
-        print(f"[HTTP Error] Failed to start dummy server: {e}")
+    server = socketserver.TCPServer(("", port), SafeHandler)
+    print(f"[Web Server] HTTP server started on port {port}")
+    server.serve_forever()
 
-# 1. تشغيل سيرفر الويب الوهمي لـ Render (آمن ولا يظهر الملفات)
-threading.Thread(target=run_dummy_server, daemon=True).start()
-
-# 2. تشغيل التنسيق التلقائي للنسخ الاحتياطي
-threading.Thread(target=auto_backup_loop, daemon=True).start()
-
-
-# =========================================================================
-# بدء تشغيل البوت والـ Polling
-# =========================================================================
 
 if __name__ == "__main__":
-    print("[Bot] Cleaning up old sessions...")
+    # 1. إعداد واجهة الـ static webapp البدائية من البيانات المخزنة
+    exams_init = get_db_data("exams")
+    faculty_init = get_db_data("faculty")
+    build_static_webapp(exams_init, faculty_init)
 
-    # بناء الحقن المبدئي للبيانات داخل index.html عند إقلاع البوت
-    try:
-        exams_init = get_db_data("exams")
-        faculty_init = get_db_data("faculty")
-        build_static_webapp(exams_init, faculty_init)
-    except Exception as e:
-        print(f"[Warning] Initial WebApp build failed: {e}")
+    # 2. تشغيل السيرفر المباشر للـ WebApp في خلفية النظام
+    http_thread = threading.Thread(target=run_http_server, daemon=True)
+    http_thread.start()
 
-    # تنظيف الـ Webhook وأي جلسات معلقة على سيرفرات تلجرام
-    try:
-        requests.get(f"https://api.telegram.org/bot{TOKEN}/deleteWebhook?drop_pending_updates=True", timeout=5)
-    except Exception as e:
-        print(f"Warning clearing webhook: {e}")
+    # 3. تشغيل خيط النسخ الاحتياطي التلقائي
+    backup_thread = threading.Thread(target=auto_backup_loop, daemon=True)
+    backup_thread.start()
 
-    # مهلة زمنية لإغلاق النسخة القديمة تماماً على Render أثناء الـ Deploy
-    time.sleep(5)
-
-    print("[Bot] Starting polling successfully...")
-    bot.infinity_polling(timeout=10, long_polling_timeout=5, skip_pending=True)
+    # 4. بدء تشغيل البوت واستقبال التحديثات
+    print("[Bot] Starting bot polling...")
+    bot.infinity_polling(skip_pending=True)

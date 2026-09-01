@@ -1,12 +1,10 @@
 name: Scrape Jedwel Schedules
-
 on:
   # يتفعّل لما البوت (على Render) يرسل إشارة تشغيل عبر GitHub API
   repository_dispatch:
     types: [scrape-schedule]
   # يسمح لك كمان بتشغيله يدوياً من تبويب Actions فوق GitHub للتجربة
   workflow_dispatch: {}
-
 jobs:
   scrape:
     runs-on: ubuntu-latest
@@ -14,24 +12,19 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install selenium requests libsql-client
-
+          pip install -r requirements.txt
       - name: Run scraper
         env:
           TURSO_DB_URL: ${{ secrets.TURSO_DB_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           ADMIN_CHAT_ID: ${{ secrets.ADMIN_CHAT_ID }}
-          MASTER_USER: ${{ secrets.MASTER_USER }}
-          MASTER_PASS: ${{ secrets.MASTER_PASS }}
-          MASTER_COLLEGE: ${{ secrets.MASTER_COLLEGE }}
+          FERNET_KEY: ${{ secrets.FERNET_KEY }}
         run: python scrape_action.py

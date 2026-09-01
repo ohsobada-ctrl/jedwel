@@ -775,6 +775,15 @@ def admin_add_exam_step3(call):
 threading.Thread(target=auto_backup_loop, daemon=True).start()
 
 if __name__ == "__main__":
+    import time
+    
+    # 1. إزالة الـ Webhook وتنظيف أي جلسات معلقة
     bot.remove_webhook()
+    
+    # 2. مهلة زمنية صغيرة لضمان إغلاق النسخة القديمة على Render أثناء الـ Redeploy
+    time.sleep(3)
+    
     print("[Bot] Bot initialized successfully. Starting polling...")
-    bot.infinity_polling(skip_pending=True)
+    
+    # 3. تشغيل الـ Polling بدون skip_pending لتدفئة الاتصال وتفادي تعارض الـ offset
+    bot.infinity_polling(timeout=20, long_polling_timeout=20)

@@ -773,18 +773,59 @@ def admin_add_exam_step3(call):
 
 
 # =========================================================================
-# تشغيل المهام الجانبية والسيرفر الوهمي الآمن (Safe HTTP Server)
+# سيرفر HTTP المباشر لخدمة الـ WebApp على Render
 # =========================================================================
 
 class SafeHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
-        self.send_response(200)
-        self.send_header("Content-type", "text/html; charset=utf-8")
-        self.end_headers()
-        self.wfile.write(b"Bot is running successfully.")
+        try:
+            # تحديد مسار مجلد webapp
+            webapp_dir = os.path.join(BASE_DIR, "webapp")
+            
+            # تحديد اسم الملف المطلوب من الرابط
+            req_path = self.path.split('?')[0] # تجاهل الـ URL parameters مثل ?uid=...
+            if req_path in ["/", "/index.html"]:
+                filename = "index.html"
+            else:
+                filename = req_path.lstrip("/")
+                
+            file_path = os.path.join(webapp_dir, filename)
+
+            # التحقق من وجود الملف ومنعه من الخروج خارج مجلد webapp (حماية للأمان)
+            if os.path.exists(file_path) and os.path.isfile(file_path) and os.path.commonpath([file_path, webapp_dir]) == webapp_dir:
+                
+                # تحديد نوع الملف (MIME Type)
+                content_type = "text/html; charset=utf-8"
+                if filename.endswith(".json"):
+                    content_type = "application/json; charset=utf-8"
+                elif filename.endswith(".js"):
+                    content_type = "application/javascript; charset=utf-8"
+                elif filename.endswith(".css"):
+                    content_type = "text/css; charset=utf-8"
+                elif filename.endswith(".png"):
+                    content_type = "image/png"
+                elif filename.endswith(".jpg") or filename.endswith(".jpeg"):
+                    content_type = "image/jpeg"
+
+                with open(file_path, "rb") as f:
+                    content = f.read()
+
+                self.send_response(200)
+                self.send_header("Content-Type", content_type)
+                self.send_header("Access-Control-Allow-Origin", "*") # للسماح للـ WebApp بالقراءة
+                self.end_headers()
+                self.wfile.write(content)
+            else:
+                self.send_response(404)
+                self.end_headers()
+                self.wfile.write(b"404 Not Found")
+
+        except Exception as e:
+            self.send_response(500)
+            self.end_headers()
+            self.wfile.write(f"Server Error: {e}".encode())
 
     def log_message(self, format, *args):
-        # تعطيل طباعة لوجات الطلبات اليومية للحفاظ على نظافة الـ Logs
         pass
 
 def run_dummy_server():

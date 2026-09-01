@@ -266,11 +266,12 @@ def save_schedules(new_exams, new_faculty):
 
             c.execute("DELETE FROM faculty")
             for f in new_faculty:
-                c.execute("INSERT INTO faculty (code, name, [group], day, time, instructor, room) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                c.execute('INSERT INTO faculty (code, name, "group", day, time, instructor, room) VALUES (?, ?, ?, ?, ?, ?, ?)',
                           (f.get("code"), f.get("name"), f.get("group"), f.get("day"), f.get("time"), f.get("instructor"), f.get("room")))
 
             conn.commit()
             conn.close()
+            print("[DB] Schedules successfully saved to Turso.")
         except Exception as e:
             print(f"Error saving to database: {e}")
             return
@@ -924,8 +925,21 @@ def scrape_process(chat_id, creds):
         bot.send_message(chat_id, "🏫 جاري سحب جدول الكلية وتنسيق البيانات...")
         faculty_data = parse_faculty_schedule(driver, exam_data)
         
+       # حفظ البيانات في Turso
         save_schedules(exam_data, faculty_data)
-        push_to_github(chat_id)
+        
+        # حفظ نسخة في ملفات JSON المحلية للـ WebApp
+        try:
+            with file_lock:
+                with open(EXAMS_FILE, "w", encoding="utf-8") as f:
+                    json.dump(exam_data, f, ensure_ascii=False, indent=4)
+                with open(FACULTY_FILE, "w", encoding="utf-8") as f:
+                    json.dump(faculty_data, f, ensure_ascii=False, indent=4)
+        except Exception as json_err:
+            print(f"JSON export error: {json_err}")
+
+        # حذف السطر الذي كان يتسبب في الخطأ:
+        # push_to_github(chat_id)
         
         status_msg = (
             "✅ اكتملت العملية بنجاح!\n\n"
@@ -1140,11 +1154,11 @@ if __name__ == "__main__":
         if exams or faculty:
             print(f"[Sync] Syncing files from database on startup... ({len(exams)} exams, {len(faculty)} courses)")
             with file_lock:
+                os.makedirs(os.path.join(BASE_DIR, "webapp"), exist_ok=True)
                 with open(EXAMS_FILE, "w", encoding="utf-8") as f:
                     json.dump(exams, f, ensure_ascii=False, indent=4)
                 with open(FACULTY_FILE, "w", encoding="utf-8") as f:
                     json.dump(faculty, f, ensure_ascii=False, indent=4)
-                build_static_webapp(exams, faculty)
     except Exception as e:
         print(f"[Error] Error syncing files on startup: {e}")
 

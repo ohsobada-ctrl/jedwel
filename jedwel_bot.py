@@ -197,15 +197,18 @@ init_db()
 
 # --- Cryptography Setup ---
 def get_cipher():
-    # الأولوية لمتغير بيئة ثابت (FERNET_KEY) بدل الملف المحلي،
-    # لأن قرص Render مؤقت (ephemeral) وقد يفقد الملف بعد كل نشر جديد.
-    # هذا كمان يسمح لـ scrape_action.py على GitHub Actions يفك تشفير
-    # نفس الباسورد المخزّن بـTurso بنفس المفتاح.
+    """
+    يقرأ مفتاح Fernet من متغير البيئة FERNET_KEY أولاً (المفتاح الثابت المشترك
+    بين Render وGitHub Actions)، حتى يقدر scrape_action.py يفك تشفير الباسورد
+    بنفس المفتاح بدون الحاجة لمزامنة ملف secret.key بين البيئتين.
+
+    لو المتغير غير موجود (مثلاً بيئة تطوير محلية قديمة)، يرجع لأسلوب ملف
+    secret.key القديم كاحتياط، حتى لا ينكسر أي شيء شغال حالياً.
+    """
     env_key = os.getenv("FERNET_KEY")
     if env_key:
-        return Fernet(env_key.encode() if isinstance(env_key, str) else env_key)
+        return Fernet(env_key.encode())
 
-    # احتياط قديم (تراجعي): لو ما فيه FERNET_KEY، استخدم أسلوب الملف المحلي كما كان
     if not os.path.exists(KEY_FILE):
         key = Fernet.generate_key()
         with open(KEY_FILE, "wb") as f:

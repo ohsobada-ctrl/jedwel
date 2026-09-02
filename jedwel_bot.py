@@ -13,6 +13,7 @@ import re
 import shutil
 import requests
 from datetime import datetime, timedelta
+from urllib.parse import urlparse, parse_qs
 
 # pyrefly: ignore [missing-import]
 import libsql_client
@@ -190,7 +191,20 @@ def init_db():
         conn.commit()
     except Exception:
         pass
-        
+
+    # دعم كليتين (IT / الهندسة): كل مادة بجدول الامتحانات وجدول المحاضرات
+    # تُوسم بكليتها، حتى يقدر كل طالب يشوف مواد كليته فقط بالموقع.
+    try:
+        c.execute("ALTER TABLE exams ADD COLUMN college TEXT DEFAULT 'it'")
+        conn.commit()
+    except Exception:
+        pass
+    try:
+        c.execute("ALTER TABLE faculty ADD COLUMN college TEXT DEFAULT 'it'")
+        conn.commit()
+    except Exception:
+        pass
+
     conn.close()
 
 init_db()
@@ -219,6 +233,9 @@ def get_cipher():
     return Fernet(key)
 
 # --- Database & Credentials Helpers ---
+# ملاحظة: صار فيه حساب ماستر منفصل لكل كلية (IT / الهندسة). التخزين والقراءة
+# صارا مفتاحين بـ college، فحفظ حساب كلية ما يمسح حساب الكلية الأخرى.
+
 def save_master_creds(username, password, college):
     cipher = get_cipher()
     encrypted_pass = cipher.encrypt(password.encode()).decode()
@@ -226,7 +243,7 @@ def save_master_creds(username, password, college):
         try:
             conn = get_conn()
             c = conn.cursor()
-            c.execute("DELETE FROM master_data")
+            c.execute("DELETE FROM master_data WHERE college = ?", (college,))
             c.execute("INSERT INTO master_data (username, password, college) VALUES (?, ?, ?)", (username, encrypted_pass, college))
             conn.commit()
             conn.close()
@@ -235,34 +252,52 @@ def save_master_creds(username, password, college):
             print(f"Error saving credentials: {e}")
             return False
 
-def load_master_creds():
+def load_master_creds(college):
+    """يرجع بيانات حساب الماستر لكلية محددة ('it' أو 'eng'), أو None إذا غير معدّة."""
     with db_lock:
         try:
             conn = get_conn()
             c = conn.cursor()
-            c.execute("SELECT username, password, college FROM master_data LIMIT 1")
+            c.execute("SELECT username, password, college FROM master_data WHERE college = ? LIMIT 1", (college,))
             row = c.fetchone()
             conn.close()
             if row:
-                username, encrypted_pass, college = row
+                username, encrypted_pass, college_val = row
                 cipher = get_cipher()
                 try:
                     decrypted_pass = cipher.decrypt(encrypted_pass.encode()).decode()
                 except:
                     decrypted_pass = encrypted_pass
-                return {"master_user": username, "master_pass": decrypted_pass, "college": college}
+                return {"master_user": username, "master_pass": decrypted_pass, "college": college_val}
         except:
             pass
         return None
 
-def get_db_data(table):
+def load_all_master_colleges():
+    """يرجع قائمة الكليات اللي فيها حساب ماستر محفوظ حالياً في Turso، مثال: ['it', 'eng']."""
+    with db_lock:
+        try:
+            conn = get_conn()
+            c = conn.cursor()
+            c.execute("SELECT DISTINCT college FROM master_data")
+            rows = c.fetchall()
+            conn.close()
+            return [r[0] for r in rows if r[0]]
+        except Exception:
+            return []
+
+def get_db_data(table, college=None):
+    """يرجع صفوف exams أو faculty. لو مرّرت college ('it'/'eng') يرجع صفوف تلك الكلية فقط."""
     if table not in ["exams", "faculty"]: return []
     with db_lock:
         try:
             conn = get_conn()
             conn.row_factory = sqlite3.Row
             c = conn.cursor()
-            c.execute(f"SELECT * FROM {table}")
+            if college:
+                c.execute(f"SELECT * FROM {table} WHERE college = ?", (college,))
+            else:
+                c.execute(f"SELECT * FROM {table}")
             rows = [dict(row) for row in c.fetchall()]
             conn.close()
             return rows
@@ -270,25 +305,26 @@ def get_db_data(table):
             print(f"Error reading from {table}: {e}")
             return []
 
-def save_schedules(new_exams, new_faculty):
+def save_schedules(new_exams, new_faculty, college):
+    """يستبدل بيانات كلية واحدة فقط (college) بدون المساس ببيانات الكلية الأخرى."""
     with db_lock:
         try:
             conn = get_conn()
             c = conn.cursor()
 
-            c.execute("DELETE FROM exams")
+            c.execute("DELETE FROM exams WHERE college = ?", (college,))
             for ex in new_exams:
-                c.execute("INSERT INTO exams (code, name, exam_day, exam_period, day_index) VALUES (?, ?, ?, ?, ?)",
-                          (ex.get("code"), ex.get("name"), ex.get("exam_day"), ex.get("exam_period"), ex.get("day_index", 0)))
+                c.execute("INSERT INTO exams (code, name, exam_day, exam_period, day_index, college) VALUES (?, ?, ?, ?, ?, ?)",
+                          (ex.get("code"), ex.get("name"), ex.get("exam_day"), ex.get("exam_period"), ex.get("day_index", 0), college))
 
-            c.execute("DELETE FROM faculty")
+            c.execute("DELETE FROM faculty WHERE college = ?", (college,))
             for f in new_faculty:
-                c.execute('INSERT INTO faculty (code, name, "group", day, time, instructor, room) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                          (f.get("code"), f.get("name"), f.get("group"), f.get("day"), f.get("time"), f.get("instructor"), f.get("room")))
+                c.execute('INSERT INTO faculty (code, name, "group", day, time, instructor, room, college) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                          (f.get("code"), f.get("name"), f.get("group"), f.get("day"), f.get("time"), f.get("instructor"), f.get("room"), college))
 
             conn.commit()
             conn.close()
-            print("[DB] Schedules successfully saved to Turso.")
+            print(f"[DB] Schedules successfully saved to Turso for college={college}.")
         except Exception as e:
             print(f"Error saving to database: {e}")
             return
@@ -360,16 +396,22 @@ def start(message):
     
     if user_id == ADMIN_ID:
         markup = InlineKeyboardMarkup()
-        creds = load_master_creds()
-        if creds:
-             markup.add(InlineKeyboardButton("✅ تحديث حساب الماستر", callback_data="setup_master"))
-             markup.add(InlineKeyboardButton("📊 سحب الجداول الآن", callback_data="scrape_schedule"))
-             markup.add(InlineKeyboardButton("🛠️ إدارة البيانات يدوياً", callback_data="admin_manage_data"))
-             markup.add(InlineKeyboardButton("📦 أخذ نسخة احتياطية الآن", callback_data="admin_manual_backup"))
-        else:
-             markup.add(InlineKeyboardButton("🔑 إعداد حساب الماستر", callback_data="setup_master"))
+        configured_colleges = load_all_master_colleges()
+
+        it_label = "✅ تحديث ماستر (تقنية المعلومات)" if "it" in configured_colleges else "🔑 إعداد ماستر (تقنية المعلومات)"
+        eng_label = "✅ تحديث ماستر (الهندسة)" if "eng" in configured_colleges else "🔑 إعداد ماستر (الهندسة)"
+        markup.add(InlineKeyboardButton(it_label, callback_data="setup_master_it"))
+        markup.add(InlineKeyboardButton(eng_label, callback_data="setup_master_eng"))
+
+        if "it" in configured_colleges:
+            markup.add(InlineKeyboardButton("📊 سحب جدول تقنية المعلومات الآن", callback_data="scrape_schedule_it"))
+        if "eng" in configured_colleges:
+            markup.add(InlineKeyboardButton("📊 سحب جدول الهندسة الآن", callback_data="scrape_schedule_eng"))
+
+        markup.add(InlineKeyboardButton("🛠️ إدارة البيانات يدوياً", callback_data="admin_manage_data"))
+        markup.add(InlineKeyboardButton("📦 أخذ نسخة احتياطية الآن", callback_data="admin_manual_backup"))
         
-        bot.send_message(message.chat.id, "👋 أهلاً بك يا أدمن في نظام الجدولة الذكي!\n\nهنا نقدر نسحب الجداول ونصمم جداول بدون تعارض.", reply_markup=markup)
+        bot.send_message(message.chat.id, "👋 أهلاً بك يا أدمن في نظام الجدولة الذكي!\n\nهنا نقدر نسحب الجداول ونصمم جداول بدون تعارض لكلتا الكليتين.", reply_markup=markup)
         
         notice = (
             "💡 **كيف تصمم جدولك؟**\n\n"
@@ -398,13 +440,16 @@ def inline_search_courses(inline_query):
     
     for m in matches:
         code = m.get('code')
-        if code in seen_codes: continue
-        seen_codes.add(code)
+        college = m.get('college') or 'it'
+        dedup_key = (code, college)
+        if dedup_key in seen_codes: continue
+        seen_codes.add(dedup_key)
         
         name = m.get('name', code)
-        lecs = [l for l in faculty_data if l.get('code') == code]
+        college_name = "تقنية المعلومات" if college == 'it' else "الهندسة"
+        lecs = [l for l in faculty_data if l.get('code') == code and (l.get('college') or 'it') == college]
         
-        ex = next((e for e in exams_data if e.get('code') == code), None)
+        ex = next((e for e in exams_data if e.get('code') == code and (e.get('college') or 'it') == college), None)
         exam_info = f"📅 **الامتحان النهائي:** {ex['exam_day']} ({ex['exam_period']})" if ex else "📝 **الامتحان النهائي:** غير محدد"
         
         lecs_text = ""
@@ -423,7 +468,7 @@ def inline_search_courses(inline_query):
         groups_str = " ، ".join(sorted(list(set(groups_list))))
         
         content = (
-            f"🎓 **تفاصيل مادة: {name}** (`{code}`)\n"
+            f"🎓 **تفاصيل مادة: {name}** (`{code}`) - كلية {college_name}\n"
             f"👥 **المجموعات المتاحة:** {groups_str}\n"
             f"─────────────────\n\n"
             f"{lecs_text}"
@@ -435,8 +480,8 @@ def inline_search_courses(inline_query):
         description_snippet = f"المجموعات: {groups_str} | {exam_info.replace('**','').replace('📅 ','').replace('📝 ','')}"
         
         result_article = InlineQueryResultArticle(
-            id=code,
-            title=f"📘 {name} ({code})",
+            id=f"{code}_{college}",
+            title=f"📘 {name} ({code}) - {college_name}",
             description=description_snippet,
             input_message_content=InputTextMessageContent(content, parse_mode="Markdown")
         )
@@ -463,21 +508,15 @@ def admin_manual_backup(call):
         bot.send_message(call.message.chat.id, f"❌ حدث خطأ أثناء النسخ الاحتياطي: {e}")
 
 # --- Admin Setup & Manage Handlers ---
-@bot.callback_query_handler(func=lambda call: call.data == "setup_master")
+# كل زر (setup_master_it / setup_master_eng) يحدد الكلية مباشرة من اسم الـ callback،
+# فما عاد فيه حاجة لقائمة فرعية وسيطة لاختيار الكلية.
+@bot.callback_query_handler(func=lambda call: call.data.startswith("setup_master_"))
 def setup_master(call):
     bot.answer_callback_query(call.id)
     if call.from_user.id != ADMIN_ID: return
-    markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton("💻 تقنية المعلومات", callback_data="master_college_it"))
-    markup.add(InlineKeyboardButton("🛠️ الهندسة", callback_data="master_college_eng"))
-    bot.edit_message_text("🏫 اختر الكلية للحساب الماستر:", call.message.chat.id, call.message.message_id, reply_markup=markup)
-
-@bot.callback_query_handler(func=lambda call: call.data.startswith("master_college_"))
-def set_master_college(call):
-    bot.answer_callback_query(call.id)
-    if call.from_user.id != ADMIN_ID: return
-    college = call.data.split("_")[-1]
-    msg = bot.send_message(call.message.chat.id, f"👤 أرسل رقم القيد للكلية المختارة ({'تقنية المعلومات' if college=='it' else 'الهندسة'}):")
+    college = call.data.replace("setup_master_", "")  # "it" أو "eng"
+    college_name = "تقنية المعلومات" if college == "it" else "الهندسة"
+    msg = bot.send_message(call.message.chat.id, f"👤 أرسل رقم القيد لحساب ماستر كلية {college_name}:")
     bot.register_next_step_handler(msg, get_master_user, college)
 
 def get_master_user(message, college):
@@ -494,9 +533,10 @@ def get_master_pass(message, username, college):
     except:
         pass
         
+    college_name = "تقنية المعلومات" if college == "it" else "الهندسة"
     saved = save_master_creds(username, password, college)
     if saved:
-        bot.send_message(message.chat.id, "✅ تم حفظ بيانات الماستر بنجاح!\n\nتوا تقدر تضغط على 'سحب الجداول الآن'.")
+        bot.send_message(message.chat.id, f"✅ تم حفظ بيانات ماستر كلية {college_name} بنجاح!\n\nتوا تقدر تضغط على زر 'سحب الجدول' الخاص بهذه الكلية.")
     else:
         bot.send_message(message.chat.id, "❌ حدث خطأ أثناء حفظ البيانات.")
 
@@ -599,8 +639,9 @@ def process_edit_search(message, table):
             conn.close()
             if f_row:
                 item = dict(f_row)
+                item_college = item.get('college') or 'it'
                 markup = InlineKeyboardMarkup()
-                markup.add(InlineKeyboardButton(f"➕ إضافة {code} لجدول الامتحانات", callback_data=f"admin_add_exam_{code}"))
+                markup.add(InlineKeyboardButton(f"➕ إضافة {code} لجدول الامتحانات", callback_data=f"admin_add_exam_{code}_{item_college}"))
                 bot.send_message(message.chat.id, f"🔍 المادة ({item['name']}) موجودة في جدول المحاضرات فقط.\nهل تريد إضافتها لجدول الامتحانات؟", reply_markup=markup)
             else:
                 bot.send_message(message.chat.id, f"❌ لم يتم العثور على المادة {code} في أي جدول.")
@@ -652,18 +693,21 @@ def process_edit_save(message, table, field, row_id):
 @bot.callback_query_handler(func=lambda call: call.data.startswith("admin_add_exam_"))
 def admin_add_exam_step1(call):
     bot.answer_callback_query(call.id)
-    code = call.data.replace("admin_add_exam_", "")
+    rest = call.data.replace("admin_add_exam_", "")
+    code, _, college = rest.rpartition("_")
+    if not code:  # احتياط لو ما فيه كلية مرفقة (توافق مع بيانات قديمة)
+        code, college = rest, "it"
     msg = bot.send_message(call.message.chat.id, f"➕ إضافة مادة {code}:\nأرسل (رقم اليوم) في جدول الامتحانات:\nمثال: إذا كان امتحانها في اليوم 13، أرسل 13")
-    bot.register_next_step_handler(msg, admin_add_exam_step2, code)
+    bot.register_next_step_handler(msg, admin_add_exam_step2, code, college)
 
-def admin_add_exam_step2(message, code):
+def admin_add_exam_step2(message, code, college):
     if message.from_user.id != ADMIN_ID: return
     try:
         day_idx = int(message.text.strip())
         markup = InlineKeyboardMarkup()
-        markup.add(InlineKeyboardButton("الفترة الأولى", callback_data=f"save_new_exam_{code}_{day_idx}_الفترة الاولى"))
-        markup.add(InlineKeyboardButton("الفترة الثانية", callback_data=f"save_new_exam_{code}_{day_idx}_الفترة الثانية"))
-        markup.add(InlineKeyboardButton("الفترة الثالثة", callback_data=f"save_new_exam_{code}_{day_idx}_الفترة الثالثة"))
+        markup.add(InlineKeyboardButton("الفترة الأولى", callback_data=f"save_new_exam_{code}_{day_idx}_الفترة الاولى_{college}"))
+        markup.add(InlineKeyboardButton("الفترة الثانية", callback_data=f"save_new_exam_{code}_{day_idx}_الفترة الثانية_{college}"))
+        markup.add(InlineKeyboardButton("الفترة الثالثة", callback_data=f"save_new_exam_{code}_{day_idx}_الفترة الثالثة_{college}"))
         bot.send_message(message.chat.id, f"📅 اختر الفترة لليوم {day_idx}:", reply_markup=markup)
     except:
         bot.send_message(message.chat.id, "❌ يرجى إرسال رقم اليوم بشكل صحيح (عدد فقط).")
@@ -672,12 +716,12 @@ def admin_add_exam_step2(message, code):
 def admin_add_exam_final(call):
     bot.answer_callback_query(call.id)
     parts = call.data.split("_")
-    code, day_idx, period = parts[3], int(parts[4]), parts[5]
+    code, day_idx, period, college = parts[3], int(parts[4]), parts[5], parts[-1]
     
     with db_lock:
         conn = get_conn()
         c = conn.cursor()
-        c.execute("SELECT name FROM faculty WHERE code = ? LIMIT 1", (code,))
+        c.execute("SELECT name FROM faculty WHERE code = ? AND college = ? LIMIT 1", (code, college))
         row = c.fetchone()
         name = row[0] if row else "مادة مضافة يدوياً"
         
@@ -689,8 +733,8 @@ def admin_add_exam_final(call):
             if str(day_idx) in d_map:
                 exam_day = d_map[str(day_idx)]
         
-        c.execute("INSERT INTO exams (code, name, exam_day, exam_period, day_index) VALUES (?, ?, ?, ?, ?)",
-                  (code, name, exam_day, period, day_idx))
+        c.execute("INSERT INTO exams (code, name, exam_day, exam_period, day_index, college) VALUES (?, ?, ?, ?, ?, ?)",
+                  (code, name, exam_day, period, day_idx, college))
         conn.commit()
         conn.close()
 
@@ -701,12 +745,15 @@ def admin_add_exam_final(call):
 # ينفَّذ الآن على GitHub Actions عبر سكربت مستقل (scrape_action.py)، وليس هنا على Render،
 # لأن Render المجاني لا يوفر متصفح Chrome. هذا الزر فقط يطلق التشغيل عن بُعد.
 
-@bot.callback_query_handler(func=lambda call: call.data == "scrape_schedule")
+@bot.callback_query_handler(func=lambda call: call.data.startswith("scrape_schedule_"))
 def handle_scrape(call):
     if call.from_user.id != ADMIN_ID: return
-    creds = load_master_creds()
+    college = call.data.replace("scrape_schedule_", "")  # "it" أو "eng"
+    college_name = "تقنية المعلومات" if college == "it" else "الهندسة"
+
+    creds = load_master_creds(college)
     if not creds:
-        bot.send_message(call.message.chat.id, "❌ يرجى إعداد بيانات الماستر أولاً.")
+        bot.send_message(call.message.chat.id, f"❌ يرجى إعداد بيانات ماستر كلية {college_name} أولاً.")
         return
 
     if not GITHUB_TOKEN or not GITHUB_REPO:
@@ -721,11 +768,11 @@ def handle_scrape(call):
                 "Authorization": f"Bearer {GITHUB_TOKEN}",
                 "Accept": "application/vnd.github+json",
             },
-            json={"event_type": "scrape-schedule"},
+            json={"event_type": "scrape-schedule", "client_payload": {"college": college}},
             timeout=15,
         )
         if resp.status_code == 204:
-            bot.send_message(call.message.chat.id, "🚀 تم إطلاق عملية السحب على GitHub Actions!\nراح توصلك رسائل بالتحديثات هنا أول بأول خلال دقيقة أو دقيقتين.")
+            bot.send_message(call.message.chat.id, f"🚀 تم إطلاق عملية سحب جدول كلية {college_name} على GitHub Actions!\nراح توصلك رسائل بالتحديثات هنا أول بأول خلال دقيقة أو دقيقتين.")
         else:
             bot.send_message(call.message.chat.id, f"❌ فشل تشغيل GitHub Action (كود {resp.status_code}):\n{resp.text[:300]}")
     except Exception as e:
@@ -805,22 +852,26 @@ def run_server():
         def log_message(self, format, *args): return
         
         def do_GET(self):
-            if '?' in self.path:
-                self.path = self.path.split('?')[0]
-                
+            parsed_url = urlparse(self.path)
+            query_params = parse_qs(parsed_url.query)
+            # الموقع (Mini App) يرسل ?college=it أو ?college=eng حسب اختيار الطالب.
+            # لو ما أرسل شي، نرجّع كل الكليات (توافق مع أي استدعاء قديم بدون الباراميتر).
+            college_param = query_params.get('college', [None])[0]
+            self.path = parsed_url.path
+
             if self.path == '/api/faculty':
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json')
                 self.send_header('Access-Control-Allow-Origin', '*')
                 self.end_headers()
-                data = get_db_data("faculty")
+                data = get_db_data("faculty", college_param)
                 self.wfile.write(json.dumps(data, ensure_ascii=False).encode('utf-8'))
             elif self.path == '/api/exams':
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json')
                 self.send_header('Access-Control-Allow-Origin', '*')
                 self.end_headers()
-                data = get_db_data("exams")
+                data = get_db_data("exams", college_param)
                 self.wfile.write(json.dumps(data, ensure_ascii=False).encode('utf-8'))
             else:
                 safe_path = os.path.normpath(self.path).lstrip(os.sep).lstrip('/')

@@ -1,10 +1,21 @@
 name: Scrape Jedwel Schedules
 on:
-  # يتفعّل لما البوت (على Render) يرسل إشارة تشغيل عبر GitHub API
+  # يتفعّل لما البوت (على Render) يرسل إشارة تشغيل عبر GitHub API، ويمرر
+  # الكلية المطلوبة ("it" أو "eng") عبر client_payload.college
   repository_dispatch:
     types: [scrape-schedule]
-  # يسمح لك كمان بتشغيله يدوياً من تبويب Actions فوق GitHub للتجربة
-  workflow_dispatch: {}
+  # يسمح لك كمان بتشغيله يدوياً من تبويب Actions فوق GitHub للتجربة،
+  # مع اختيار الكلية من قائمة منسدلة
+  workflow_dispatch:
+    inputs:
+      college:
+        description: "الكلية المطلوب سحب جدولها"
+        required: true
+        default: "it"
+        type: choice
+        options:
+          - it
+          - eng
 jobs:
   scrape:
     runs-on: ubuntu-latest
@@ -27,4 +38,5 @@ jobs:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           ADMIN_CHAT_ID: ${{ secrets.ADMIN_CHAT_ID }}
           FERNET_KEY: ${{ secrets.FERNET_KEY }}
+          COLLEGE: ${{ github.event.client_payload.college || inputs.college }}
         run: python scrape_action.py

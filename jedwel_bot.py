@@ -879,10 +879,11 @@ def run_server():
                 
                 if not safe_path.startswith('webapp'):
                     if self.path in ['/', '']:
-                        if os.path.exists(os.path.join('webapp', 'index_final.html')):
-                            self.path = '/webapp/index_final.html'
-                        else:
-                            self.path = '/webapp/index.html'
+                        # الموقع صار ملف ديناميكي واحد (index.html) يدعم التبديل
+                        # بين الكليتين ويقرأ من /api مباشرة. أي index_final.html
+                        # قديم فيه بيانات محقونة ثابتة (كلية واحدة فقط، بدون تبديل)
+                        # ما عاد يُستخدم عمداً.
+                        self.path = '/webapp/index.html'
                     else:
                         self.path = '/webapp/' + safe_path
                 else:

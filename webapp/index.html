@@ -48,6 +48,45 @@
             /* Prevent swipe-down-to-close in Telegram */
         }
 
+        /* ---- COLLEGE SWITCHER (new) ---- */
+        .college-switch {
+            display: flex;
+            gap: 8px;
+            padding: 10px 16px;
+            background: rgba(15, 23, 42, 0.92);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            position: sticky;
+            top: 0;
+            z-index: 1100;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .college-btn {
+            flex: 1;
+            border: none;
+            padding: 10px 8px;
+            border-radius: 12px;
+            font-family: 'Cairo', sans-serif;
+            font-weight: 800;
+            font-size: 0.85rem;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.08);
+            color: rgba(255, 255, 255, 0.7);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .college-btn.active {
+            background: linear-gradient(135deg, var(--primary), #6366f1);
+            color: #fff;
+            box-shadow: 0 4px 10px -2px rgba(79, 70, 229, 0.5);
+        }
+
+        .college-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         /* ---- HEADER (Glassmorphic) ---- */
         .app-header {
             background: var(--header-bg);
@@ -56,7 +95,7 @@
             border-bottom: 1px solid var(--border);
             padding: 12px 16px 0;
             position: sticky;
-            top: 0;
+            top: 46px;
             z-index: 1000;
             box-shadow: var(--glass-shadow);
         }
@@ -664,7 +703,7 @@
             align-items: center;
             gap: 12px;
             position: sticky;
-            top: 0;
+            top: 46px;
             z-index: 1000;
             box-shadow: var(--glass-shadow);
         }
@@ -874,10 +913,6 @@
             display: none !important;
         }
 
-        .hidden {
-            display: none !important;
-        }
-
         @keyframes fadeUp {
             from {
                 opacity: 0;
@@ -893,28 +928,18 @@
         .anim {
             animation: fadeUp 0.25s ease;
         }
-
-        /* ---- RESULTS SECTION ---- */
-        .results-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin: 18px 0 10px;
-        }
-
-        .results-title {
-            font-weight: 900;
-            font-size: 0.95rem;
-        }
-
-        .results-badge {
-            font-size: 0.78rem;
-            font-weight: 700;
-        }
     </style>
 </head>
 
 <body>
+
+    <!-- ===================================================== -->
+    <!-- COLLEGE SWITCHER (new) -->
+    <!-- ===================================================== -->
+    <div class="college-switch" id="collegeSwitch">
+        <button class="college-btn" data-college="it" onclick="setCollege('it')">💻 تقنية المعلومات</button>
+        <button class="college-btn" data-college="eng" onclick="setCollege('eng')">⚙️ الهندسة</button>
+    </div>
 
     <!-- ===================================================== -->
     <!-- PAGE 1: أداة البحث (Inline Search + Schedule Display) -->
@@ -1150,6 +1175,46 @@
         // Search state
         let searchSubjects = []; // [{code, name}]
 
+        // ===== College state (new) =====
+        // "it" = تقنية المعلومات, "eng" = الهندسة
+        let currentCollege = localStorage.getItem('selectedCollege') || 'it';
+        let dataLoading = false;
+
+        function collegeStorageKey(type) {
+            return `${type}Subjects_${currentCollege}`;
+        }
+
+        function updateCollegeUI() {
+            document.querySelectorAll('.college-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.college === currentCollege);
+            });
+        }
+
+        async function setCollege(college) {
+            if (college === currentCollege || dataLoading) return;
+            currentCollege = college;
+            localStorage.setItem('selectedCollege', college);
+            updateCollegeUI();
+
+            // كل كلية عندها موادها الخاصة، فنحمّل الاختيارات المحفوظة لها فقط
+            const savedSearch = localStorage.getItem(collegeStorageKey('search'));
+            searchSubjects = savedSearch ? JSON.parse(savedSearch) : [];
+            const savedBuilder = localStorage.getItem(collegeStorageKey('builder'));
+            builderSubjects = savedBuilder ? JSON.parse(savedBuilder) : [];
+
+            // إخفاء أي نتائج قديمة تخص الكلية السابقة لحد ما تتحمل بيانات الكلية الجديدة
+            document.getElementById('proposalsArea').classList.add('hidden');
+            document.getElementById('inlineScheduleArea').classList.add('hidden');
+            document.getElementById('emptyState1').classList.remove('hidden');
+            document.getElementById('proposalsList').innerHTML = '';
+            solutions = [];
+
+            await loadCollegeData();
+
+            if (renderSearchTags) renderSearchTags();
+            if (renderBuilderTags) renderBuilderTags();
+        }
+
         // ===== Days / Times =====
         const DAYS = ['السبت', 'الأحد', 'الإثنين', 'الثلاثاء', 'الإربعاء', 'الخميس'];
         const TIMES = ['08:00 - 09:30', '09:30 - 11:00', '11:00 - 12:30', '12:30 - 14:00', '14:00 - 15:30'];
@@ -1157,74 +1222,65 @@
 
         let uniqueSubjects = [];
 
-        // ===== Load Data =====
-        async function initApp() {
-            try {
-                let f, e, d;
-
-                // إذا كانت البيانات محقونة مباشرةً في الصفحة (index_final.html) استخدمها فوراً
-                if (window.allCourses && window.allExams) {
-                    f = window.allCourses;
-                    e = window.allExams;
-                    d = window.datesMap || {};
-                } else {
-                    // وإلا جلب البيانات من الخادم
-                    const ts = new Date().getTime();
-                    const res = await Promise.all([
-                        fetch(`./faculty.json?v=${ts}`).then(r => {
-                            if (!r.ok) throw new Error('Faculty fetch not ok');
-                            return r.json();
-                        }).catch(() => {
-                            console.log("Fallback: Fetching faculty from API");
-                            return fetch(`/api/faculty?v=${ts}`).then(r => r.json()).catch(() => []);
-                        }),
-                        fetch(`./exams.json?v=${ts}`).then(r => {
-                            if (!r.ok) throw new Error('Exams fetch not ok');
-                            return r.json();
-                        }).catch(() => {
-                            console.log("Fallback: Fetching exams from API");
-                            return fetch(`/api/exams?v=${ts}`).then(r => r.json()).catch(() => []);
-                        }),
-                        fetch(`./dates.json?v=${ts}`).then(r => {
-                            if (!r.ok) throw new Error('Dates fetch not ok');
-                            return r.json();
-                        }).catch(() => ({}))
-                    ]);
-                    f = res[0]; e = res[1]; d = res[2];
+        function buildUniqueSubjects() {
+            const seen = new Set();
+            uniqueSubjects = [];
+            [...facultyData, ...examsData].forEach(item => {
+                if (item.code && !seen.has(item.code)) {
+                    uniqueSubjects.push({
+                        code: item.code,
+                        name: item.name || '',
+                        // نحفظ النص كاملاً للبحث (عربي + كود)
+                        searchStr: ((item.name || '') + ' ' + (item.code || '')).toLowerCase()
+                    });
+                    seen.add(item.code);
                 }
+            });
+        }
+
+        // ===== Load Data for the currently selected college =====
+        async function loadCollegeData() {
+            dataLoading = true;
+            document.querySelectorAll('.college-btn').forEach(b => b.disabled = true);
+            try {
+                const ts = new Date().getTime();
+                const [f, e] = await Promise.all([
+                    fetch(`/api/faculty?college=${currentCollege}&v=${ts}`).then(r => {
+                        if (!r.ok) throw new Error('faculty not ok');
+                        return r.json();
+                    }).catch(() => []),
+                    fetch(`/api/exams?college=${currentCollege}&v=${ts}`).then(r => {
+                        if (!r.ok) throw new Error('exams not ok');
+                        return r.json();
+                    }).catch(() => [])
+                ]);
 
                 facultyData = (f || []).filter(x => x.code && x.code.trim());
                 examsData = e || [];
-                datesMap = d || {};
+                buildUniqueSubjects();
+            } catch (err) {
+                console.error('Load failed', err);
+            } finally {
+                dataLoading = false;
+                document.querySelectorAll('.college-btn').forEach(b => b.disabled = false);
+            }
+        }
 
-                // Pre-process unique subjects for faster search
-                const seen = new Set();
-                uniqueSubjects = [];
+        // ===== Load Data (initial boot) =====
+        async function initApp() {
+            updateCollegeUI();
+            await loadCollegeData();
 
-                [...facultyData, ...examsData].forEach(item => {
-                    if (item.code && !seen.has(item.code)) {
-                        uniqueSubjects.push({
-                            code: item.code,
-                            name: item.name || '',
-                            // نحفظ النص كاملاً للبحث (عربي + كود)
-                            searchStr: ((item.name || '') + ' ' + (item.code || '')).toLowerCase()
-                        });
-                        seen.add(item.code);
-                    }
-                });
+            // Load saved selections for the current college
+            const savedSearch = localStorage.getItem(collegeStorageKey('search'));
+            if (savedSearch) searchSubjects = JSON.parse(savedSearch);
 
-                // Load from localStorage
-                const savedSearch = localStorage.getItem('searchSubjects');
-                if (savedSearch) searchSubjects = JSON.parse(savedSearch);
+            const savedBuilder = localStorage.getItem(collegeStorageKey('builder'));
+            if (savedBuilder) builderSubjects = JSON.parse(savedBuilder);
 
-                const savedBuilder = localStorage.getItem('builderSubjects');
-                if (savedBuilder) builderSubjects = JSON.parse(savedBuilder);
-
-                // Initial render
-                if (renderSearchTags) renderSearchTags();
-                if (renderBuilderTags) renderBuilderTags();
-
-            } catch (err) { console.error('Load failed', err); }
+            // Initial render
+            if (renderSearchTags) renderSearchTags();
+            if (renderBuilderTags) renderBuilderTags();
         }
 
         // ===== Top Tab Switching =====
@@ -1248,8 +1304,8 @@
                 tagsEl.innerHTML = '';
                 const subjectsArr = getArr();
 
-                // Save to localStorage using the explicit type
-                localStorage.setItem(type + 'Subjects', JSON.stringify(subjectsArr));
+                // Save to localStorage, keyed per-college so switching colleges doesn't mix subjects
+                localStorage.setItem(collegeStorageKey(type), JSON.stringify(subjectsArr));
 
                 subjectsArr.forEach(s => {
                     const t = document.createElement('div');

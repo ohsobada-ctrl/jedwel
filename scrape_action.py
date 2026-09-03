@@ -1,23 +1,11 @@
 """
 سكربت السحب المستقل - يشتغل على GitHub Actions فقط (مو على Render).
 يفتح الموقع بمتصفح Chrome حقيقي (متوفر افتراضياً على أجهزة GitHub Actions)،
-يسجّل دخول، يسحب جدول الامتحانات وجدول الكلية، ويحفظهم مباشرة في Turso.
+يسجّل دخول لكلية تقنية المعلومات، يسحب جدول الامتحانات وجدول الكلية، ويحفظهم مباشرة في Turso.
 يرسل تحديثات الحالة للأدمن عبر تيليجرام مباشرة (بدون الحاجة لتشغيل البوت نفسه).
 
 كل القيم الحساسة تُقرأ من GitHub Actions Secrets (متغيرات بيئة وقت التشغيل):
 TURSO_DB_URL, TURSO_AUTH_TOKEN, BOT_TOKEN, ADMIN_CHAT_ID, FERNET_KEY
-
-يدعم السكربت الآن كليتين (تقنية المعلومات "it" والهندسة "eng"), كل كلية
-لها حساب ماستر منفصل مخزّن في Turso. الكلية المطلوب سحبها تُمرَّر عبر
-متغير البيئة COLLEGE (يضبطه workflow من client_payload.college القادم من
-البوت). بيانات الماستر (رقم القيد/الباسورد) ما عادت تُقرأ من أسرار منفصلة
-(MASTER_USER / MASTER_PASS)؛ بدلها يقرأها السكربت مباشرة من صف master_data
-الخاص بتلك الكلية في Turso ويفك تشفير الباسورد بـ FERNET_KEY (نفس المفتاح
-المستخدم في jedwel_bot.py). هذا يعني أي تحديث لبيانات الماستر من داخل
-البوت (زر "تحديث ماستر") ينعكس تلقائياً هنا بدون تحديث أي سر يدوياً.
-
-كل مادة تُسحب (امتحانات ومحاضرات) تُوسم بعمود college حتى تُحفظ بشكل منفصل
-عن الكلية الأخرى بدون ما تُمسح بياناتها.
 """
 
 import os
@@ -26,6 +14,7 @@ import sys
 import time
 import requests
 import libsql_client
+# pyrefly: ignore [missing-import]
 from cryptography.fernet import Fernet
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -41,17 +30,11 @@ BOT_TOKEN = os.environ["BOT_TOKEN"]
 ADMIN_CHAT_ID = os.environ["ADMIN_CHAT_ID"]
 FERNET_KEY = os.environ["FERNET_KEY"]
 
-# الكلية المطلوب سحب جدولها في هذا التشغيل: "it" أو "eng" (افتراضي "it" لو ما وصلت).
-MASTER_COLLEGE = os.environ.get("COLLEGE", "it").strip().lower()
-if MASTER_COLLEGE not in ("it", "eng"):
-    MASTER_COLLEGE = "it"
+MASTER_COLLEGE = "it"
 
 
 def notify(text: str) -> None:
-    """يرسل رسالة تيليجرام للأدمن مباشرة عبر Bot API (بدون تشغيل البوت نفسه).
-    يتأكد فعليًا من نجاح الإرسال (كود 200)، ولو فشل بسبب صيغة Markdown مكسورة
-    (رموز backtick/asterisk/underscore غير متطابقة داخل نص ديناميكي مثل رسالة خطأ)
-    يعيد المحاولة كنص عادي بدون تنسيق حتى لا تضيع الرسالة بصمت."""
+    """يرسل رسالة تيليجرام للأدمن مباشرة عبر Bot API (بدون تشغيل البوت نفسه)."""
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     try:
         resp = requests.post(
@@ -62,7 +45,6 @@ def notify(text: str) -> None:
         if resp.status_code == 200:
             return
         print(f"[Telegram notify] فشل الإرسال بصيغة Markdown (كود {resp.status_code}): {resp.text[:300]}")
-        # إعادة المحاولة بدون parse_mode حتى تصل الرسالة حتى لو فيها رموز تكسر التنسيق
         resp2 = requests.post(url, json={"chat_id": ADMIN_CHAT_ID, "text": text}, timeout=15)
         if resp2.status_code != 200:
             print(f"[Telegram notify] فشلت المحاولة البديلة أيضًا (كود {resp2.status_code}): {resp2.text[:300]}")
@@ -70,22 +52,19 @@ def notify(text: str) -> None:
         print(f"[Telegram notify error] {e}")
 
 
-def load_master_creds_from_turso(college: str):
-    """يقرأ بيانات الماستر (username/password) الخاصة بكلية محددة مباشرة من
-    جدول master_data في Turso، ويفك تشفير الباسورد بمفتاح FERNET_KEY الثابت
-    (المشترك مع Render).
-    """
+def load_master_creds_from_turso():
+    """يقرأ بيانات حساب الماستر لكلية تقنية المعلومات من جدول master_data في Turso."""
     client = libsql_client.create_client_sync(TURSO_DB_URL, auth_token=TURSO_AUTH_TOKEN)
     try:
         result = client.execute(
-            "SELECT username, password FROM master_data WHERE college = ? LIMIT 1",
-            [college],
+            "SELECT username, password FROM master_data WHERE college = 'it' OR college IS NULL LIMIT 1"
         )
         if not result.rows:
-            college_name = "تقنية المعلومات" if college == "it" else "الهندسة"
+            result = client.execute("SELECT username, password FROM master_data LIMIT 1")
+        if not result.rows:
             raise RuntimeError(
-                f"لا توجد بيانات ماستر محفوظة لكلية {college_name} ({college}) في Turso. "
-                "يرجى إعداد حساب الماستر لهذه الكلية أولاً من داخل البوت."
+                "لا توجد بيانات ماستر محفوظة لكلية تقنية المعلومات في Turso. "
+                "يرجى إعداد حساب الماستر أولاً من داخل البوت."
             )
         username, encrypted_pass = result.rows[0]
         cipher = Fernet(FERNET_KEY.encode())
@@ -93,14 +72,14 @@ def load_master_creds_from_turso(college: str):
             password = cipher.decrypt(encrypted_pass.encode()).decode()
         except Exception as decrypt_err:
             raise RuntimeError(
-                f"تعذّر فك تشفير باسورد ماستر كلية {college} بمفتاح FERNET_KEY الحالي: {decrypt_err}"
+                f"تعذّر فك تشفير باسورد حساب الماستر بمفتاح FERNET_KEY الحالي: {decrypt_err}"
             )
         return username, password
     finally:
         client.close()
 
 
-MASTER_USER, MASTER_PASS = load_master_creds_from_turso(MASTER_COLLEGE)
+MASTER_USER, MASTER_PASS = load_master_creds_from_turso()
 
 
 def build_chrome() -> webdriver.Chrome:
@@ -310,26 +289,25 @@ def parse_faculty_schedule(driver, exam_data):
 
 # ---------------- الحفظ المباشر في Turso ----------------
 
-def save_schedules(client, new_exams, new_faculty, college):
-    # يمسح فقط بيانات الكلية الحالية (college) بدون المساس ببيانات الكلية الأخرى.
-    client.execute("DELETE FROM exams WHERE college = ?", [college])
+def save_schedules(client, new_exams, new_faculty):
+    # مسح أي بيانات قديمة (سواء it أو eng سابقة) وحفظ جدول تقنية المعلومات
+    client.execute("DELETE FROM exams WHERE college = 'it' OR college = 'eng' OR college IS NULL")
     for ex in new_exams:
         client.execute(
-            "INSERT INTO exams (code, name, exam_day, exam_period, day_index, college) VALUES (?, ?, ?, ?, ?, ?)",
-            [ex.get("code"), ex.get("name"), ex.get("exam_day"), ex.get("exam_period"), ex.get("day_index", 0), college],
+            "INSERT INTO exams (code, name, exam_day, exam_period, day_index, college) VALUES (?, ?, ?, ?, ?, 'it')",
+            [ex.get("code"), ex.get("name"), ex.get("exam_day"), ex.get("exam_period"), ex.get("day_index", 0)],
         )
 
-    client.execute("DELETE FROM faculty WHERE college = ?", [college])
+    client.execute("DELETE FROM faculty WHERE college = 'it' OR college = 'eng' OR college IS NULL")
     for f in new_faculty:
         client.execute(
-            'INSERT INTO faculty (code, name, "group", day, time, instructor, room, college) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            [f.get("code"), f.get("name"), f.get("group"), f.get("day"), f.get("time"), f.get("instructor"), f.get("room"), college],
+            'INSERT INTO faculty (code, name, "group", day, time, instructor, room, college) VALUES (?, ?, ?, ?, ?, ?, ?, \'it\')',
+            [f.get("code"), f.get("name"), f.get("group"), f.get("day"), f.get("time"), f.get("instructor"), f.get("room")],
         )
 
 
 def main():
-    college_name = "تقنية المعلومات" if MASTER_COLLEGE == "it" else "الهندسة"
-    notify(f"🌐 بدأ GitHub Action سحب جدول كلية {college_name} الآن (فتح الكروم والدخول للمنظومة)...")
+    notify("🌐 بدأ GitHub Action سحب جدول كلية تقنية المعلومات الآن (فتح الكروم والدخول للمنظومة)...")
     driver = None
     try:
         driver = build_chrome()
@@ -337,16 +315,12 @@ def main():
         driver.get("https://sms.uot.edu.ly/eng/login_ing.php")
 
         fac_dropdown = wait.until(EC.element_to_be_clickable((By.ID, "fac")))
-        Select(fac_dropdown).select_by_visible_text(
-            "تقنية المعلومات" if MASTER_COLLEGE == "it" else "الهندسة"
-        )
+        Select(fac_dropdown).select_by_visible_text("تقنية المعلومات")
         driver.find_element(By.ID, "email").send_keys(MASTER_USER)
         driver.find_element(By.ID, "login-password").send_keys(MASTER_PASS)
         driver.find_element(By.NAME, "btnlogin").click()
 
         # --- التحقق من وجود رسالة خطأ (رقم قيد/باسورد غلط) قبل انتظار نجاح الدخول ---
-        # لو ما سوّينا هالتحقق، السكربت كان بيضل ينتظر 30 ثانية (EC.url_contains)
-        # ثم يفشل بـ TimeoutException عام بدون ما يوضح للأدمن السبب الحقيقي.
         time.sleep(2)
         try:
             error_msg = driver.find_element(
@@ -354,9 +328,9 @@ def main():
             )
             if error_msg:
                 notify(
-                    f"❌ فشل تسجيل الدخول لحساب ماستر كلية {college_name}.\n\n"
+                    "❌ فشل تسجيل الدخول لحساب ماستر كلية تقنية المعلومات.\n\n"
                     "رقم القيد أو كلمة المرور غير صحيحة.\n\n"
-                    "💡 **الحل:** أعد إعداد حساب الماستر لهذه الكلية من داخل البوت "
+                    "💡 **الحل:** أعد إعداد حساب الماستر من داخل البوت "
                     "وتأكد من كتابة رقم القيد والباسورد بشكل صحيح."
                 )
                 return
@@ -364,7 +338,7 @@ def main():
             pass
 
         wait.until(EC.url_contains("student"))
-        notify(f"✅ تم تسجيل الدخول بنجاح لحساب كلية {college_name}! جاري سحب جدول الامتحانات...")
+        notify("✅ تم تسجيل الدخول بنجاح لحساب تقنية المعلومات! جاري سحب جدول الامتحانات...")
 
         def open_schedule_menu():
             try:
@@ -391,14 +365,14 @@ def main():
         faculty_data = parse_faculty_schedule(driver, exam_data)
 
         client = libsql_client.create_client_sync(TURSO_DB_URL, auth_token=TURSO_AUTH_TOKEN)
-        save_schedules(client, exam_data, faculty_data, MASTER_COLLEGE)
+        save_schedules(client, exam_data, faculty_data)
         client.close()
 
         notify(
-            f"✅ *اكتملت عملية سحب جدول كلية {college_name} بنجاح!*\n\n"
+            "✅ *اكتملت عملية سحب جدول كلية تقنية المعلومات بنجاح!*\n\n"
             f"📝 تم تحديث {len(exam_data)} مادة في جدول الامتحانات\n"
             f"🏫 تم تحديث {len(faculty_data)} محاضرة في جدول الكلية\n\n"
-            "📂 الجداول محدثة الآن في Turso وجاهزة لطلاب هذه الكلية."
+            "📂 الجداول محدثة الآن في Turso وجاهزة للطلاب والموقع."
         )
     except Exception as e:
         extra = ""
@@ -408,7 +382,7 @@ def main():
         except Exception:
             pass
         notify(
-            f"❌ فشل سحب جدول كلية {college_name} عبر GitHub Actions:\n{type(e).__name__}: {str(e)[:300]}{extra}"
+            f"❌ فشل سحب جدول تقنية المعلومات عبر GitHub Actions:\n{type(e).__name__}: {str(e)[:300]}{extra}"
         )
         raise
     finally:
@@ -418,3 +392,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

@@ -48,44 +48,6 @@
             /* Prevent swipe-down-to-close in Telegram */
         }
 
-        /* ---- COLLEGE SWITCHER (new) ---- */
-        .college-switch {
-            display: flex;
-            gap: 8px;
-            padding: 10px 16px;
-            background: rgba(15, 23, 42, 0.92);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            position: sticky;
-            top: 0;
-            z-index: 1100;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        }
-
-        .college-btn {
-            flex: 1;
-            border: none;
-            padding: 10px 8px;
-            border-radius: 12px;
-            font-family: 'Cairo', sans-serif;
-            font-weight: 800;
-            font-size: 0.85rem;
-            cursor: pointer;
-            background: rgba(255, 255, 255, 0.08);
-            color: rgba(255, 255, 255, 0.7);
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .college-btn.active {
-            background: linear-gradient(135deg, var(--primary), #6366f1);
-            color: #fff;
-            box-shadow: 0 4px 10px -2px rgba(79, 70, 229, 0.5);
-        }
-
-        .college-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
 
         /* ---- HEADER (Glassmorphic) ---- */
         .app-header {
@@ -933,13 +895,6 @@
 
 <body>
 
-    <!-- ===================================================== -->
-    <!-- COLLEGE SWITCHER (new) -->
-    <!-- ===================================================== -->
-    <div class="college-switch" id="collegeSwitch">
-        <button class="college-btn" data-college="it" onclick="setCollege('it')">💻 تقنية المعلومات</button>
-        <button class="college-btn" data-college="eng" onclick="setCollege('eng')">⚙️ الهندسة</button>
-    </div>
 
     <!-- ===================================================== -->
     <!-- PAGE 1: أداة البحث (Inline Search + Schedule Display) -->
@@ -1175,46 +1130,6 @@
         // Search state
         let searchSubjects = []; // [{code, name}]
 
-        // ===== College state (new) =====
-        // "it" = تقنية المعلومات, "eng" = الهندسة
-        let currentCollege = localStorage.getItem('selectedCollege') || 'it';
-        let dataLoading = false;
-
-        function collegeStorageKey(type) {
-            return `${type}Subjects_${currentCollege}`;
-        }
-
-        function updateCollegeUI() {
-            document.querySelectorAll('.college-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.college === currentCollege);
-            });
-        }
-
-        async function setCollege(college) {
-            if (college === currentCollege || dataLoading) return;
-            currentCollege = college;
-            localStorage.setItem('selectedCollege', college);
-            updateCollegeUI();
-
-            // كل كلية عندها موادها الخاصة، فنحمّل الاختيارات المحفوظة لها فقط
-            const savedSearch = localStorage.getItem(collegeStorageKey('search'));
-            searchSubjects = savedSearch ? JSON.parse(savedSearch) : [];
-            const savedBuilder = localStorage.getItem(collegeStorageKey('builder'));
-            builderSubjects = savedBuilder ? JSON.parse(savedBuilder) : [];
-
-            // إخفاء أي نتائج قديمة تخص الكلية السابقة لحد ما تتحمل بيانات الكلية الجديدة
-            document.getElementById('proposalsArea').classList.add('hidden');
-            document.getElementById('inlineScheduleArea').classList.add('hidden');
-            document.getElementById('emptyState1').classList.remove('hidden');
-            document.getElementById('proposalsList').innerHTML = '';
-            solutions = [];
-
-            await loadCollegeData();
-
-            if (renderSearchTags) renderSearchTags();
-            if (renderBuilderTags) renderBuilderTags();
-        }
-
         // ===== Days / Times =====
         const DAYS = ['السبت', 'الأحد', 'الإثنين', 'الثلاثاء', 'الإربعاء', 'الخميس'];
         const TIMES = ['08:00 - 09:30', '09:30 - 11:00', '11:00 - 12:30', '12:30 - 14:00', '14:00 - 15:30'];
@@ -1238,18 +1153,16 @@
             });
         }
 
-        // ===== Load Data for the currently selected college =====
-        async function loadCollegeData() {
-            dataLoading = true;
-            document.querySelectorAll('.college-btn').forEach(b => b.disabled = true);
+        // ===== Load Data (تقنية المعلومات) =====
+        async function loadData() {
             try {
                 const ts = new Date().getTime();
                 const [f, e] = await Promise.all([
-                    fetch(`/api/faculty?college=${currentCollege}&v=${ts}`).then(r => {
+                    fetch(`/api/faculty?v=${ts}`).then(r => {
                         if (!r.ok) throw new Error('faculty not ok');
                         return r.json();
                     }).catch(() => []),
-                    fetch(`/api/exams?college=${currentCollege}&v=${ts}`).then(r => {
+                    fetch(`/api/exams?v=${ts}`).then(r => {
                         if (!r.ok) throw new Error('exams not ok');
                         return r.json();
                     }).catch(() => [])
@@ -1260,23 +1173,23 @@
                 buildUniqueSubjects();
             } catch (err) {
                 console.error('Load failed', err);
-            } finally {
-                dataLoading = false;
-                document.querySelectorAll('.college-btn').forEach(b => b.disabled = false);
             }
         }
 
-        // ===== Load Data (initial boot) =====
+        // ===== App Initialization =====
         async function initApp() {
-            updateCollegeUI();
-            await loadCollegeData();
+            await loadData();
 
-            // Load saved selections for the current college
-            const savedSearch = localStorage.getItem(collegeStorageKey('search'));
-            if (savedSearch) searchSubjects = JSON.parse(savedSearch);
+            // استرجاع المواد المحفوظة مسبقاً (مع دعم التوافق للمفاتيح القديمة)
+            const savedSearch = localStorage.getItem('searchSubjects') || localStorage.getItem('searchSubjects_it');
+            if (savedSearch) {
+                try { searchSubjects = JSON.parse(savedSearch); } catch (e) { searchSubjects = []; }
+            }
 
-            const savedBuilder = localStorage.getItem(collegeStorageKey('builder'));
-            if (savedBuilder) builderSubjects = JSON.parse(savedBuilder);
+            const savedBuilder = localStorage.getItem('builderSubjects') || localStorage.getItem('builderSubjects_it');
+            if (savedBuilder) {
+                try { builderSubjects = JSON.parse(savedBuilder); } catch (e) { builderSubjects = []; }
+            }
 
             // Initial render
             if (renderSearchTags) renderSearchTags();
@@ -1304,8 +1217,8 @@
                 tagsEl.innerHTML = '';
                 const subjectsArr = getArr();
 
-                // Save to localStorage, keyed per-college so switching colleges doesn't mix subjects
-                localStorage.setItem(collegeStorageKey(type), JSON.stringify(subjectsArr));
+                // Save to localStorage
+                localStorage.setItem(type + 'Subjects', JSON.stringify(subjectsArr));
 
                 subjectsArr.forEach(s => {
                     const t = document.createElement('div');

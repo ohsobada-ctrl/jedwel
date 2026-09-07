@@ -22,15 +22,20 @@ from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import NoSuchElementException
+from dotenv import load_dotenv
 
-# --- قراءة الإعدادات من GitHub Secrets ---
-TURSO_DB_URL = os.environ["TURSO_DB_URL"].replace("wss://", "https://").replace("libsql://", "https://")
-TURSO_AUTH_TOKEN = os.environ["TURSO_AUTH_TOKEN"]
-BOT_TOKEN = os.environ["BOT_TOKEN"]
-ADMIN_CHAT_ID = os.environ["ADMIN_CHAT_ID"]
-FERNET_KEY = os.environ["FERNET_KEY"]
+# تحميل ملف .env إن وجد (للتشغيل والاختبار المحلي)
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
+
+# --- قراءة الإعدادات من GitHub Secrets أو .env ---
+TURSO_DB_URL = os.environ.get("TURSO_DB_URL", "").replace("wss://", "https://").replace("libsql://", "https://")
+TURSO_AUTH_TOKEN = os.environ.get("TURSO_AUTH_TOKEN", "")
+BOT_TOKEN = os.environ.get("BOT_TOKEN") or os.environ.get("TOKEN", "")
+ADMIN_CHAT_ID = os.environ.get("ADMIN_CHAT_ID", "1084115596")
+FERNET_KEY = os.environ.get("FERNET_KEY", "")
 
 MASTER_COLLEGE = "it"
+
 
 
 def notify(text: str) -> None:
@@ -289,7 +294,22 @@ def parse_faculty_schedule(driver, exam_data):
 
 # ---------------- الحفظ المباشر في Turso ----------------
 
+def ensure_tables(client):
+    client.execute('''CREATE TABLE IF NOT EXISTS exams 
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT, name TEXT, exam_day TEXT, exam_period TEXT, day_index INTEGER DEFAULT 0, college TEXT DEFAULT 'it')''')
+    client.execute('''CREATE TABLE IF NOT EXISTS faculty 
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT, name TEXT, "group" TEXT, day TEXT, time TEXT, instructor TEXT, room TEXT, college TEXT DEFAULT 'it')''')
+    try:
+        client.execute("ALTER TABLE exams ADD COLUMN college TEXT DEFAULT 'it'")
+    except Exception:
+        pass
+    try:
+        client.execute("ALTER TABLE faculty ADD COLUMN college TEXT DEFAULT 'it'")
+    except Exception:
+        pass
+
 def save_schedules(client, new_exams, new_faculty):
+    ensure_tables(client)
     # مسح أي بيانات قديمة (سواء it أو eng سابقة) وحفظ جدول تقنية المعلومات
     client.execute("DELETE FROM exams WHERE college = 'it' OR college = 'eng' OR college IS NULL")
     for ex in new_exams:
@@ -304,6 +324,7 @@ def save_schedules(client, new_exams, new_faculty):
             'INSERT INTO faculty (code, name, "group", day, time, instructor, room, college) VALUES (?, ?, ?, ?, ?, ?, ?, \'it\')',
             [f.get("code"), f.get("name"), f.get("group"), f.get("day"), f.get("time"), f.get("instructor"), f.get("room")],
         )
+
 
 
 def main():

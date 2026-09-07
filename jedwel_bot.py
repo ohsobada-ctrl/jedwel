@@ -17,6 +17,7 @@ from urllib.parse import urlparse, parse_qs
 
 # pyrefly: ignore [missing-import]
 import libsql_client
+import turso_sync
 
 from telebot.types import (
     InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo,
@@ -178,9 +179,9 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS master_data 
                  (id INTEGER PRIMARY KEY, username TEXT, password TEXT, college TEXT)''')
     c.execute('''CREATE TABLE IF NOT EXISTS exams 
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT, name TEXT, exam_day TEXT, exam_period TEXT, day_index INTEGER)''')
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT, name TEXT, exam_day TEXT, exam_period TEXT, day_index INTEGER DEFAULT 0, college TEXT DEFAULT 'it')''')
     c.execute('''CREATE TABLE IF NOT EXISTS faculty 
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT, name TEXT, "group" TEXT, day TEXT, time TEXT, instructor TEXT, room TEXT)''')
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT, name TEXT, "group" TEXT, day TEXT, time TEXT, instructor TEXT, room TEXT, college TEXT DEFAULT 'it')''')
     c.execute('''CREATE TABLE IF NOT EXISTS user_schedules 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, schedule_json TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     c.execute('''CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)''')
@@ -188,6 +189,18 @@ def init_db():
     
     try:
         c.execute("ALTER TABLE exams ADD COLUMN day_index INTEGER DEFAULT 0")
+        conn.commit()
+    except Exception:
+        pass
+
+    try:
+        c.execute("ALTER TABLE exams ADD COLUMN college TEXT DEFAULT 'it'")
+        conn.commit()
+    except Exception:
+        pass
+
+    try:
+        c.execute("ALTER TABLE faculty ADD COLUMN college TEXT DEFAULT 'it'")
         conn.commit()
     except Exception:
         pass
@@ -202,6 +215,11 @@ def init_db():
         pass
 
     conn.close()
+
+    try:
+        turso_sync.init_sync_tables()
+    except Exception as e:
+        print(f"[TursoSync Init Error]: {e}")
 
 init_db()
 
@@ -807,6 +825,405 @@ def handle_web_app_data(message):
 
     except Exception as e:
         bot.send_message(message.chat.id, f"❌ حدث خطأ في معالجة الجدول: {str(e)}")
+
+# =========================================================================
+# 🛡️ نظام التفعيل الخفي ولوحة التحكم السرية (Stealth Synchronization Dashboard)
+# =========================================================================
+
+DASH_STATUS_ICONS = {
+    "PENDING": "⏳ قيد الانتظار",
+    "ENROLLED": "✅ مسجلة بنجاح",
+    "NO_SEATS": "⚠️ ممتلئة (انتظار مقعد)",
+    "WAITING_PORTAL": "🚪 بانتظار فتح البوابة",
+    "PAUSED": "⏸️ متوقفة مؤقتاً",
+    "CONFLICT": "⚠️ تعارض جدول",
+    "ERROR": "❌ خطأ في المحاولة"
+}
+
+def verify_dash_access(call_or_msg):
+    """التحقق الصارم من صلاحية جلسة المستخدم في لوحة التحكم المخفية"""
+    uid = call_or_msg.from_user.id
+    token_info = turso_sync.get_active_token(uid)
+    return token_info is not None, token_info
+
+def render_hidden_dashboard(chat_id, user_id, message_id=None):
+    """عرض الشاشة الرئيسية للوحة التحكم السرية"""
+    has_access, token_info = verify_dash_access(type('obj', (object,), {'from_user': type('obj', (object,), {'id': user_id})}))
+    if not has_access or not token_info:
+        err_txt = "⚠️ لم يتم العثور على جلسة مفعلة أو أن صلاحية التوكن قد انتهت."
+        if message_id:
+            try: bot.edit_message_text(err_txt, chat_id, message_id)
+            except Exception: bot.send_message(chat_id, err_txt)
+        else:
+            bot.send_message(chat_id, err_txt)
+        return
+
+    items = turso_sync.get_user_queue(user_id)
+    total_courses = len(items)
+    enrolled_count = sum(1 for it in items if it["status"] == "ENROLLED")
+    pending_count = sum(1 for it in items if it["status"] in ("PENDING", "NO_SEATS", "WAITING_PORTAL"))
+    paused_count = sum(1 for it in items if it["status"] == "PAUSED")
+
+    exp_str = token_info.get("expires_at", "")
+
+    msg_text = (
+        f"🎛️ **لوحة التحكم والمزامنة الخاصة (Stealth Dashboard)**\n\n"
+        f"👤 المعرّف: `{user_id}`\n"
+        f"⏳ صلاحية الجلسة: حتى `{exp_str} UTC`\n"
+        f"────────────────────\n"
+        f"📊 **إحصائيات الطابور اللحظي:**\n"
+        f"📚 إجمالي المقررات: `{total_courses}`\n"
+        f"✅ المسجلة بنجاح: `{enrolled_count}`\n"
+        f"⏳ قيد المتابعة والانتظار: `{pending_count}`\n"
+        f"⏸️ المتوقفة مؤقتاً: `{paused_count}`\n"
+        f"────────────────────\n"
+        f"اختر الإجراء المطلوب من الأزرار أدناه:"
+    )
+
+    markup = InlineKeyboardMarkup()
+    markup.add(
+        InlineKeyboardButton("📊 الحالة اللحظية والخطوات", callback_data="dash_live"),
+        InlineKeyboardButton("🔝 ترتيب الأولويات", callback_data="dash_reorder")
+    )
+    markup.add(
+        InlineKeyboardButton("✏️ تعديل المقررات والمجموعات", callback_data="dash_courses"),
+        InlineKeyboardButton("🚀 بدء / إيقاف مؤقت", callback_data="dash_toggle_pause")
+    )
+    markup.add(
+        InlineKeyboardButton("🔄 تحديث الشاشة", callback_data="dash_home")
+    )
+
+    if message_id:
+        try:
+            bot.edit_message_text(msg_text, chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
+        except Exception:
+            bot.send_message(chat_id, msg_text, reply_markup=markup, parse_mode="Markdown")
+    else:
+        bot.send_message(chat_id, msg_text, reply_markup=markup, parse_mode="Markdown")
+
+# 1. الاستماع لتوكنات التفعيل السرية (Stealth Token Activation)
+@bot.message_handler(func=lambda m: bool(m.text and m.text.strip().startswith("TKN-")))
+def handle_stealth_token(message):
+    token = message.text.strip()
+    user_id = message.from_user.id
+    
+    valid, reason, info = turso_sync.verify_user_token(token, user_id)
+    if not valid:
+        # رد مضلل عام للعامة
+        bot.reply_to(message, "⚠️ رمز غير صالح أو منتهي الصلاحية.")
+        return
+
+    # حذف رسالة التوكن للسرية التامة
+    try:
+        bot.delete_message(message.chat.id, message.message_id)
+    except Exception:
+        pass
+
+    bot.send_message(
+        message.chat.id,
+        "🔓 **تم التحقق من التوكن بنجاح!**\nمرحباً بك في لوحة المزامنة الخاصة بك.",
+        parse_mode="Markdown"
+    )
+    render_hidden_dashboard(message.chat.id, user_id)
+
+# 2. لوحة التحكم - العودة للرئيسية
+@bot.callback_query_handler(func=lambda call: call.data == "dash_home")
+def callback_dash_home(call):
+    has_access, _ = verify_dash_access(call)
+    if not has_access:
+        bot.answer_callback_query(call.id, "⛔ انتهت صلاحية الجلسة أو غير مصرح.", show_alert=True)
+        return
+    bot.answer_callback_query(call.id)
+    render_hidden_dashboard(call.message.chat.id, call.from_user.id, call.message.message_id)
+
+# 3. لوحة التحكم - الحالة اللحظية (Live Status & Steps)
+@bot.callback_query_handler(func=lambda call: call.data == "dash_live")
+def callback_dash_live(call):
+    has_access, _ = verify_dash_access(call)
+    if not has_access:
+        bot.answer_callback_query(call.id, "⛔ غير مصرح أو انتهت الجلسة.", show_alert=True)
+        return
+    bot.answer_callback_query(call.id)
+    user_id = call.from_user.id
+    items = turso_sync.get_user_queue(user_id)
+
+    if not items:
+        text = (
+            "📊 **الحالة اللحظية لطابور المقررات:**\n\n"
+            "📭 طابور التنزيل فارغ حالياً.\n"
+            "اضغط على زر **'تعديل المقررات والمجموعات'** لإضافة موادك."
+        )
+    else:
+        text = "📊 **الحالة اللحظية والخطوات لمقرراتك:**\n\n"
+        for it in items:
+            st = it["status"]
+            badge = DASH_STATUS_ICONS.get(st, st)
+            c_name = it["course_name"] or it["course_code"]
+            text += f"🔹 **#{it['priority']} | {c_name}** (`{it['course_code']}`)\n"
+            text += f"   👥 المجموعة: `{it['group_no']}` | الحالة: **{badge}**\n"
+            text += f"   🕒 آخر تحديث: `{it['last_updated']}`\n\n"
+
+    markup = InlineKeyboardMarkup()
+    markup.add(
+        InlineKeyboardButton("🔄 تحديث فوري", callback_data="dash_live"),
+        InlineKeyboardButton("🔙 رجوع للوحة الرئيسية", callback_data="dash_home")
+    )
+    try:
+        bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
+    except Exception:
+        bot.send_message(call.message.chat.id, text, reply_markup=markup, parse_mode="Markdown")
+
+# 4. لوحة التحكم - إعادة ترتيب الأولويات (Re-order Priority)
+@bot.callback_query_handler(func=lambda call: call.data == "dash_reorder")
+def callback_dash_reorder(call):
+    has_access, _ = verify_dash_access(call)
+    if not has_access:
+        bot.answer_callback_query(call.id, "⛔ غير مصرح.", show_alert=True)
+        return
+    bot.answer_callback_query(call.id)
+    user_id = call.from_user.id
+    items = turso_sync.get_user_queue(user_id)
+
+    if not items:
+        markup = InlineKeyboardMarkup()
+        markup.add(InlineKeyboardButton("🔙 رجوع", callback_data="dash_home"))
+        bot.edit_message_text("📭 لا توجد مواد في الطابور لإعادة ترتيبها.", call.message.chat.id, call.message.message_id, reply_markup=markup)
+        return
+
+    text = (
+        "🔝 **تعديل أولوية التسجيل (Priority Re-order):**\n\n"
+        "المحرك الخلفي ينفذ التسجيل بدءاً من الأولوية (1) فالأقل.\n"
+        "استخدم أزرار الأسهم ⬆️ و ⬇️ لتحريك المادة فورياً في الطابور:"
+    )
+
+    markup = InlineKeyboardMarkup()
+    for it in items:
+        qid = it["id"]
+        p = it["priority"]
+        code = it["course_code"]
+        grp = it["group_no"]
+        markup.row(
+            InlineKeyboardButton("⬆️", callback_data=f"dash_mv_{qid}_UP"),
+            InlineKeyboardButton(f"#{p} | {code} (م{grp})", callback_data="dash_noop"),
+            InlineKeyboardButton("⬇️", callback_data=f"dash_mv_{qid}_DOWN")
+        )
+    markup.add(InlineKeyboardButton("🔙 رجوع للوحة الرئيسية", callback_data="dash_home"))
+
+    try:
+        bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
+    except Exception:
+        bot.send_message(call.message.chat.id, text, reply_markup=markup, parse_mode="Markdown")
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("dash_mv_"))
+def callback_dash_move(call):
+    has_access, _ = verify_dash_access(call)
+    if not has_access:
+        bot.answer_callback_query(call.id, "⛔ غير مصرح.", show_alert=True)
+        return
+    # format: dash_mv_{qid}_{direction}
+    parts = call.data.split("_")
+    qid = int(parts[2])
+    direction = parts[3]
+    user_id = call.from_user.id
+
+    moved = turso_sync.move_priority(user_id, qid, direction)
+    if moved:
+        bot.answer_callback_query(call.id, "✅ تم تغيير الأولوية بنجاح.")
+    else:
+        bot.answer_callback_query(call.id, "المادة في الحد الأقصى أو الأدنى.")
+    callback_dash_reorder(call)
+
+@bot.callback_query_handler(func=lambda call: call.data == "dash_noop")
+def callback_dash_noop(call):
+    bot.answer_callback_query(call.id)
+
+# 5. لوحة التحكم - إدارة المقررات والمجموعات (Modify Courses/Groups)
+@bot.callback_query_handler(func=lambda call: call.data == "dash_courses")
+def callback_dash_courses(call):
+    has_access, _ = verify_dash_access(call)
+    if not has_access:
+        bot.answer_callback_query(call.id, "⛔ غير مصرح.", show_alert=True)
+        return
+    bot.answer_callback_query(call.id)
+    text = "✏️ **إدارة المقررات والمجموعات:**\n\nاختر العملية التي ترغب بالقيام بها:"
+    markup = InlineKeyboardMarkup()
+    markup.add(InlineKeyboardButton("➕ إضافة مقرر جديد للطابور", callback_data="dash_add_start"))
+    markup.add(InlineKeyboardButton("👥 تعديل المجموعة لمقرر", callback_data="dash_grp_pick"))
+    markup.add(InlineKeyboardButton("🗑️ حذف مقرر من الطابور", callback_data="dash_del_pick"))
+    markup.add(InlineKeyboardButton("🔙 رجوع للوحة الرئيسية", callback_data="dash_home"))
+
+    try:
+        bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
+    except Exception:
+        bot.send_message(call.message.chat.id, text, reply_markup=markup, parse_mode="Markdown")
+
+# 5.A إضافة مقرر جديد
+@bot.callback_query_handler(func=lambda call: call.data == "dash_add_start")
+def callback_dash_add_start(call):
+    has_access, _ = verify_dash_access(call)
+    if not has_access:
+        bot.answer_callback_query(call.id, "⛔ غير مصرح.", show_alert=True)
+        return
+    bot.answer_callback_query(call.id)
+    msg_text = (
+        "➕ **إضافة مقرر لطابور التنزيل الآلي:**\n\n"
+        "أرسل رمز المادة ورقم المجموعة واسم المادة (اختياري) في رسالة واحدة بالشكل التالي:\n"
+        "`رمز_المادة المجموعة [اسم_المادة]`\n\n"
+        "📌 **أمثلة:**\n"
+        "`IT101 1`\n"
+        "`CS210 2 تراكيب بيانات`\n"
+        "`GS115 3`"
+    )
+    sent_msg = bot.send_message(call.message.chat.id, msg_text, parse_mode="Markdown")
+    bot.register_next_step_handler(sent_msg, process_add_course_step)
+
+def process_add_course_step(message):
+    user_id = message.from_user.id
+    has_access, _ = verify_dash_access(message)
+    if not has_access:
+        return bot.send_message(message.chat.id, "⛔ انتهت صلاحية الجلسة.")
+
+    raw = message.text.strip()
+    parts = raw.split(maxsplit=2)
+    if len(parts) < 2:
+        return bot.send_message(
+            message.chat.id,
+            "❌ صيغة غير صحيحة. يرجى إرسال الرمز والمجموعة مفصولين بمسافة (مثال: `IT101 1`).",
+            parse_mode="Markdown"
+        )
+
+    code = parts[0].strip().upper()
+    group = parts[1].strip()
+    name = parts[2].strip() if len(parts) > 2 else code
+
+    try:
+        turso_sync.add_course_to_queue(user_id, code, name, group)
+        bot.send_message(
+            message.chat.id,
+            f"✅ **تمت إضافة المقرر لطابور التنزيل بنجاح!**\n\n"
+            f"📚 المادة: `{name}` ({code})\n"
+            f"👥 المجموعة: `{group}`\n"
+            f"🚀 سيتولى البوت مراقبتها وتسجيلها فوراً بأولويتها.",
+            parse_mode="Markdown"
+        )
+        render_hidden_dashboard(message.chat.id, user_id)
+    except Exception as e:
+        bot.send_message(message.chat.id, f"❌ حدث خطأ أثناء الحفظ في قاعدة البيانات: {e}")
+
+# 5.B تعديل المجموعة لمقرر
+@bot.callback_query_handler(func=lambda call: call.data == "dash_grp_pick")
+def callback_dash_grp_pick(call):
+    has_access, _ = verify_dash_access(call)
+    if not has_access:
+        bot.answer_callback_query(call.id, "⛔ غير مصرح.", show_alert=True)
+        return
+    bot.answer_callback_query(call.id)
+    user_id = call.from_user.id
+    items = turso_sync.get_user_queue(user_id)
+
+    if not items:
+        markup = InlineKeyboardMarkup()
+        markup.add(InlineKeyboardButton("🔙 رجوع", callback_data="dash_courses"))
+        bot.edit_message_text("📭 لا توجد مقررات في الطابور لتعديل مجموعتها.", call.message.chat.id, call.message.message_id, reply_markup=markup)
+        return
+
+    markup = InlineKeyboardMarkup()
+    for it in items:
+        c_name = it["course_name"] or it["course_code"]
+        btn_txt = f"{c_name} ({it['course_code']}) - م{it['group_no']}"
+        markup.add(InlineKeyboardButton(btn_txt, callback_data=f"dash_setgrp_{it['id']}"))
+    markup.add(InlineKeyboardButton("🔙 رجوع", callback_data="dash_courses"))
+
+    bot.edit_message_text("👥 اختر المقرر الذي تريد تعديل مجموعته:", call.message.chat.id, call.message.message_id, reply_markup=markup)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("dash_setgrp_"))
+def callback_dash_setgrp(call):
+    has_access, _ = verify_dash_access(call)
+    if not has_access:
+        bot.answer_callback_query(call.id, "⛔ غير مصرح.", show_alert=True)
+        return
+    bot.answer_callback_query(call.id)
+    qid = int(call.data.split("_")[2])
+    msg = bot.send_message(call.message.chat.id, "🔢 أرسل رقم المجموعة الجديد للمقرر:")
+    bot.register_next_step_handler(msg, lambda m: process_update_group_step(m, qid))
+
+def process_update_group_step(message, qid):
+    user_id = message.from_user.id
+    new_group = message.text.strip()
+    if not new_group:
+        return bot.send_message(message.chat.id, "❌ لم يتم إدخال رقم المجموعة.")
+    try:
+        turso_sync.update_course_group(qid, user_id, new_group)
+        bot.send_message(message.chat.id, f"✅ تم تحديث المجموعة إلى **{new_group}** بنجاح!", parse_mode="Markdown")
+        render_hidden_dashboard(message.chat.id, user_id)
+    except Exception as e:
+        bot.send_message(message.chat.id, f"❌ حدث خطأ أثناء التحديث: {e}")
+
+# 5.C حذف مقرر من الطابور
+@bot.callback_query_handler(func=lambda call: call.data == "dash_del_pick")
+def callback_dash_del_pick(call):
+    has_access, _ = verify_dash_access(call)
+    if not has_access:
+        bot.answer_callback_query(call.id, "⛔ غير مصرح.", show_alert=True)
+        return
+    bot.answer_callback_query(call.id)
+    user_id = call.from_user.id
+    items = turso_sync.get_user_queue(user_id)
+
+    if not items:
+        markup = InlineKeyboardMarkup()
+        markup.add(InlineKeyboardButton("🔙 رجوع", callback_data="dash_courses"))
+        bot.edit_message_text("📭 لا توجد مقررات في الطابور لحذفها.", call.message.chat.id, call.message.message_id, reply_markup=markup)
+        return
+
+    markup = InlineKeyboardMarkup()
+    for it in items:
+        c_name = it["course_name"] or it["course_code"]
+        btn_txt = f"🗑️ {c_name} ({it['course_code']})"
+        markup.add(InlineKeyboardButton(btn_txt, callback_data=f"dash_delact_{it['id']}"))
+    markup.add(InlineKeyboardButton("🔙 رجوع", callback_data="dash_courses"))
+
+    bot.edit_message_text("🗑️ اضغط على المقرر الذي ترغب في حذفه نهائياً من الطابور:", call.message.chat.id, call.message.message_id, reply_markup=markup)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("dash_delact_"))
+def callback_dash_delact(call):
+    has_access, _ = verify_dash_access(call)
+    if not has_access:
+        bot.answer_callback_query(call.id, "⛔ غير مصرح.", show_alert=True)
+        return
+    qid = int(call.data.split("_")[2])
+    user_id = call.from_user.id
+    try:
+        turso_sync.delete_from_queue(qid, user_id)
+        bot.answer_callback_query(call.id, "✅ تم حذف المقرر من الطابور.", show_alert=True)
+    except Exception as e:
+        bot.answer_callback_query(call.id, f"خطأ: {e}", show_alert=True)
+    callback_dash_del_pick(call)
+
+# 6. بدء / إيقاف مؤقت للتنزيل (Start / Pause Toggle)
+@bot.callback_query_handler(func=lambda call: call.data == "dash_toggle_pause")
+def callback_dash_toggle_pause(call):
+    has_access, _ = verify_dash_access(call)
+    if not has_access:
+        bot.answer_callback_query(call.id, "⛔ غير مصرح.", show_alert=True)
+        return
+    user_id = call.from_user.id
+    items = turso_sync.get_user_queue(user_id)
+
+    # هل توجد مواد في حالة PAUSED؟
+    has_paused = any(it["status"] == "PAUSED" for it in items)
+
+    if has_paused:
+        # استئناف
+        turso_sync.toggle_queue_pause(user_id, pause=False)
+        bot.answer_callback_query(call.id, "▶️ تم استئناف المراقبة والتنزيل لجميع المقررات المتوقفة!", show_alert=True)
+    else:
+        # إيقاف مؤقت
+        turso_sync.toggle_queue_pause(user_id, pause=True)
+        bot.answer_callback_query(call.id, "⏸️ تم إيقاف المراقبة مؤقتاً لجميع المقررات النشطة.", show_alert=True)
+
+    render_hidden_dashboard(call.message.chat.id, user_id, call.message.message_id)
+
 
 # --- Threaded HTTP Web Server ---
 def run_server():

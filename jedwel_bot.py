@@ -1254,6 +1254,28 @@ def run_server():
                 self.end_headers()
                 data = get_db_data("exams", "it")
                 self.wfile.write(json.dumps(data, ensure_ascii=False).encode('utf-8'))
+            elif self.path == '/api/sync/queue':
+                uid_str = query_params.get('user_id', [None])[0]
+                if not uid_str:
+                    self.send_error(400, "Missing user_id")
+                    return
+                try:
+                    uid = int(uid_str)
+                    items = turso_sync.get_user_queue(uid)
+                    token_info = turso_sync.get_active_token(uid)
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    resp = {
+                        "status": "success",
+                        "user_id": uid,
+                        "token_info": token_info,
+                        "queue": items
+                    }
+                    self.wfile.write(json.dumps(resp, ensure_ascii=False).encode('utf-8'))
+                except Exception as e:
+                    self.send_error(500, str(e))
             else:
                 safe_path = os.path.normpath(self.path).lstrip(os.sep).lstrip('/')
                 safe_path = safe_path.replace('\\', '/')
@@ -1280,11 +1302,15 @@ def run_server():
                     self.send_error(404, "Access Denied / Not Found")
         
         def do_POST(self):
+            content_length = int(self.headers.get('Content-Length', 0))
+            post_data = self.rfile.read(content_length) if content_length > 0 else b'{}'
+            try:
+                data = json.loads(post_data.decode('utf-8')) if post_data else {}
+            except Exception:
+                data = {}
+
             if self.path == '/api/send_image':
-                content_length = int(self.headers['Content-Length'])
-                post_data = self.rfile.read(content_length)
                 try:
-                    data = json.loads(post_data.decode('utf-8'))
                     user_id = data.get('user_id')
                     image_base64 = data.get('image')
                     caption = data.get('caption', '📸 إليك جدولك!')
@@ -1315,6 +1341,98 @@ def run_server():
                 except Exception as e:
                     print(f"❌ Error in POST /api/send_image: {e}")
                     self.send_error(500, str(e))
+
+            elif self.path == '/api/sync/send_schedule':
+                # استقبال الجدول المختار من أداة التنزيل وتعيينه في طابور التنزيل
+                try:
+                    user_id = int(data.get('user_id', 0))
+                    courses = data.get('courses', [])
+                    if not user_id or not courses:
+                        self.send_error(400, "Missing user_id or courses")
+                        return
+                    updated_queue = turso_sync.set_user_schedule_queue(user_id, courses)
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"status": "success", "queue": updated_queue}, ensure_ascii=False).encode('utf-8'))
+                except Exception as e:
+                    self.send_error(500, str(e))
+
+            elif self.path == '/api/sync/move_priority':
+                try:
+                    user_id = int(data.get('user_id', 0))
+                    queue_id = int(data.get('queue_id', 0))
+                    direction = data.get('direction', 'UP')
+                    turso_sync.move_priority(user_id, queue_id, direction)
+                    updated_queue = turso_sync.get_user_queue(user_id)
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"status": "success", "queue": updated_queue}, ensure_ascii=False).encode('utf-8'))
+                except Exception as e:
+                    self.send_error(500, str(e))
+
+            elif self.path == '/api/sync/update_group':
+                try:
+                    user_id = int(data.get('user_id', 0))
+                    queue_id = int(data.get('queue_id', 0))
+                    new_group = str(data.get('group', '1'))
+                    turso_sync.update_course_group(queue_id, user_id, new_group)
+                    updated_queue = turso_sync.get_user_queue(user_id)
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"status": "success", "queue": updated_queue}, ensure_ascii=False).encode('utf-8'))
+                except Exception as e:
+                    self.send_error(500, str(e))
+
+            elif self.path == '/api/sync/delete_course':
+                try:
+                    user_id = int(data.get('user_id', 0))
+                    queue_id = int(data.get('queue_id', 0))
+                    turso_sync.delete_from_queue(queue_id, user_id)
+                    updated_queue = turso_sync.get_user_queue(user_id)
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"status": "success", "queue": updated_queue}, ensure_ascii=False).encode('utf-8'))
+                except Exception as e:
+                    self.send_error(500, str(e))
+
+            elif self.path == '/api/sync/toggle_pause':
+                try:
+                    user_id = int(data.get('user_id', 0))
+                    pause = bool(data.get('pause', True))
+                    turso_sync.toggle_queue_pause(user_id, pause)
+                    updated_queue = turso_sync.get_user_queue(user_id)
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"status": "success", "queue": updated_queue}, ensure_ascii=False).encode('utf-8'))
+                except Exception as e:
+                    self.send_error(500, str(e))
+
+            elif self.path == '/api/sync/add_course':
+                try:
+                    user_id = int(data.get('user_id', 0))
+                    code = data.get('code', '')
+                    name = data.get('name', '')
+                    group = data.get('group', '1')
+                    turso_sync.add_course_to_queue(user_id, code, name, group)
+                    updated_queue = turso_sync.get_user_queue(user_id)
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"status": "success", "queue": updated_queue}, ensure_ascii=False).encode('utf-8'))
+                except Exception as e:
+                    self.send_error(500, str(e))
+
             else:
                 self.send_error(404, "Endpoint not found")
 

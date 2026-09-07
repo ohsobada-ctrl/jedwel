@@ -916,6 +916,283 @@
             animation: fadeUp .22s ease;
         }
 
+        /* ---- SYNC & AUTO-ENROLL PAGE STYLES ---- */
+        .sync-btn {
+            background: linear-gradient(135deg, #10b981, #059669) !important;
+            color: #ffffff !important;
+            box-shadow: 0 8px 18px -8px rgba(16, 185, 129, .55) !important;
+            margin-top: 10px !important;
+            font-weight: 700;
+        }
+
+        .sync-btn:hover {
+            box-shadow: 0 12px 22px -8px rgba(16, 185, 129, .65) !important;
+        }
+
+        .sync-status-card {
+            background: var(--paper);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            box-shadow: var(--card-shadow);
+        }
+
+        .sync-status-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .sync-status-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 4px;
+        }
+
+        .sync-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 700;
+        }
+
+        .badge-active {
+            background: rgba(16, 185, 129, 0.12);
+            color: #059669;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .badge-paused {
+            background: rgba(239, 68, 68, 0.12);
+            color: #dc2626;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .sync-header-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .sync-ctrl-btn {
+            background: var(--white);
+            border: 1px solid var(--border);
+            padding: 7px 14px;
+            border-radius: var(--radius-md);
+            color: var(--primary);
+            font-weight: 700;
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: all .2s ease;
+        }
+
+        .sync-ctrl-btn:hover {
+            background: var(--primary);
+            color: var(--paper);
+        }
+
+        .sync-token-meta {
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px dashed var(--border);
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .sync-queue-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .sync-item-card {
+            background: var(--paper);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: var(--glass-shadow);
+            transition: transform .15s ease, border-color .15s ease;
+        }
+
+        .sync-item-card:hover {
+            border-color: var(--primary-light);
+        }
+
+        .sync-priority-badge {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: var(--white);
+            font-weight: 800;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .sync-item-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .sync-item-code {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--blue);
+        }
+
+        .sync-item-name {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin: 2px 0 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .sync-item-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .group-pill {
+            background: rgba(31, 53, 84, 0.08);
+            border: 1px solid var(--border);
+            color: var(--primary);
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.76rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all .15s;
+        }
+
+        .group-pill:hover {
+            background: var(--primary);
+            color: var(--white);
+        }
+
+        .status-pill {
+            padding: 3px 9px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .status-enrolled {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #6ee7b7;
+        }
+
+        .status-pending {
+            background: #e0f2fe;
+            color: #0369a1;
+            border: 1px solid #7dd3fc;
+        }
+
+        .status-portal {
+            background: #f3e8ff;
+            color: #6b21a8;
+            border: 1px solid #d8b4fe;
+        }
+
+        .status-noseats {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+        }
+
+        .status-paused {
+            background: #f3f4f6;
+            color: #4b5563;
+            border: 1px solid #d1d5db;
+        }
+
+        .sync-actions {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .sync-icon-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: var(--white);
+            border: 1px solid var(--border);
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all .15s ease;
+        }
+
+        .sync-icon-btn:hover {
+            background: var(--primary);
+            color: var(--paper);
+        }
+
+        .sync-icon-btn.btn-del:hover {
+            background: var(--accent);
+            color: var(--white);
+            border-color: var(--accent);
+        }
+
+        .sync-add-card {
+            background: var(--paper);
+            border: 1px dashed var(--border);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            margin-top: 10px;
+        }
+
+        .sync-add-title {
+            font-weight: 700;
+            font-size: 0.92rem;
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .sync-add-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.5fr 1fr;
+            gap: 8px;
+        }
+
+        .sync-input {
+            background: var(--white) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 0.85rem;
+        }
+
+        @media (max-width: 600px) {
+            .sync-add-grid {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 
@@ -929,8 +1206,9 @@
             <div class="app-title">جدولي</div>
             <div class="app-subtitle">أداة تنظيم الجدول الدراسي</div>
             <div class="top-tabs">
-                <div class="top-tab active" onclick="switchTopTab('search')">🔍 أداة البحث</div>
-                <div class="top-tab" onclick="switchTopTab('schedule')">🗓️ أداة التنزيل</div>
+                <div class="top-tab tab-nav-search active" onclick="switchTopTab('search')">🔍 أداة البحث</div>
+                <div class="top-tab tab-nav-schedule" onclick="switchTopTab('schedule')">🗓️ أداة التنزيل</div>
+                <div class="top-tab tab-nav-sync" onclick="switchTopTab('sync')">⚡ التنزيل الآلي</div>
             </div>
         </div>
 
@@ -1021,8 +1299,9 @@
                 <div class="app-title">جدولي</div>
                 <div class="app-subtitle">أداة تنظيم الجدول الدراسي</div>
                 <div class="top-tabs">
-                    <div class="top-tab" onclick="switchTopTab('search')">🔍 أداة البحث</div>
-                    <div class="top-tab active" onclick="switchTopTab('schedule')">🗓️ أداة التنزيل</div>
+                    <div class="top-tab tab-nav-search" onclick="switchTopTab('search')">🔍 أداة البحث</div>
+                    <div class="top-tab tab-nav-schedule active" onclick="switchTopTab('schedule')">🗓️ أداة التنزيل</div>
+                    <div class="top-tab tab-nav-sync" onclick="switchTopTab('sync')">⚡ التنزيل الآلي</div>
                 </div>
             </div>
 
@@ -1095,6 +1374,9 @@
                     <button class="save-btn" onclick="saveGridAsImage('detLectureGrid', '📅 جدول المحاضرات')">
                         📥 حفظ الجدول وإرساله للبوت
                     </button>
+                    <button class="action-btn sync-btn" onclick="sendActiveScheduleToAutoEnroll()">
+                        ⚡ إرسال للتنزيل الآلي والمزامنة
+                    </button>
                 </div>
 
                 <!-- Detail Exam Grid -->
@@ -1117,7 +1399,74 @@
                     <button class="save-btn" onclick="saveGridAsImage('detExamGrid', '📝 جدول الامتحانات')">
                         📥 حفظ الجدول وإرساله للبوت
                     </button>
+                    <button class="action-btn sync-btn" onclick="sendActiveScheduleToAutoEnroll()">
+                        ⚡ إرسال للتنزيل الآلي والمزامنة
+                    </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====================================================== -->
+    <!-- PAGE 3: لوحة التنزيل الآلي والمزامنة (Sync & Auto-Enroll) -->
+    <!-- ====================================================== -->
+    <div id="syncPage" class="page">
+        <div class="app-header">
+            <div class="app-title">جدولي</div>
+            <div class="app-subtitle">⚡ لوحة المزامنة والتنزيل الآلي</div>
+            <div class="top-tabs">
+                <div class="top-tab tab-nav-search" onclick="switchTopTab('search')">🔍 أداة البحث</div>
+                <div class="top-tab tab-nav-schedule" onclick="switchTopTab('schedule')">🗓️ أداة التنزيل</div>
+                <div class="top-tab tab-nav-sync active" onclick="switchTopTab('sync')">⚡ التنزيل الآلي</div>
+            </div>
+        </div>
+
+        <div class="container">
+            <!-- Engine Status Card -->
+            <div class="sync-status-card">
+                <div class="sync-status-header">
+                    <div class="sync-status-info">
+                        <div class="sync-status-title">حالة نظام التنزيل الآلي</div>
+                        <div id="syncEngineBadge" class="sync-badge badge-active">🟢 البوت نشط وجاهز</div>
+                    </div>
+                    <div class="sync-header-actions">
+                        <button class="sync-ctrl-btn" id="btnSyncPause" onclick="syncTogglePause()">⏸️ إيقاف مؤقت</button>
+                        <button class="sync-ctrl-btn refresh-btn" onclick="loadSyncQueue(true)">🔄 تحديث</button>
+                    </div>
+                </div>
+                <div class="sync-token-meta" id="syncTokenMeta">
+                    <span id="syncUserMeta">المستخدم: ...</span> • <span id="syncQueueCount">المقررات: 0</span>
+                </div>
+            </div>
+
+            <!-- Queue List Container -->
+            <div class="results-header" style="margin-top: 5px; margin-bottom: 8px;">
+                <div class="results-title">أولوية تنزيل المقررات (الترتيب التلقائي)</div>
+                <div class="results-badge" id="queueSummaryBadge">0 مقررات في الانتظار</div>
+            </div>
+
+            <div id="syncQueueList" class="sync-queue-container">
+                <!-- Dynamic Queue Cards Rendered Here -->
+            </div>
+
+            <!-- Empty State for Queue -->
+            <div id="syncEmptyState" class="empty-state hidden">
+                <div class="icon">⚡</div>
+                <div class="msg">قائمة التنزيل فارغة</div>
+                <div class="sub-msg">اختر جدولاً مناسباً من "أداة التنزيل" واضغط "⚡ إرسال للتنزيل الآلي" لإضافته هنا مباشرة.</div>
+            </div>
+
+            <!-- Manual Add Course Section -->
+            <div class="sync-add-card">
+                <div class="sync-add-title">➕ إضافة مقرر يدوياً إلى قائمة التنزيل</div>
+                <div class="sync-add-grid">
+                    <input type="text" id="syncAddCode" class="search-input sync-input" placeholder="كود المقرر (مثال: ITGS201)">
+                    <input type="text" id="syncAddName" class="search-input sync-input" placeholder="اسم المقرر (اختياري)">
+                    <input type="text" id="syncAddGroup" class="search-input sync-input" placeholder="المجموعة (مثال: 1)" value="1">
+                </div>
+                <button class="action-btn" style="margin-top: 10px; padding: 12px;" onclick="syncAddManualCourse()">
+                    ➕ إضافة لقائمة التنزيل
+                </button>
             </div>
         </div>
     </div>
@@ -1234,14 +1583,348 @@
             } catch (err) { console.error('Load failed', err); }
         }
 
-        // ===== Top Tab Switching =====
+        // ===== Top Tab Switching & Sync System =====
+        let syncPollInterval = null;
+        let isSyncPaused = false;
+
+        function getTgUserId() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const explicitUid = urlParams.get('uid');
+            if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
+                return window.Telegram.WebApp.initDataUnsafe.user.id;
+            }
+            if (explicitUid && !isNaN(parseInt(explicitUid))) {
+                return parseInt(explicitUid);
+            }
+            return null;
+        }
+
         function switchTopTab(tab) {
-            if (tab === 'search') {
-                document.getElementById('searchPage').classList.add('active');
-                document.getElementById('schedulePage').classList.remove('active');
+            const searchPage = document.getElementById('searchPage');
+            const schedPage = document.getElementById('schedulePage');
+            const syncPage = document.getElementById('syncPage');
+
+            if (searchPage) searchPage.classList.toggle('active', tab === 'search');
+            if (schedPage) schedPage.classList.toggle('active', tab === 'schedule');
+            if (syncPage) syncPage.classList.toggle('active', tab === 'sync');
+
+            document.querySelectorAll('.top-tab').forEach(t => {
+                if (tab === 'search') t.classList.toggle('active', t.classList.contains('tab-nav-search'));
+                else if (tab === 'schedule') t.classList.toggle('active', t.classList.contains('tab-nav-schedule'));
+                else if (tab === 'sync') t.classList.toggle('active', t.classList.contains('tab-nav-sync'));
+            });
+
+            if (tab === 'sync') {
+                loadSyncQueue(false);
+                if (!syncPollInterval) {
+                    syncPollInterval = setInterval(() => {
+                        const curSync = document.getElementById('syncPage');
+                        if (curSync && curSync.classList.contains('active')) {
+                            loadSyncQueue(false);
+                        }
+                    }, 8000);
+                }
             } else {
-                document.getElementById('schedulePage').classList.add('active');
-                document.getElementById('searchPage').classList.remove('active');
+                if (syncPollInterval) {
+                    clearInterval(syncPollInterval);
+                    syncPollInterval = null;
+                }
+            }
+        }
+
+        // ===== Sync & Auto-Enrollment Logic =====
+        async function sendActiveScheduleToAutoEnroll() {
+            const uid = getTgUserId();
+            if (!uid) {
+                const msg = '⚠️ لم يتم التعرف على حسابك. يرجى فتح التطبيق من زر البوت أو استخدام رابط يحتوي على ?uid=...';
+                if (tg && tg.showAlert) tg.showAlert(msg); else alert(msg);
+                return;
+            }
+
+            if (!solutions.length || currentSolIdx >= solutions.length) {
+                const msg = '⚠️ يرجى اختيار وعرض جدول أولاً قبل الإرسال للتنزيل.';
+                if (tg && tg.showAlert) tg.showAlert(msg); else alert(msg);
+                return;
+            }
+
+            const sol = solutions[currentSolIdx];
+            const courses = builderSubjects.map(s => ({
+                code: s.code,
+                name: s.name,
+                group: (sol.groups && sol.groups[s.code]) ? String(sol.groups[s.code]) : "1"
+            }));
+
+            if (!courses.length) {
+                const msg = '⚠️ لا توجد مواد في هذا الجدول المقترح.';
+                if (tg && tg.showAlert) tg.showAlert(msg); else alert(msg);
+                return;
+            }
+
+            const overlay = document.getElementById('loadingOverlay');
+            const msgEl = document.getElementById('loadingMsg');
+            if (msgEl) msgEl.textContent = 'جاري إرسال المواد لطابور التنزيل الآلي...';
+            if (overlay) overlay.classList.remove('hidden');
+
+            try {
+                const res = await fetch('/api/sync/send_schedule', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: uid, courses: courses })
+                });
+                if (overlay) overlay.classList.add('hidden');
+
+                if (res.ok) {
+                    const successMsg = `🚀 تم تعيين ${courses.length} مواد في طابور التنزيل بنجاح!\nسيتم نقلك للوحة المزامنة لمتابعة الحالة وتعديل الأولويات.`;
+                    if (tg && tg.showAlert) tg.showAlert(successMsg); else alert(successMsg);
+                    switchTopTab('sync');
+                } else {
+                    const err = await res.text();
+                    alert('❌ فشل إرسال الجدول لطابور التنزيل: ' + err);
+                }
+            } catch (err) {
+                if (overlay) overlay.classList.add('hidden');
+                console.error('sendActiveScheduleToAutoEnroll error:', err);
+                alert('❌ تعذر الاتصال بالخادم: ' + err.message);
+            }
+        }
+
+        async function loadSyncQueue(isManual = false) {
+            const uid = getTgUserId();
+            const userMeta = document.getElementById('syncUserMeta');
+            const queueCount = document.getElementById('syncQueueCount');
+            const listEl = document.getElementById('syncQueueList');
+            const emptyEl = document.getElementById('syncEmptyState');
+            const badgeEl = document.getElementById('syncEngineBadge');
+            const summaryBadge = document.getElementById('queueSummaryBadge');
+            const pauseBtn = document.getElementById('btnSyncPause');
+
+            if (!uid) {
+                if (userMeta) userMeta.textContent = 'المستخدم: غير محدد';
+                if (listEl) listEl.innerHTML = '';
+                if (emptyEl) {
+                    emptyEl.classList.remove('hidden');
+                    const msgEl = emptyEl.querySelector('.msg');
+                    const subMsgEl = emptyEl.querySelector('.sub-msg');
+                    if (msgEl) msgEl.textContent = '⚠️ لم يتم التعرف على حسابك';
+                    if (subMsgEl) subMsgEl.textContent = 'يرجى فتح التطبيق من زر لوحة المزامنة في البوت.';
+                }
+                return;
+            }
+
+            if (userMeta) userMeta.textContent = `المستخدم: ${uid}`;
+
+            try {
+                const res = await fetch(`/api/sync/queue?user_id=${uid}`);
+                if (!res.ok) throw new Error('Queue request failed');
+                const data = await res.json();
+                const queue = data.queue || [];
+
+                if (queueCount) queueCount.textContent = `المقررات: ${queue.length}`;
+                if (summaryBadge) summaryBadge.textContent = `${queue.length} مقررات في القائمة`;
+
+                // Detect paused state
+                const anyPaused = queue.length > 0 && queue.every(q => q.status === 'PAUSED');
+                isSyncPaused = anyPaused;
+                if (badgeEl) {
+                    if (isSyncPaused) {
+                        badgeEl.className = 'sync-badge badge-paused';
+                        badgeEl.textContent = '⏸️ التنزيل متوقف مؤقتاً';
+                    } else {
+                        badgeEl.className = 'sync-badge badge-active';
+                        badgeEl.textContent = '🟢 البوت نشط وجاهز للتنزيل';
+                    }
+                }
+                if (pauseBtn) {
+                    pauseBtn.textContent = isSyncPaused ? '▶️ استئناف التنزيل' : '⏸️ إيقاف مؤقت';
+                }
+
+                if (!queue.length) {
+                    if (listEl) listEl.innerHTML = '';
+                    if (emptyEl) emptyEl.classList.remove('hidden');
+                    return;
+                }
+
+                if (emptyEl) emptyEl.classList.add('hidden');
+                renderSyncQueueItems(queue);
+
+                if (isManual && tg?.HapticFeedback?.impactOccurred) {
+                    tg.HapticFeedback.impactOccurred('light');
+                }
+            } catch (err) {
+                console.error('loadSyncQueue error:', err);
+                if (isManual) alert('❌ تعذر جلب قائمة التنزيل: ' + err.message);
+            }
+        }
+
+        function renderSyncQueueItems(queue) {
+            const listEl = document.getElementById('syncQueueList');
+            if (!listEl) return;
+            listEl.innerHTML = '';
+
+            queue.forEach((item, idx) => {
+                const card = document.createElement('div');
+                card.className = 'sync-item-card anim';
+
+                let statusHtml = '';
+                const st = (item.status || 'PENDING').toUpperCase();
+                if (st === 'ENROLLED') {
+                    statusHtml = '<span class="status-pill status-enrolled">🟢 تم التنزيل بنجاح</span>';
+                } else if (st === 'NO_SEATS') {
+                    statusHtml = '<span class="status-pill status-noseats">⚠️ لا توجد مقاعد</span>';
+                } else if (st === 'WAITING_PORTAL') {
+                    statusHtml = '<span class="status-pill status-portal">🌐 انتظار المنظومة</span>';
+                } else if (st === 'PAUSED') {
+                    statusHtml = '<span class="status-pill status-paused">⏸️ متوقف</span>';
+                } else {
+                    statusHtml = '<span class="status-pill status-pending">⏳ قيد الانتظار</span>';
+                }
+
+                const courseName = item.course_name || item.course_code;
+
+                card.innerHTML = `
+                    <div class="sync-priority-badge">#${idx + 1}</div>
+                    <div class="sync-item-info">
+                        <div class="sync-item-code">${item.course_code}</div>
+                        <div class="sync-item-name" title="${courseName}">${courseName}</div>
+                        <div class="sync-item-meta">
+                            <span class="group-pill" onclick="syncPromptEditGroup(${item.id}, '${item.group_number || 1}')">
+                                مجموعة: ${item.group_number || 1} ✏️
+                            </span>
+                            ${statusHtml}
+                        </div>
+                    </div>
+                    <div class="sync-actions">
+                        <button class="sync-icon-btn" title="رفع الأولوية للأعلى" onclick="syncMovePriority(${item.id}, 'UP')">⬆️</button>
+                        <button class="sync-icon-btn" title="خفض الأولوية للأسفل" onclick="syncMovePriority(${item.id}, 'DOWN')">⬇️</button>
+                        <button class="sync-icon-btn btn-del" title="حذف المقرر من القائمة" onclick="syncDeleteCourse(${item.id}, '${item.course_code}')">🗑️</button>
+                    </div>
+                `;
+                listEl.appendChild(card);
+            });
+        }
+
+        async function syncMovePriority(queueId, direction) {
+            const uid = getTgUserId();
+            if (!uid) return;
+            try {
+                const res = await fetch('/api/sync/move_priority', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: uid, queue_id: queueId, direction: direction })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.queue) renderSyncQueueItems(data.queue);
+                    else loadSyncQueue(false);
+                }
+            } catch (err) {
+                console.error('syncMovePriority error:', err);
+            }
+        }
+
+        async function syncPromptEditGroup(queueId, currentGroup) {
+            const uid = getTgUserId();
+            if (!uid) return;
+            const newGroup = prompt('أدخل رقم المجموعة المطلوب للمقرر:', currentGroup);
+            if (!newGroup || newGroup.trim() === '' || newGroup.trim() === currentGroup) return;
+
+            try {
+                const res = await fetch('/api/sync/update_group', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: uid, queue_id: queueId, group: newGroup.trim() })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.queue) renderSyncQueueItems(data.queue);
+                    else loadSyncQueue(false);
+                } else {
+                    alert('❌ تعذر تعديل المجموعة');
+                }
+            } catch (err) {
+                console.error('syncPromptEditGroup error:', err);
+            }
+        }
+
+        async function syncDeleteCourse(queueId, courseCode) {
+            const uid = getTgUserId();
+            if (!uid) return;
+            if (!confirm(`هل أنت متأكد من حذف المقرر (${courseCode}) من قائمة التنزيل الآلي؟`)) return;
+
+            try {
+                const res = await fetch('/api/sync/delete_course', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: uid, queue_id: queueId })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.queue) renderSyncQueueItems(data.queue);
+                    else loadSyncQueue(false);
+                } else {
+                    alert('❌ تعذر حذف المقرر');
+                }
+            } catch (err) {
+                console.error('syncDeleteCourse error:', err);
+            }
+        }
+
+        async function syncTogglePause() {
+            const uid = getTgUserId();
+            if (!uid) return;
+            const nextPauseState = !isSyncPaused;
+
+            try {
+                const res = await fetch('/api/sync/toggle_pause', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: uid, pause: nextPauseState })
+                });
+                if (res.ok) {
+                    loadSyncQueue(false);
+                } else {
+                    alert('❌ تعذر تغيير حالة التنزيل');
+                }
+            } catch (err) {
+                console.error('syncTogglePause error:', err);
+            }
+        }
+
+        async function syncAddManualCourse() {
+            const uid = getTgUserId();
+            if (!uid) {
+                alert('⚠️ لم يتم تحديد المستخدم.');
+                return;
+            }
+            const codeInput = document.getElementById('syncAddCode');
+            const nameInput = document.getElementById('syncAddName');
+            const groupInput = document.getElementById('syncAddGroup');
+
+            const code = codeInput ? codeInput.value.trim().toUpperCase() : '';
+            const name = nameInput ? nameInput.value.trim() : '';
+            const group = groupInput ? (groupInput.value.trim() || '1') : '1';
+
+            if (!code) {
+                alert('⚠️ يرجى كتابة كود المقرر (مثلاً ITGS201)');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/sync/add_course', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: uid, code: code, name: name, group: group })
+                });
+                if (res.ok) {
+                    if (codeInput) codeInput.value = '';
+                    if (nameInput) nameInput.value = '';
+                    loadSyncQueue(false);
+                } else {
+                    alert('❌ تعذر إضافة المقرر');
+                }
+            } catch (err) {
+                console.error('syncAddManualCourse error:', err);
+                alert('❌ فشل الاتصال: ' + err.message);
             }
         }
 
@@ -1891,6 +2574,15 @@
             // Initial render of saved tags
             renderSearchTags();
             renderBuilderTags();
+
+            // Auto-switch to tab if specified in URL (?tab=sync or ?tab=schedule)
+            const startupParams = new URLSearchParams(window.location.search);
+            const startupTab = startupParams.get('tab');
+            if (startupTab === 'sync' || window.location.hash === '#sync') {
+                switchTopTab('sync');
+            } else if (startupTab === 'schedule') {
+                switchTopTab('schedule');
+            }
         });
     </script>
 </body>

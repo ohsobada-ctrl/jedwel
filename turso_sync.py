@@ -247,6 +247,30 @@ def add_course_to_queue(user_id: int, course_code: str, course_name: str, group_
     finally:
         client.close()
 
+def set_user_schedule_queue(user_id: int, courses_list: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """تعيين جدول كامل للمستخدم في طابور التنزيل مع الحفاظ على المواد المنزلة مسبقاً"""
+    client = get_client()
+    try:
+        # مسح أي مواد سابقة لم تنزل بعد (مع الإبقاء على ENROLLED إن وجدت)
+        client.execute(
+            "DELETE FROM download_queue WHERE user_id = ? AND status != 'ENROLLED'",
+            [user_id]
+        )
+        for idx, c in enumerate(courses_list, start=1):
+            code = str(c.get("code", "")).strip().upper()
+            name = str(c.get("name", "")).strip() or code
+            group = str(c.get("group", "1")).strip()
+            client.execute(
+                """
+                INSERT INTO download_queue (user_id, course_code, course_name, group_no, priority, status, last_updated)
+                VALUES (?, ?, ?, ?, ?, 'PENDING', CURRENT_TIMESTAMP);
+                """,
+                [user_id, code, name, group, idx]
+            )
+        return get_user_queue(user_id)
+    finally:
+        client.close()
+
 def update_course_group(queue_id: int, user_id: int, new_group: str) -> bool:
     """تعديل المجموعة لمقرر في الطابور"""
     client = get_client()

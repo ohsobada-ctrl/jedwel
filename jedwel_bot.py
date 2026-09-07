@@ -420,6 +420,35 @@ def start(message):
         )
         bot.send_message(message.chat.id, welcome_text, reply_markup=reply_markup, parse_mode="Markdown")
 
+@bot.message_handler(commands=['gen_token'])
+def cmd_gen_token(message):
+    """توليد توكنات التفعيل السرية للمزامنة والتنزيل (للأدمن فقط)"""
+    if message.from_user.id != ADMIN_ID:
+        return
+    parts = message.text.strip().split()
+    if len(parts) > 1:
+        try:
+            target_uid = int(parts[1])
+        except ValueError:
+            bot.reply_to(message, "❌ معرف غير صالح. الاستخدام:\n`/gen_token 12345678`\nأو فقط `/gen_token` لتوليد توكن لحسابك.", parse_mode="Markdown")
+            return
+    else:
+        target_uid = message.from_user.id
+
+    try:
+        token, expires_at = turso_sync.generate_user_token(target_uid, hours=12)
+        resp = (
+            f"🔑 **تم إنشاء توكن التفعيل السري بنجاح!**\n\n"
+            f"👤 المستفيد: `{target_uid}`\n"
+            f"🎫 التوكن:\n`{token}`\n\n"
+            f"⏳ الصلاحية: 12 ساعة (حتى `{expires_at} UTC`)\n\n"
+            f"📌 **ملاحظة الأمان:**\n"
+            f"بمجرد إرسال هذا التوكن إلى البوت من قبل صاحب الحساب، سيظهر زر **التنزيل الآلي والمزامنة** داخل الـ Mini App تلقائياً."
+        )
+        bot.send_message(message.chat.id, resp, parse_mode="Markdown")
+    except Exception as e:
+        bot.send_message(message.chat.id, f"❌ حدث خطأ في توليد التوكن: {e}")
+
 # --- Telegram Inline Query Search (البحث المباشر السريع من أي محادثة) ---
 @bot.inline_handler(func=lambda query: len(query.query.strip()) > 0)
 def inline_search_courses(inline_query):
@@ -1254,6 +1283,26 @@ def run_server():
                 self.end_headers()
                 data = get_db_data("exams", "it")
                 self.wfile.write(json.dumps(data, ensure_ascii=False).encode('utf-8'))
+            elif self.path == '/api/sync/check_auth':
+                uid_str = query_params.get('user_id', [None])[0]
+                if not uid_str:
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"has_token": False}).encode('utf-8'))
+                    return
+                try:
+                    uid = int(uid_str)
+                    token_info = turso_sync.get_active_token(uid)
+                    has_token = token_info is not None
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"has_token": has_token, "token_info": token_info}, ensure_ascii=False).encode('utf-8'))
+                except Exception as e:
+                    self.send_error(500, str(e))
             elif self.path == '/api/sync/queue':
                 uid_str = query_params.get('user_id', [None])[0]
                 if not uid_str:
@@ -1261,8 +1310,17 @@ def run_server():
                     return
                 try:
                     uid = int(uid_str)
-                    items = turso_sync.get_user_queue(uid)
                     token_info = turso_sync.get_active_token(uid)
+                    # حماية الخصوصية: لا يتم إرجاع الطابور إلا بوجود توكن مفعل
+                    if not token_info:
+                        self.send_response(403)
+                        self.send_header('Content-Type', 'application/json')
+                        self.send_header('Access-Control-Allow-Origin', '*')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"status": "error", "error": "Unauthorized: Token required"}, ensure_ascii=False).encode('utf-8'))
+                        return
+
+                    items = turso_sync.get_user_queue(uid)
                     self.send_response(200)
                     self.send_header('Content-Type', 'application/json')
                     self.send_header('Access-Control-Allow-Origin', '*')
@@ -1342,14 +1400,42 @@ def run_server():
                     print(f"❌ Error in POST /api/send_image: {e}")
                     self.send_error(500, str(e))
 
+            elif self.path == '/api/sync/activate_token':
+                # تفعيل التوكن السري للمستخدم مباشرة
+                try:
+                    user_id = int(data.get('user_id', 0))
+                    token = data.get('token', '').strip()
+                    if not user_id or not token:
+                        self.send_error(400, "Missing user_id or token")
+                        return
+                    valid, reason, info = turso_sync.verify_user_token(token, user_id)
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"success": valid, "reason": reason, "token_info": info}, ensure_ascii=False).encode('utf-8'))
+                except Exception as e:
+                    self.send_error(500, str(e))
+
             elif self.path == '/api/sync/send_schedule':
-                # استقبال الجدول المختار من أداة التنزيل وتعيينه في طابور التنزيل
+                # استقبال الجدول المختار من أداة التنزيل وتعيينه في طابور التنزيل (بشرط وجود توكن ساري)
                 try:
                     user_id = int(data.get('user_id', 0))
                     courses = data.get('courses', [])
                     if not user_id or not courses:
                         self.send_error(400, "Missing user_id or courses")
                         return
+
+                    # 🔒 حظر أمني: لا يتم السماح بالإرسال لطابور التنزيل إلا إذا كان لديه توكن فعال
+                    token_info = turso_sync.get_active_token(user_id)
+                    if not token_info:
+                        self.send_response(403)
+                        self.send_header('Content-Type', 'application/json')
+                        self.send_header('Access-Control-Allow-Origin', '*')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"status": "error", "error": "يجب تفعيل التوكن أولاً بواسطة /gen_token"}, ensure_ascii=False).encode('utf-8'))
+                        return
+
                     updated_queue = turso_sync.set_user_schedule_queue(user_id, courses)
                     self.send_response(200)
                     self.send_header('Content-Type', 'application/json')

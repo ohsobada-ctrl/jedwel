@@ -917,12 +917,18 @@
         }
 
         /* ---- SYNC & AUTO-ENROLL PAGE STYLES ---- */
+        /* مخفي تماماً وافتراضياً - لا يظهر للمستخدم العادي إطلاقاً إلا بعد تفعيل التوكن /gen_token */
         .sync-btn {
+            display: none !important;
             background: linear-gradient(135deg, #10b981, #059669) !important;
             color: #ffffff !important;
             box-shadow: 0 8px 18px -8px rgba(16, 185, 129, .55) !important;
             margin-top: 10px !important;
             font-weight: 700;
+        }
+
+        .tab-nav-sync {
+            display: none !important;
         }
 
         .sync-btn:hover {
@@ -1203,7 +1209,7 @@
     <!-- ===================================================== -->
     <div id="searchPage" class="page active">
         <div class="app-header">
-            <div class="app-title">جدولي</div>
+            <div class="app-title" onclick="handleStealthTitleClick()">جدولي</div>
             <div class="app-subtitle">أداة تنظيم الجدول الدراسي</div>
             <div class="top-tabs">
                 <div class="top-tab tab-nav-search active" onclick="switchTopTab('search')">🔍 أداة البحث</div>
@@ -1296,7 +1302,7 @@
         <!-- Sub-view A: Builder -->
         <div id="builderView">
             <div class="app-header">
-                <div class="app-title">جدولي</div>
+                <div class="app-title" onclick="handleStealthTitleClick()">جدولي</div>
                 <div class="app-subtitle">أداة تنظيم الجدول الدراسي</div>
                 <div class="top-tabs">
                     <div class="top-tab tab-nav-search" onclick="switchTopTab('search')">🔍 أداة البحث</div>
@@ -1412,7 +1418,7 @@
     <!-- ====================================================== -->
     <div id="syncPage" class="page">
         <div class="app-header">
-            <div class="app-title">جدولي</div>
+            <div class="app-title" onclick="handleStealthTitleClick()">جدولي</div>
             <div class="app-subtitle">⚡ لوحة المزامنة والتنزيل الآلي</div>
             <div class="top-tabs">
                 <div class="top-tab tab-nav-search" onclick="switchTopTab('search')">🔍 أداة البحث</div>
@@ -1586,6 +1592,7 @@
         // ===== Top Tab Switching & Sync System =====
         let syncPollInterval = null;
         let isSyncPaused = false;
+        let isUserTokenAuthorized = false;
 
         function getTgUserId() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -1599,7 +1606,95 @@
             return null;
         }
 
+        function revealSyncAuthorizedUI() {
+            isUserTokenAuthorized = true;
+            document.querySelectorAll('.sync-btn').forEach(b => {
+                b.style.setProperty('display', 'flex', 'important');
+            });
+            document.querySelectorAll('.tab-nav-sync').forEach(t => {
+                t.style.setProperty('display', 'flex', 'important');
+            });
+        }
+
+        async function checkSyncAuth() {
+            const uid = getTgUserId();
+            if (!uid) return false;
+
+            // 1. فحص ما إذا كان التوكن ممرراً بالرابط المباشر
+            const urlParams = new URLSearchParams(window.location.search);
+            const explicitToken = urlParams.get('token');
+            if (explicitToken && explicitToken.startsWith('TKN-')) {
+                try {
+                    const actRes = await fetch('/api/sync/activate_token', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ user_id: uid, token: explicitToken })
+                    });
+                    const actData = await actRes.json();
+                    if (actData.success) {
+                        revealSyncAuthorizedUI();
+                        return true;
+                    }
+                } catch (e) {
+                    console.error('Direct token activation failed', e);
+                }
+            }
+
+            // 2. فحص ما إذا كان للمستخدم توكن فعال مسبقاً في Turso تم توليده بـ /gen_token
+            try {
+                const res = await fetch(`/api/sync/check_auth?user_id=${uid}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.has_token) {
+                        revealSyncAuthorizedUI();
+                        return true;
+                    }
+                }
+            } catch (err) {
+                console.error('checkSyncAuth error:', err);
+            }
+            return false;
+        }
+
+        let titleClickCount = 0;
+        let titleClickTimer = null;
+        function handleStealthTitleClick() {
+            titleClickCount++;
+            clearTimeout(titleClickTimer);
+            titleClickTimer = setTimeout(() => { titleClickCount = 0; }, 2000);
+            if (titleClickCount >= 5) {
+                titleClickCount = 0;
+                const tokenPrompt = prompt('🔑 أدخل رمز توكن التفعيل الخاص بك (TKN-...):');
+                if (tokenPrompt && tokenPrompt.trim().startsWith('TKN-')) {
+                    const uid = getTgUserId();
+                    if (!uid) { alert('لم يتم التعرف على حسابك'); return; }
+                    fetch('/api/sync/activate_token', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ user_id: uid, token: tokenPrompt.trim() })
+                    }).then(r => r.json()).then(res => {
+                        if (res.success) {
+                            revealSyncAuthorizedUI();
+                            if (window.Telegram?.WebApp?.showAlert) {
+                                window.Telegram.WebApp.showAlert('🔓 تم تفعيل التنزيل الآلي والمزامنة بنجاح!');
+                            } else {
+                                alert('🔓 تم تفعيل التنزيل الآلي والمزامنة بنجاح!');
+                            }
+                            switchTopTab('sync');
+                        } else {
+                            alert('❌ رمز التوكن غير صالح أو منتهي الصلاحية');
+                        }
+                    }).catch(err => alert('خطأ في الاتصال: ' + err.message));
+                }
+            }
+        }
+
         function switchTopTab(tab) {
+            // حظر فتح تبويب المزامنة لغير المفعلين
+            if (tab === 'sync' && !isUserTokenAuthorized) {
+                return;
+            }
+
             const searchPage = document.getElementById('searchPage');
             const schedPage = document.getElementById('schedulePage');
             const syncPage = document.getElementById('syncPage');
@@ -1634,6 +1729,12 @@
 
         // ===== Sync & Auto-Enrollment Logic =====
         async function sendActiveScheduleToAutoEnroll() {
+            if (!isUserTokenAuthorized) {
+                const msg = '🔒 هذه الميزة مخصصة للطلاب المفعلين فقط عبر توكن التفعيل (/gen_token).';
+                if (tg && tg.showAlert) tg.showAlert(msg); else alert(msg);
+                return;
+            }
+
             const uid = getTgUserId();
             if (!uid) {
                 const msg = '⚠️ لم يتم التعرف على حسابك. يرجى فتح التطبيق من زر البوت أو استخدام رابط يحتوي على ?uid=...';
@@ -2575,14 +2676,19 @@
             renderSearchTags();
             renderBuilderTags();
 
-            // Auto-switch to tab if specified in URL (?tab=sync or ?tab=schedule)
+            // Auto-switch to schedule if specified in URL
             const startupParams = new URLSearchParams(window.location.search);
             const startupTab = startupParams.get('tab');
-            if (startupTab === 'sync' || window.location.hash === '#sync') {
-                switchTopTab('sync');
-            } else if (startupTab === 'schedule') {
+            if (startupTab === 'schedule') {
                 switchTopTab('schedule');
             }
+
+            // التحقق الصارم من وجود توكن فعال من /gen_token قبل إظهار ميزات التنزيل الآلي والمزامنة
+            checkSyncAuth().then(authorized => {
+                if (authorized && (startupTab === 'sync' || window.location.hash === '#sync')) {
+                    switchTopTab('sync');
+                }
+            });
         });
     </script>
 </body>

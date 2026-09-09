@@ -386,6 +386,17 @@ def auto_backup_loop():
 @bot.message_handler(commands=['start', 'help'])
 def start(message):
     user_id = message.from_user.id
+
+    # ✅ فحص الحظر المشترك — قبل هذا كان بوت الجدول ما عنده أي فكرة عن حظر بوت التنزيل
+    # للمستخدم، فيقدر يفتح الـ Mini App ويستخدمه بحرية حتى لو محظور بالكامل من الإدارة.
+    if user_id != ADMIN_ID:
+        try:
+            if turso_sync.is_user_banned_shared(user_id):
+                bot.send_message(message.chat.id, "🚫 تم حظرك من استخدام هذا النظام من قبل الإدارة.")
+                return
+        except Exception as e:
+            print(f"[Auth Check] تعذر التحقق من الحظر المشترك لـ {user_id}: {e}")
+
     target_url = WEBAPP_URL if WEBAPP_URL else "https://trycloudflare.com"
     user_url = f"{target_url}/?uid={message.chat.id}"
     
@@ -1260,7 +1271,36 @@ def run_server():
     
     class MyHandler(http.server.SimpleHTTPRequestHandler):
         def log_message(self, format, *args): return
-        
+
+        def _reject_unauthorized(self, error_msg="Unauthorized: Active token required"):
+            """✅ رد موحّد 403 لأي طلب بدون توكن فعّال."""
+            self.send_response(403)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps({"status": "error", "error": error_msg}, ensure_ascii=False).encode('utf-8'))
+
+        def _require_active_token(self, user_id):
+            """
+            ✅ حماية موحّدة: كانت نقاط مثل save_portal_creds و add_course و delete_course
+            و move_priority و update_group و toggle_pause و start_enrollment تقبل أي user_id
+            بدون أي تحقق من توكن — يعني أي طلب POST مزوّر بمعرف مستخدم آخر كان يقدر يعدّل
+            بيانات ذلك المستخدم (كلمة مروره، طابوره، إلخ). نفس الفحص المستخدم أصلاً بـ
+            /api/sync/queue و /api/sync/send_schedule، موحّد هنا لإعادة استخدامه بكل النقاط الحساسة.
+
+            ✅ وأيضاً نتحقق هنا من الحظر المشترك (banned_users بـ Turso)، عشان مستخدم محظور
+            من بوت التنزيل ما يقدرش يستمر يستخدم أي نقطة حساسة من بوت الجدول أيضاً.
+            """
+            if not user_id:
+                return False
+            try:
+                if turso_sync.is_user_banned_shared(user_id):
+                    return False
+            except Exception as e:
+                print(f"[Auth Check] تعذر التحقق من الحظر المشترك لـ {user_id}: {e}")
+            token_info = turso_sync.get_active_token(user_id)
+            return token_info is not None
+
         def do_GET(self):
             parsed_url = urlparse(self.path)
             query_params = parse_qs(parsed_url.query)
@@ -1461,6 +1501,9 @@ def run_server():
                     if not user_id or not username or not password:
                         self.send_error(400, "Missing required fields")
                         return
+                    # ✅ لازم توكن فعّال قبل حفظ/تعديل كلمة مرور أي مستخدم
+                    if not self._require_active_token(user_id):
+                        return self._reject_unauthorized()
                     turso_sync.save_user_portal_credentials(user_id, username, password, college)
                     self.send_response(200)
                     self.send_header('Content-Type', 'application/json')
@@ -1477,6 +1520,10 @@ def run_server():
                     if not user_id:
                         self.send_error(400, "Missing user_id")
                         return
+
+                    # ✅ لازم توكن فعّال قبل تأكيد بدء التنزيل الفعلي
+                    if not self._require_active_token(user_id):
+                        return self._reject_unauthorized()
 
                     is_open, msg = turso_sync.is_enrollment_open()
                     if not is_open:
@@ -1581,6 +1628,8 @@ def run_server():
                     user_id = int(data.get('user_id', 0))
                     queue_id = int(data.get('queue_id', 0))
                     direction = data.get('direction', 'UP')
+                    if not self._require_active_token(user_id):
+                        return self._reject_unauthorized()
                     turso_sync.move_priority(user_id, queue_id, direction)
                     updated_queue = turso_sync.get_user_queue(user_id)
                     self.send_response(200)
@@ -1596,6 +1645,8 @@ def run_server():
                     user_id = int(data.get('user_id', 0))
                     queue_id = int(data.get('queue_id', 0))
                     new_group = str(data.get('group', '1'))
+                    if not self._require_active_token(user_id):
+                        return self._reject_unauthorized()
                     turso_sync.update_course_group(queue_id, user_id, new_group)
                     updated_queue = turso_sync.get_user_queue(user_id)
                     self.send_response(200)
@@ -1610,6 +1661,8 @@ def run_server():
                 try:
                     user_id = int(data.get('user_id', 0))
                     queue_id = int(data.get('queue_id', 0))
+                    if not self._require_active_token(user_id):
+                        return self._reject_unauthorized()
                     turso_sync.delete_from_queue(queue_id, user_id)
                     updated_queue = turso_sync.get_user_queue(user_id)
                     self.send_response(200)
@@ -1624,6 +1677,8 @@ def run_server():
                 try:
                     user_id = int(data.get('user_id', 0))
                     pause = bool(data.get('pause', True))
+                    if not self._require_active_token(user_id):
+                        return self._reject_unauthorized()
                     turso_sync.toggle_queue_pause(user_id, pause)
                     updated_queue = turso_sync.get_user_queue(user_id)
                     self.send_response(200)
@@ -1640,6 +1695,8 @@ def run_server():
                     code = data.get('code', '')
                     name = data.get('name', '')
                     group = data.get('group', '1')
+                    if not self._require_active_token(user_id):
+                        return self._reject_unauthorized()
                     turso_sync.add_course_to_queue(user_id, code, name, group)
                     updated_queue = turso_sync.get_user_queue(user_id)
                     self.send_response(200)

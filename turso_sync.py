@@ -81,11 +81,66 @@ def init_sync_tables():
         client.execute("INSERT OR IGNORE INTO system_settings (setting_key, setting_val, updated_at) VALUES ('enrollment_active', '1', CURRENT_TIMESTAMP);")
         client.execute("INSERT OR IGNORE INTO system_settings (setting_key, setting_val, updated_at) VALUES ('maintenance_message', 'نظام التنزيل الآلي مغلق حالياً من قبل الإدارة بانتظار إعلان موعد الفتح.', CURRENT_TIMESTAMP);")
 
+        # 5. جدول الحظر المشترك — قبل هذا كان الحظر محفوظ محلياً بملف users.json على سيرفر
+        # بوت التنزيل فقط، وبوت الجدول ما عنده أي وسيلة يشوف فيها هل المستخدم محظور أو لا.
+        # هذا الجدول يخلي الحظر مرئي ومتزامن بين البوتين الاثنين.
+        client.execute("""
+            CREATE TABLE IF NOT EXISTS banned_users (
+                user_id INTEGER PRIMARY KEY,
+                banned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                reason TEXT
+            );
+        """)
+
         # فهارس لتسريع البحث والأولوية
         client.execute("CREATE INDEX IF NOT EXISTS idx_tokens_token ON user_tokens (token);")
         client.execute("CREATE INDEX IF NOT EXISTS idx_queue_user_priority ON download_queue (user_id, priority ASC);")
         client.execute("CREATE INDEX IF NOT EXISTS idx_queue_status ON download_queue (status);")
         logger.info("[TursoSync] تم التحقق من إنشاء الجداول والفهارس بنجاح.")
+    finally:
+        client.close()
+
+# ----------------- الحظر المشترك بين البوتين (banned_users) -----------------
+
+def ban_user_shared(user_id: int, reason: str = "") -> bool:
+    """حظر مستخدم بشكل مشترك بحيث يظهر لكل من بوت التنزيل وبوت الجدول"""
+    client = get_client()
+    try:
+        client.execute("""
+            INSERT INTO banned_users (user_id, banned_at, reason)
+            VALUES (?, CURRENT_TIMESTAMP, ?)
+            ON CONFLICT(user_id) DO UPDATE SET
+                banned_at = CURRENT_TIMESTAMP,
+                reason = excluded.reason;
+        """, [user_id, reason])
+        return True
+    except Exception as e:
+        logger.error(f"[TursoSync] خطأ أثناء حظر المستخدم {user_id}: {e}")
+        return False
+    finally:
+        client.close()
+
+def unban_user_shared(user_id: int) -> bool:
+    """إلغاء الحظر المشترك عن مستخدم"""
+    client = get_client()
+    try:
+        client.execute("DELETE FROM banned_users WHERE user_id = ?", [user_id])
+        return True
+    except Exception as e:
+        logger.error(f"[TursoSync] خطأ أثناء إلغاء حظر المستخدم {user_id}: {e}")
+        return False
+    finally:
+        client.close()
+
+def is_user_banned_shared(user_id: int) -> bool:
+    """التحقق من الحظر المشترك — تستخدمها كل من بوت التنزيل وبوت الجدول"""
+    client = get_client()
+    try:
+        res = client.execute("SELECT 1 FROM banned_users WHERE user_id = ?", [user_id])
+        return bool(res.rows)
+    except Exception as e:
+        logger.error(f"[TursoSync] خطأ أثناء التحقق من حظر المستخدم {user_id}: {e}")
+        return False
     finally:
         client.close()
 
@@ -446,6 +501,25 @@ def get_unfinished_tasks_for_recovery() -> List[Dict[str, Any]]:
                 "status": r[6]
             })
         return tasks
+    finally:
+        client.close()
+
+def get_active_and_pending_user_ids() -> List[int]:
+    """
+    جلب معرفات المستخدمين الذين لديهم نشاط أو مهام معلقة في الوقت الحالي:
+    (مهام في حالة PENDING, NO_SEATS, WAITING_PORTAL, READY_TO_START, أو PAUSED مؤخراً)
+    """
+    client = get_client()
+    try:
+        res = client.execute("""
+            SELECT DISTINCT user_id 
+            FROM download_queue 
+            WHERE status IN ('PENDING', 'NO_SEATS', 'WAITING_PORTAL', 'READY_TO_START', 'PAUSED')
+        """)
+        return [int(r[0]) for r in res.rows if r[0] is not None]
+    except Exception as e:
+        logger.error(f"Error getting active and pending user ids: {e}")
+        return []
     finally:
         client.close()
 

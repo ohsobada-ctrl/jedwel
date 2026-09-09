@@ -58,6 +58,29 @@ def init_sync_tables():
             );
         """)
 
+        # 3. جدول بيانات دخول المنظومة للطلاب (رقم القيد وكلمة المرور المشتركة)
+        client.execute("""
+            CREATE TABLE IF NOT EXISTS user_portal_creds (
+                user_id INTEGER PRIMARY KEY,
+                username TEXT NOT NULL,
+                password TEXT NOT NULL,
+                college TEXT DEFAULT 'it',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+
+        # 4. جدول إعدادات النظام وقفل التنزيل
+        client.execute("""
+            CREATE TABLE IF NOT EXISTS system_settings (
+                setting_key TEXT PRIMARY KEY,
+                setting_val TEXT NOT NULL,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        client.execute("INSERT OR IGNORE INTO system_settings (setting_key, setting_val, updated_at) VALUES ('enrollment_active', '1', CURRENT_TIMESTAMP);")
+        client.execute("INSERT OR IGNORE INTO system_settings (setting_key, setting_val, updated_at) VALUES ('maintenance_message', 'نظام التنزيل الآلي مغلق حالياً من قبل الإدارة بانتظار إعلان موعد الفتح.', CURRENT_TIMESTAMP);")
+
         # فهارس لتسريع البحث والأولوية
         client.execute("CREATE INDEX IF NOT EXISTS idx_tokens_token ON user_tokens (token);")
         client.execute("CREATE INDEX IF NOT EXISTS idx_queue_user_priority ON download_queue (user_id, priority ASC);")
@@ -144,6 +167,23 @@ def verify_user_token(token: str, telegram_user_id: int) -> Tuple[bool, str, Opt
             "expires_at": expires_at_str,
             "is_active": is_active
         }
+    finally:
+        client.close()
+
+def revoke_user_token(user_id: int) -> bool:
+    """إلغاء وإبطال صلاحية توكن المستخدم فوراً عند الحظر"""
+    client = get_client()
+    try:
+        past_date = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")
+        client.execute(
+            "UPDATE user_tokens SET is_active = 0, expires_at = ? WHERE user_id = ?",
+            [past_date, int(user_id)]
+        )
+        logger.info(f"[TursoSync] تم إبطال توكن المستخدم {user_id} فوراً.")
+        return True
+    except Exception as e:
+        logger.error(f"[TursoSync] خطأ في إلغاء توكن المستخدم {user_id}: {e}")
+        return False
     finally:
         client.close()
 
@@ -263,7 +303,7 @@ def set_user_schedule_queue(user_id: int, courses_list: List[Dict[str, Any]]) ->
             client.execute(
                 """
                 INSERT INTO download_queue (user_id, course_code, course_name, group_no, priority, status, last_updated)
-                VALUES (?, ?, ?, ?, ?, 'PENDING', CURRENT_TIMESTAMP);
+                VALUES (?, ?, ?, ?, ?, 'READY_TO_START', CURRENT_TIMESTAMP);
                 """,
                 [user_id, code, name, group, idx]
             )
@@ -406,5 +446,120 @@ def get_unfinished_tasks_for_recovery() -> List[Dict[str, Any]]:
                 "status": r[6]
             })
         return tasks
+    finally:
+        client.close()
+
+# ----------------- بيانات دخول المنظومة للطلاب (رقم القيد وكلمة المرور) -----------------
+
+def save_user_portal_credentials(user_id: int, username: str, password: str, college: str = "it") -> bool:
+    """حفظ أو تحديث بيانات دخول الطالب لمنظومة الجامعة في Turso"""
+    client = get_client()
+    try:
+        client.execute("""
+            INSERT INTO user_portal_creds (user_id, username, password, college, updated_at)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(user_id) DO UPDATE SET
+                username = excluded.username,
+                password = excluded.password,
+                college = excluded.college,
+                updated_at = CURRENT_TIMESTAMP;
+        """, [user_id, username.strip(), password.strip(), college.strip()])
+        logger.info(f"[TursoSync] تم حفظ بيانات منظومة الجامعة للمستخدم {user_id} بنجاح.")
+        return True
+    finally:
+        client.close()
+
+def get_user_portal_credentials(user_id: int) -> Optional[Dict[str, Any]]:
+    """جلب بيانات دخول المنظومة للمستخدم إن وجدت"""
+    client = get_client()
+    try:
+        res = client.execute(
+            "SELECT user_id, username, password, college FROM user_portal_creds WHERE user_id = ?",
+            [user_id]
+        )
+        if not res.rows:
+            return None
+        r = res.rows[0]
+        return {
+            "user_id": r[0],
+            "username": r[1],
+            "password": r[2],
+            "college": r[3] or "it"
+        }
+    finally:
+        client.close()
+
+def has_user_portal_credentials(user_id: int) -> bool:
+    """التحقق السريع مما إذا كان الطالب قد أدخل بيانات دخوله سابقاً"""
+    creds = get_user_portal_credentials(user_id)
+    return bool(creds and creds.get("username") and creds.get("password"))
+
+# ----------------- إعدادات النظام وقفل التنزيل العام -----------------
+
+def get_system_setting(key: str, default: Optional[str] = None) -> Optional[str]:
+    """جلب قيمة إعداد من إعدادات النظام"""
+    client = get_client()
+    try:
+        res = client.execute("SELECT setting_val FROM system_settings WHERE setting_key = ?", [key])
+        if res.rows:
+            return res.rows[0][0]
+        return default
+    except Exception:
+        return default
+    finally:
+        client.close()
+
+def set_system_setting(key: str, val: str) -> bool:
+    """تعيين أو تحديث إعداد في النظام العام"""
+    client = get_client()
+    try:
+        client.execute("""
+            INSERT INTO system_settings (setting_key, setting_val, updated_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(setting_key) DO UPDATE SET
+                setting_val = excluded.setting_val,
+                updated_at = CURRENT_TIMESTAMP;
+        """, [key, str(val)])
+        return True
+    finally:
+        client.close()
+
+def is_enrollment_open() -> Tuple[bool, str]:
+    """فحص ما إذا كان نظام التنزيل مفتوحاً من قبل الإدارة، وإرجاع رسالة الإغلاق إن كان مقفلاً"""
+    active = get_system_setting("enrollment_active", "1")
+    msg = get_system_setting("maintenance_message", "نظام التنزيل الآلي مغلق حالياً من قبل الإدارة بانتظار إعلان موعد الفتح.")
+    return (active == "1"), (msg or "نظام التنزيل مغلق حالياً.")
+
+def start_user_queue_enrollment(user_id: int) -> List[Dict[str, Any]]:
+    """تفعيل طابور التنزيل للمستخدم بعد موافقته الصريحة (تحويل READY_TO_START إلى PENDING)"""
+    client = get_client()
+    try:
+        client.execute(
+            "UPDATE download_queue SET status = 'PENDING', last_updated = CURRENT_TIMESTAMP WHERE user_id = ? AND status = 'READY_TO_START'",
+            [user_id]
+        )
+        return get_user_queue(user_id)
+    finally:
+        client.close()
+
+def pause_all_active_tasks() -> int:
+    """إيقاف طوارئ لكافة المواد النشطة في الطابور لجميع المستخدمين"""
+    client = get_client()
+    try:
+        res = client.execute(
+            "UPDATE download_queue SET status = 'PAUSED', last_updated = CURRENT_TIMESTAMP WHERE status IN ('PENDING', 'WAITING_PORTAL', 'NO_SEATS')"
+        )
+        return res.rows_affected if hasattr(res, 'rows_affected') else 1
+    finally:
+        client.close()
+
+def resume_all_paused_tasks() -> int:
+    """استئناف كافة المواد المتوقفة مؤقتاً في الطابور لجميع المستخدمين"""
+    client = get_client()
+    try:
+        res = client.execute(
+            "UPDATE download_queue SET status = 'PENDING', last_updated = CURRENT_TIMESTAMP WHERE status = 'PAUSED'"
+        )
+        return res.rows_affected if hasattr(res, 'rows_affected') else 1
     finally:
         client.close()

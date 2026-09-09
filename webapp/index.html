@@ -1133,6 +1133,236 @@
             border: 1px solid #d1d5db;
         }
 
+        .status-ready {
+            background: #fef9c3;
+            color: #713f12;
+            border: 1px solid #fde68a;
+        }
+
+        /* ==== System Closed Banner ==== */
+        .system-closed-banner {
+            display: none;
+            background: linear-gradient(135deg, #fee2e2, #fef9c3);
+            border: 1.5px solid #fca5a5;
+            border-radius: var(--radius-md);
+            padding: 14px 16px;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+
+        .system-closed-banner.visible {
+            display: block;
+        }
+
+        .system-closed-banner .banner-icon {
+            font-size: 1.6rem;
+            margin-bottom: 6px;
+        }
+
+        .system-closed-banner .banner-title {
+            font-weight: 800;
+            font-size: 0.95rem;
+            color: #991b1b;
+            margin-bottom: 4px;
+        }
+
+        .system-closed-banner .banner-msg {
+            font-size: 0.85rem;
+            color: #7f1d1d;
+            line-height: 1.5;
+        }
+
+        /* ==== Confirm Enrollment Button ==== */
+        .confirm-enroll-card {
+            display: none;
+            background: linear-gradient(135deg, rgba(16,185,129,.08), rgba(5,150,105,.12));
+            border: 1.5px solid rgba(16,185,129,0.4);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+
+        .confirm-enroll-card.visible {
+            display: block;
+        }
+
+        .confirm-enroll-card .ce-title {
+            font-weight: 800;
+            font-size: 0.95rem;
+            color: #065f46;
+            margin-bottom: 6px;
+        }
+
+        .confirm-enroll-card .ce-sub {
+            font-size: 0.82rem;
+            color: #047857;
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+
+        .btn-confirm-enroll {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: #fff;
+            border: none;
+            padding: 13px 24px;
+            border-radius: var(--radius-md);
+            font-weight: 800;
+            font-size: 1rem;
+            cursor: pointer;
+            width: 100%;
+            box-shadow: 0 6px 16px -6px rgba(16,185,129,.5);
+            transition: all .2s ease;
+            font-family: 'Cairo', sans-serif;
+        }
+
+        .btn-confirm-enroll:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 22px -6px rgba(16,185,129,.6);
+        }
+
+        .btn-confirm-enroll:active {
+            transform: translateY(0);
+        }
+
+        /* ==== Portal Credentials Modal ==== */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.55);
+            z-index: 9999;
+            align-items: flex-end;
+            justify-content: center;
+        }
+
+        .modal-overlay.open {
+            display: flex;
+            animation: fadeIn .2s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-sheet {
+            background: var(--paper);
+            border-radius: 20px 20px 0 0;
+            padding: 24px 20px 32px;
+            width: 100%;
+            max-width: 540px;
+            box-shadow: 0 -8px 40px rgba(0,0,0,0.2);
+            animation: slideUp .25s ease;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(60px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-sheet .modal-handle {
+            width: 40px;
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            margin: 0 auto 20px;
+        }
+
+        .modal-sheet .modal-title {
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: var(--primary);
+            margin-bottom: 6px;
+            text-align: center;
+        }
+
+        .modal-sheet .modal-sub {
+            font-size: 0.84rem;
+            color: var(--text-muted);
+            text-align: center;
+            margin-bottom: 20px;
+            line-height: 1.55;
+        }
+
+        .modal-field {
+            margin-bottom: 12px;
+        }
+
+        .modal-field label {
+            display: block;
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 5px;
+        }
+
+        .modal-input {
+            width: 100%;
+            padding: 11px 14px;
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius-md);
+            background: var(--white);
+            color: var(--text-main);
+            font-family: 'Cairo', sans-serif;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color .2s;
+        }
+
+        .modal-input:focus {
+            border-color: var(--primary);
+        }
+
+        .modal-select {
+            width: 100%;
+            padding: 11px 14px;
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius-md);
+            background: var(--white);
+            color: var(--text-main);
+            font-family: 'Cairo', sans-serif;
+            font-size: 0.9rem;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .modal-btn-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .btn-modal-save {
+            flex: 1;
+            background: var(--primary);
+            color: var(--white);
+            border: none;
+            padding: 13px;
+            border-radius: var(--radius-md);
+            font-weight: 800;
+            font-size: 0.95rem;
+            cursor: pointer;
+            font-family: 'Cairo', sans-serif;
+            transition: all .2s;
+        }
+
+        .btn-modal-save:hover {
+            background: var(--primary-light);
+        }
+
+        .btn-modal-cancel {
+            background: var(--white);
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+            padding: 13px 18px;
+            border-radius: var(--radius-md);
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+            font-family: 'Cairo', sans-serif;
+        }
+
         .sync-actions {
             display: flex;
             align-items: center;
@@ -1428,6 +1658,14 @@
         </div>
 
         <div class="container">
+
+            <!-- System Closed Banner (hidden by default, shown when admin locks enrollment) -->
+            <div class="system-closed-banner" id="systemClosedBanner">
+                <div class="banner-icon">🔒</div>
+                <div class="banner-title">نظام التنزيل الآلي مغلق مؤقتاً</div>
+                <div class="banner-msg" id="systemClosedMsg">نظام التنزيل الآلي مغلق حالياً من قبل الإدارة بانتظار إعلان موعد الفتح.</div>
+            </div>
+
             <!-- Engine Status Card -->
             <div class="sync-status-card">
                 <div class="sync-status-header">
@@ -1436,13 +1674,24 @@
                         <div id="syncEngineBadge" class="sync-badge badge-active">🟢 البوت نشط وجاهز</div>
                     </div>
                     <div class="sync-header-actions">
+                        <button class="sync-ctrl-btn" id="btnSyncCreds" onclick="openPortalCredsModal()" title="بيانات دخول المنظومة">🔑 بياناتي</button>
                         <button class="sync-ctrl-btn" id="btnSyncPause" onclick="syncTogglePause()">⏸️ إيقاف مؤقت</button>
                         <button class="sync-ctrl-btn refresh-btn" onclick="loadSyncQueue(true)">🔄 تحديث</button>
                     </div>
                 </div>
                 <div class="sync-token-meta" id="syncTokenMeta">
                     <span id="syncUserMeta">المستخدم: ...</span> • <span id="syncQueueCount">المقررات: 0</span>
+                    <span id="syncCredsStatus" style="margin-right:8px;"></span>
                 </div>
+            </div>
+
+            <!-- Confirm Enrollment Card (shown only when READY_TO_START items exist) -->
+            <div class="confirm-enroll-card" id="confirmEnrollCard">
+                <div class="ce-title">🚀 جاهز للبدء!</div>
+                <div class="ce-sub">جدولك محفوظ في قائمة الانتظار. اضغط "تأكيد البدء" لبدء التنزيل الآلي الفعلي.<br>سيقوم البوت بالتسجيل التلقائي في المواد بمجرد فتح بوابة التسجيل.</div>
+                <button class="btn-confirm-enroll" id="btnConfirmEnroll" onclick="confirmEnrollment()">
+                    ✅ تأكيد البدء وإطلاق التنزيل الآلي
+                </button>
             </div>
 
             <!-- Queue List Container -->
@@ -1473,6 +1722,40 @@
                 <button class="action-btn" style="margin-top: 10px; padding: 12px;" onclick="syncAddManualCourse()">
                     ➕ إضافة لقائمة التنزيل
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====================================================== -->
+    <!-- MODAL: Portal Credentials (University Login)           -->
+    <!-- ====================================================== -->
+    <div class="modal-overlay" id="portalCredsModal" onclick="closePortalCredsModal(event)">
+        <div class="modal-sheet" onclick="event.stopPropagation()">
+            <div class="modal-handle"></div>
+            <div class="modal-title">🔑 بيانات دخول المنظومة</div>
+            <div class="modal-sub">أدخل رقم قيدك وكلمة المرور لتتمكن من التنزيل الآلي. يتم الحفظ بشكل آمن ومشفر ولا يراه أحد غيرك.</div>
+
+            <div class="modal-field">
+                <label for="portalUsername">رقم القيد (البريد الإلكتروني)</label>
+                <input type="text" id="portalUsername" class="modal-input" placeholder="مثال: 2021001234" autocomplete="username" inputmode="email">
+            </div>
+            <div class="modal-field">
+                <label for="portalPassword">كلمة المرور</label>
+                <input type="password" id="portalPassword" class="modal-input" placeholder="كلمة مرور المنظومة" autocomplete="current-password">
+            </div>
+            <div class="modal-field">
+                <label for="portalCollege">الكلية</label>
+                <select id="portalCollege" class="modal-select">
+                    <option value="it">تقنية المعلومات</option>
+                    <option value="eng">الهندسة</option>
+                </select>
+            </div>
+
+            <div id="portalCredsError" style="color:#dc2626; font-size:0.82rem; margin-top:4px; display:none;"></div>
+
+            <div class="modal-btn-row">
+                <button class="btn-modal-save" id="btnSavePortalCreds" onclick="savePortalCreds()">💾 حفظ البيانات</button>
+                <button class="btn-modal-cancel" onclick="closePortalCredsModal(null)">إلغاء</button>
             </div>
         </div>
     </div>
@@ -1789,6 +2072,171 @@
             }
         }
 
+        // ===== Portal Credentials Modal =====
+        async function openPortalCredsModal() {
+            const uid = getTgUserId();
+            if (!uid) { alert('⚠️ لم يتم التعرف على حسابك.'); return; }
+
+            // Pre-fill with existing creds if any
+            try {
+                const res = await fetch(`/api/sync/portal_creds?user_id=${uid}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.has_creds) {
+                        document.getElementById('portalUsername').value = data.username || '';
+                        document.getElementById('portalCollege').value = data.college || 'it';
+                    }
+                }
+            } catch (e) {}
+
+            document.getElementById('portalCredsModal').classList.add('open');
+        }
+
+        function closePortalCredsModal(evt) {
+            if (evt && evt.target !== document.getElementById('portalCredsModal')) return;
+            document.getElementById('portalCredsModal').classList.remove('open');
+            document.getElementById('portalCredsError').style.display = 'none';
+        }
+
+        async function savePortalCreds() {
+            const uid = getTgUserId();
+            const username = (document.getElementById('portalUsername').value || '').trim();
+            const password = (document.getElementById('portalPassword').value || '').trim();
+            const college = document.getElementById('portalCollege').value || 'it';
+            const errEl = document.getElementById('portalCredsError');
+
+            if (!username || !password) {
+                errEl.textContent = '⚠️ يرجى إدخال رقم القيد وكلمة المرور.';
+                errEl.style.display = 'block';
+                return;
+            }
+
+            const btn = document.getElementById('btnSavePortalCreds');
+            btn.textContent = '⏳ جاري الحفظ...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/sync/save_portal_creds', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: uid, username, password, college })
+                });
+
+                if (res.ok) {
+                    document.getElementById('portalCredsModal').classList.remove('open');
+                    const msg = '✅ تم حفظ بيانات المنظومة بنجاح! سيستخدمها البوت تلقائياً عند بدء التنزيل.';
+                    if (tg && tg.showAlert) tg.showAlert(msg); else alert(msg);
+                    // Update status indicator
+                    const credsStatus = document.getElementById('syncCredsStatus');
+                    if (credsStatus) credsStatus.innerHTML = '🔑 <span style="color:#059669;font-weight:700;">بيانات المنظومة محفوظة ✓</span>';
+                } else {
+                    errEl.textContent = '❌ حدث خطأ أثناء الحفظ. حاول مجدداً.';
+                    errEl.style.display = 'block';
+                }
+            } catch (err) {
+                errEl.textContent = '❌ تعذر الاتصال بالخادم: ' + err.message;
+                errEl.style.display = 'block';
+            } finally {
+                btn.textContent = '💾 حفظ البيانات';
+                btn.disabled = false;
+            }
+        }
+
+        // ===== Confirm Enrollment (READY_TO_START → PENDING) =====
+        async function confirmEnrollment() {
+            const uid = getTgUserId();
+            if (!uid) { alert('⚠️ لم يتم التعرف على حسابك.'); return; }
+
+            // Check portal creds first
+            try {
+                const credsRes = await fetch(`/api/sync/portal_creds?user_id=${uid}`);
+                if (credsRes.ok) {
+                    const credsData = await credsRes.json();
+                    if (!credsData.has_creds) {
+                        // No creds → open the modal first
+                        await openPortalCredsModal();
+                        const msg = '⚠️ يرجى إدخال بيانات دخولك للمنظومة أولاً قبل بدء التنزيل.';
+                        if (tg && tg.showAlert) tg.showAlert(msg); else alert(msg);
+                        return;
+                    }
+                }
+            } catch (e) {}
+
+            const confirmed = confirm(
+                '🚀 هل أنت متأكد من رغبتك في بدء التنزيل الآلي الفعلي؟\n\nسيقوم البوت بالتسجيل التلقائي في جميع مواد القائمة فور فتح بوابة التسجيل.'
+            );
+            if (!confirmed) return;
+
+            const btn = document.getElementById('btnConfirmEnroll');
+            if (btn) { btn.textContent = '⏳ جاري إطلاق التنزيل...'; btn.disabled = true; }
+
+            try {
+                const res = await fetch('/api/sync/start_enrollment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: uid })
+                });
+
+                const resData = await res.json();
+
+                if (res.ok && resData.status === 'success') {
+                    const msg = '🎯 تم إطلاق التنزيل الآلي بنجاح! سيبدأ البوت تلقائياً عند فتح بوابة التسجيل.';
+                    if (tg && tg.showAlert) tg.showAlert(msg); else alert(msg);
+                    loadSyncQueue(false);
+                } else if (resData.system_closed) {
+                    const banner = document.getElementById('systemClosedBanner');
+                    const bannerMsg = document.getElementById('systemClosedMsg');
+                    if (banner) banner.classList.add('visible');
+                    if (bannerMsg) bannerMsg.textContent = resData.error || 'نظام التنزيل مغلق حالياً من الإدارة.';
+                    const msg = '🔒 ' + (resData.error || 'نظام التنزيل الآلي مغلق حالياً من قبل الإدارة.');
+                    if (tg && tg.showAlert) tg.showAlert(msg); else alert(msg);
+                } else {
+                    const msg = '❌ ' + (resData.error || 'تعذر إطلاق التنزيل. حاول مجدداً.');
+                    if (tg && tg.showAlert) tg.showAlert(msg); else alert(msg);
+                }
+            } catch (err) {
+                alert('❌ تعذر الاتصال بالخادم: ' + err.message);
+            } finally {
+                if (btn) { btn.textContent = '✅ تأكيد البدء وإطلاق التنزيل الآلي'; btn.disabled = false; }
+            }
+        }
+
+        // ===== Check & Display System Status Banner =====
+        async function checkSystemStatus() {
+            try {
+                const res = await fetch('/api/sync/system_status');
+                if (!res.ok) return;
+                const data = await res.json();
+                const banner = document.getElementById('systemClosedBanner');
+                const bannerMsg = document.getElementById('systemClosedMsg');
+                if (!data.is_open) {
+                    if (banner) banner.classList.add('visible');
+                    if (bannerMsg) bannerMsg.textContent = data.message || 'نظام التنزيل مغلق حالياً.';
+                } else {
+                    if (banner) banner.classList.remove('visible');
+                }
+            } catch (e) {}
+        }
+
+        // ===== Check Portal Creds Status =====
+        async function checkPortalCredsStatus() {
+            const uid = getTgUserId();
+            if (!uid) return;
+            try {
+                const res = await fetch(`/api/sync/portal_creds?user_id=${uid}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                const credsStatus = document.getElementById('syncCredsStatus');
+                if (credsStatus) {
+                    if (data.has_creds) {
+                        credsStatus.innerHTML = '🔑 <span style="color:#059669;font-weight:700;">بيانات المنظومة محفوظة ✓</span>';
+                    } else {
+                        credsStatus.innerHTML = '<span style="color:#dc2626;font-weight:700;">⚠️ بيانات المنظومة غير محفوظة</span>';
+                    }
+                }
+            } catch (e) {}
+        }
+
         async function loadSyncQueue(isManual = false) {
             const uid = getTgUserId();
             const userMeta = document.getElementById('syncUserMeta');
@@ -1862,6 +2310,11 @@
             if (!listEl) return;
             listEl.innerHTML = '';
 
+            // Check if there are READY_TO_START items → show confirm card
+            const hasReadyItems = queue.some(q => (q.status || '').toUpperCase() === 'READY_TO_START');
+            const confirmCard = document.getElementById('confirmEnrollCard');
+            if (confirmCard) confirmCard.classList.toggle('visible', hasReadyItems);
+
             queue.forEach((item, idx) => {
                 const card = document.createElement('div');
                 card.className = 'sync-item-card anim';
@@ -1876,11 +2329,16 @@
                     statusHtml = '<span class="status-pill status-portal">🌐 انتظار المنظومة</span>';
                 } else if (st === 'PAUSED') {
                     statusHtml = '<span class="status-pill status-paused">⏸️ متوقف</span>';
+                } else if (st === 'READY_TO_START') {
+                    statusHtml = '<span class="status-pill status-ready">🟡 في الانتظار (لم يُؤكد بعد)</span>';
+                } else if (st === 'ERROR') {
+                    statusHtml = '<span class="status-pill" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;">❌ خطأ في التسجيل</span>';
                 } else {
                     statusHtml = '<span class="status-pill status-pending">⏳ قيد الانتظار</span>';
                 }
 
                 const courseName = item.course_name || item.course_code;
+                const groupNo = item.group_no || item.group_number || '1';
 
                 card.innerHTML = `
                     <div class="sync-priority-badge">#${idx + 1}</div>
@@ -1888,8 +2346,8 @@
                         <div class="sync-item-code">${item.course_code}</div>
                         <div class="sync-item-name" title="${courseName}">${courseName}</div>
                         <div class="sync-item-meta">
-                            <span class="group-pill" onclick="syncPromptEditGroup(${item.id}, '${item.group_number || 1}')">
-                                مجموعة: ${item.group_number || 1} ✏️
+                            <span class="group-pill" onclick="syncPromptEditGroup(${item.id}, '${groupNo}')">
+                                مجموعة: ${groupNo} ✏️
                             </span>
                             ${statusHtml}
                         </div>
@@ -2685,8 +3143,13 @@
 
             // التحقق الصارم من وجود توكن فعال من /gen_token قبل إظهار ميزات التنزيل الآلي والمزامنة
             checkSyncAuth().then(authorized => {
-                if (authorized && (startupTab === 'sync' || window.location.hash === '#sync')) {
-                    switchTopTab('sync');
+                if (authorized) {
+                    // فحص حالة النظام وبيانات المنظومة بعد التفعيل
+                    checkSystemStatus();
+                    checkPortalCredsStatus();
+                    if (startupTab === 'sync' || window.location.hash === '#sync') {
+                        switchTopTab('sync');
+                    }
                 }
             });
         });

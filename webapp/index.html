@@ -2668,13 +2668,10 @@
 
             // بناء خريطة للأيام الموجودة
             const dayMap = {}; // num -> { text, periods: {p1:[],p2:[],p3:[]} }
-            let minNum = 999, maxNum = -1;
 
             relevant.forEach(ex => {
                 const num = getDayNum(ex.exam_day);
                 if (num === null) return;
-                if (num < minNum) minNum = num;
-                if (num > maxNum) maxNum = num;
 
                 if (!dayMap[num]) {
                     dayMap[num] = {
@@ -2686,10 +2683,31 @@
                 if (dayMap[num].periods[k]) dayMap[num].periods[k].push(ex);
             });
 
-            // قائمة الأيام من الأصغر للأكبر (بما في ذلك الفراغات)
-            for (let d = minNum; d <= maxNum; d++) {
+            // ✅ نطاق الأيام الرسمي بالمنظومة (من dates.json) — الجدول يبدأ ويخلص بنفس ترقيم
+            // المنظومة تماماً، حتى لو ما فيه امتحانات لمواد الطالب بأول أو آخر أيامه، عشان ما
+            // يصير فيه لخبطة بترقيم الأيام مقارنة بالمنظومة الفعلية.
+            const systemDayNums = Object.keys(datesMap).map(k => parseInt(k)).filter(n => !isNaN(n));
+            const examDayNums = Object.keys(dayMap).map(n => parseInt(n));
+
+            let systemMin = systemDayNums.length ? Math.min(...systemDayNums) : null;
+            let systemMax = systemDayNums.length ? Math.max(...systemDayNums) : null;
+
+            // لو dates.json غير متوفر لأي سبب، نرجع للسلوك القديم (الاعتماد على أيام الطالب فقط)
+            if (systemMin === null) systemMin = examDayNums.length ? Math.min(...examDayNums) : 1;
+            if (systemMax === null) systemMax = examDayNums.length ? Math.max(...examDayNums) : 1;
+
+            // ✅ أي يوم لمادة الطالب يقع خارج النطاق الرسمي (تعديل يدوي بيوم قبل أول يوم أو بعد
+            // آخر يوم بالمنظومة) — نضيفه للعرض برضو، بس نميزه بلون مختلف لاحقاً عشان يبان إنه
+            // "فجوة" خارج التسلسل الرسمي، مو نمدد النطاق الرسمي نفسه بسببه.
+            const allDayNums = new Set();
+            for (let d = systemMin; d <= systemMax; d++) allDayNums.add(d);
+            examDayNums.forEach(n => allDayNums.add(n));
+            const sortedDays = [...allDayNums].sort((a, b) => a - b);
+
+            sortedDays.forEach(d => {
                 const tr = document.createElement('tr');
                 const data = dayMap[d];
+                const isOutOfSystemRange = d < systemMin || d > systemMax;
 
                 if (!data) {
                     // يوم فارغ - استحضار التاريخ من خريطة التواريخ
@@ -2698,8 +2716,12 @@
                                         ${dateText.replace(/(\(\d+\))/, '<span style="display:block;font-size:0.62rem;color:#8899bb;">$1</span>')}
                                     </td>
                                     <td class="empty-cell"></td><td class="empty-cell"></td><td class="empty-cell"></td>`;
+                    if (isOutOfSystemRange) {
+                        tr.style.background = 'hsla(265, 65%, 97%, 1)';
+                        tr.style.borderRight = '3px solid #9b6bd6';
+                    }
                     tbody.appendChild(tr);
-                    continue;
+                    return;
                 }
 
                 // فحص التعارض
@@ -2709,6 +2731,10 @@
                 const softDay = allInDay.length > 1 && !hardDay;
                 if (hardDay) tr.style.background = 'hsla(350, 100%, 98%, 1)';
                 else if (softDay) tr.style.background = 'hsla(45, 100%, 98%, 1)';
+                else if (isOutOfSystemRange) tr.style.background = 'hsla(265, 65%, 97%, 1)';
+                // ✅ حد جانبي مميز بلون مختلف لأي يوم خارج النطاق الرسمي، عشان تبان "الفجوة"
+                // بينه وبين الأيام المتسلسلة حتى لو صادف نفس لون التعارض
+                if (isOutOfSystemRange) tr.style.borderRight = '3px solid #9b6bd6';
 
                 // خلية اليوم
                 const dayTd = document.createElement('td');
@@ -2736,7 +2762,7 @@
                     tr.appendChild(td);
                 });
                 tbody.appendChild(tr);
-            }
+            });
         }
 
         // ===== SOLVER (Builder Page) =====

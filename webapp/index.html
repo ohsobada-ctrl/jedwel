@@ -8,7 +8,9 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=El+Messiri:wght@500;600;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=El+Messiri:wght@500;600;700&display=swap"
+        rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         :root {
@@ -1175,8 +1177,8 @@
         /* ==== Confirm Enrollment Button ==== */
         .confirm-enroll-card {
             display: none;
-            background: linear-gradient(135deg, rgba(16,185,129,.08), rgba(5,150,105,.12));
-            border: 1.5px solid rgba(16,185,129,0.4);
+            background: linear-gradient(135deg, rgba(16, 185, 129, .08), rgba(5, 150, 105, .12));
+            border: 1.5px solid rgba(16, 185, 129, 0.4);
             border-radius: var(--radius-md);
             padding: 16px;
             margin-bottom: 12px;
@@ -1211,14 +1213,14 @@
             font-size: 1rem;
             cursor: pointer;
             width: 100%;
-            box-shadow: 0 6px 16px -6px rgba(16,185,129,.5);
+            box-shadow: 0 6px 16px -6px rgba(16, 185, 129, .5);
             transition: all .2s ease;
             font-family: 'Cairo', sans-serif;
         }
 
         .btn-confirm-enroll:hover {
             transform: translateY(-1px);
-            box-shadow: 0 10px 22px -6px rgba(16,185,129,.6);
+            box-shadow: 0 10px 22px -6px rgba(16, 185, 129, .6);
         }
 
         .btn-confirm-enroll:active {
@@ -1230,7 +1232,7 @@
             display: none;
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.55);
+            background: rgba(0, 0, 0, 0.55);
             z-index: 9999;
             align-items: flex-end;
             justify-content: center;
@@ -1242,8 +1244,13 @@
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
         }
 
         .modal-sheet {
@@ -1252,13 +1259,20 @@
             padding: 24px 20px 32px;
             width: 100%;
             max-width: 540px;
-            box-shadow: 0 -8px 40px rgba(0,0,0,0.2);
+            box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.2);
             animation: slideUp .25s ease;
         }
 
         @keyframes slideUp {
-            from { transform: translateY(60px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
+            from {
+                transform: translateY(60px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
         }
 
         .modal-sheet .modal-handle {
@@ -1536,7 +1550,8 @@
                 <div class="app-subtitle">أداة تنظيم الجدول الدراسي</div>
                 <div class="top-tabs">
                     <div class="top-tab tab-nav-search" onclick="switchTopTab('search')">🔍 أداة البحث</div>
-                    <div class="top-tab tab-nav-schedule active" onclick="switchTopTab('schedule')">🗓️ أداة التنزيل</div>
+                    <div class="top-tab tab-nav-schedule active" onclick="switchTopTab('schedule')">🗓️ أداة التنزيل
+                    </div>
                     <div class="top-tab tab-nav-sync" onclick="switchTopTab('sync')">⚡ التنزيل الآلي</div>
                 </div>
             </div>
@@ -1663,7 +1678,8 @@
             <div class="system-closed-banner" id="systemClosedBanner">
                 <div class="banner-icon">🔒</div>
                 <div class="banner-title">نظام التنزيل الآلي مغلق مؤقتاً</div>
-                <div class="banner-msg" id="systemClosedMsg">نظام التنزيل الآلي مغلق حالياً من قبل الإدارة بانتظار إعلان موعد الفتح.</div>
+                <div class="banner-msg" id="systemClosedMsg">نظام التنزيل الآلي مغلق حالياً من قبل الإدارة بانتظار إعلان
+                    موعد الفتح.</div>
             </div>
 
             <!-- Engine Status Card -->
@@ -1674,8 +1690,10 @@
                         <div id="syncEngineBadge" class="sync-badge badge-active">🟢 البوت نشط وجاهز</div>
                     </div>
                     <div class="sync-header-actions">
-                        <button class="sync-ctrl-btn" id="btnSyncCreds" onclick="openPortalCredsModal()" title="بيانات دخول المنظومة">🔑 بياناتي</button>
-                        <button class="sync-ctrl-btn" id="btnSyncPause" onclick="syncTogglePause()">⏸️ إيقاف مؤقت</button>
+                        <button class="sync-ctrl-btn" id="btnSyncCreds" onclick="openPortalCredsModal()"
+                            title="بيانات دخول المنظومة">🔑 بياناتي</button>
+                        <button class="sync-ctrl-btn" id="btnSyncPause" onclick="syncTogglePause()">⏸️ إيقاف
+                            مؤقت</button>
                         <button class="sync-ctrl-btn refresh-btn" onclick="loadSyncQueue(true)">🔄 تحديث</button>
                     </div>
                 </div>
@@ -1688,7 +1706,8 @@
             <!-- Confirm Enrollment Card (shown only when READY_TO_START items exist) -->
             <div class="confirm-enroll-card" id="confirmEnrollCard">
                 <div class="ce-title">🚀 جاهز للبدء!</div>
-                <div class="ce-sub">جدولك محفوظ في قائمة الانتظار. اضغط "تأكيد البدء" لبدء التنزيل الآلي الفعلي.<br>سيقوم البوت بالتسجيل التلقائي في المواد بمجرد فتح بوابة التسجيل.</div>
+                <div class="ce-sub">جدولك محفوظ في قائمة الانتظار. اضغط "تأكيد البدء" لبدء التنزيل الآلي
+                    الفعلي.<br>سيقوم البوت بالتسجيل التلقائي في المواد بمجرد فتح بوابة التسجيل.</div>
                 <button class="btn-confirm-enroll" id="btnConfirmEnroll" onclick="confirmEnrollment()">
                     ✅ تأكيد البدء وإطلاق التنزيل الآلي
                 </button>
@@ -1708,16 +1727,20 @@
             <div id="syncEmptyState" class="empty-state hidden">
                 <div class="icon">⚡</div>
                 <div class="msg">قائمة التنزيل فارغة</div>
-                <div class="sub-msg">اختر جدولاً مناسباً من "أداة التنزيل" واضغط "⚡ إرسال للتنزيل الآلي" لإضافته هنا مباشرة.</div>
+                <div class="sub-msg">اختر جدولاً مناسباً من "أداة التنزيل" واضغط "⚡ إرسال للتنزيل الآلي" لإضافته هنا
+                    مباشرة.</div>
             </div>
 
             <!-- Manual Add Course Section -->
             <div class="sync-add-card">
                 <div class="sync-add-title">➕ إضافة مقرر يدوياً إلى قائمة التنزيل</div>
                 <div class="sync-add-grid">
-                    <input type="text" id="syncAddCode" class="search-input sync-input" placeholder="كود المقرر (مثال: ITGS201)">
-                    <input type="text" id="syncAddName" class="search-input sync-input" placeholder="اسم المقرر (اختياري)">
-                    <input type="text" id="syncAddGroup" class="search-input sync-input" placeholder="المجموعة (مثال: 1)" value="1">
+                    <input type="text" id="syncAddCode" class="search-input sync-input"
+                        placeholder="كود المقرر (مثال: ITGS201)">
+                    <input type="text" id="syncAddName" class="search-input sync-input"
+                        placeholder="اسم المقرر (اختياري)">
+                    <input type="text" id="syncAddGroup" class="search-input sync-input"
+                        placeholder="المجموعة (مثال: 1)" value="1">
                 </div>
                 <button class="action-btn" style="margin-top: 10px; padding: 12px;" onclick="syncAddManualCourse()">
                     ➕ إضافة لقائمة التنزيل
@@ -1733,15 +1756,18 @@
         <div class="modal-sheet" onclick="event.stopPropagation()">
             <div class="modal-handle"></div>
             <div class="modal-title">🔑 بيانات دخول المنظومة</div>
-            <div class="modal-sub">أدخل رقم قيدك وكلمة المرور لتتمكن من التنزيل الآلي. يتم الحفظ بشكل آمن ومشفر ولا يراه أحد غيرك.</div>
+            <div class="modal-sub">أدخل رقم قيدك وكلمة المرور لتتمكن من التنزيل الآلي. يتم الحفظ بشكل آمن ومشفر ولا يراه
+                أحد غيرك.</div>
 
             <div class="modal-field">
                 <label for="portalUsername">رقم القيد (البريد الإلكتروني)</label>
-                <input type="text" id="portalUsername" class="modal-input" placeholder="مثال: 2021001234" autocomplete="username" inputmode="email">
+                <input type="text" id="portalUsername" class="modal-input" placeholder="مثال: 2021001234"
+                    autocomplete="username" inputmode="email">
             </div>
             <div class="modal-field">
                 <label for="portalPassword">كلمة المرور</label>
-                <input type="password" id="portalPassword" class="modal-input" placeholder="كلمة مرور المنظومة" autocomplete="current-password">
+                <input type="password" id="portalPassword" class="modal-input" placeholder="كلمة مرور المنظومة"
+                    autocomplete="current-password">
             </div>
             <div class="modal-field">
                 <label for="portalCollege">الكلية</label>
@@ -1754,7 +1780,8 @@
             <div id="portalCredsError" style="color:#dc2626; font-size:0.82rem; margin-top:4px; display:none;"></div>
 
             <div class="modal-btn-row">
-                <button class="btn-modal-save" id="btnSavePortalCreds" onclick="savePortalCreds()">💾 حفظ البيانات</button>
+                <button class="btn-modal-save" id="btnSavePortalCreds" onclick="savePortalCreds()">💾 حفظ
+                    البيانات</button>
                 <button class="btn-modal-cancel" onclick="closePortalCredsModal(null)">إلغاء</button>
             </div>
         </div>
@@ -2087,7 +2114,7 @@
                         document.getElementById('portalCollege').value = data.college || 'it';
                     }
                 }
-            } catch (e) {}
+            } catch (e) { }
 
             document.getElementById('portalCredsModal').classList.add('open');
         }
@@ -2160,7 +2187,7 @@
                         return;
                     }
                 }
-            } catch (e) {}
+            } catch (e) { }
 
             const confirmed = confirm(
                 '🚀 هل أنت متأكد من رغبتك في بدء التنزيل الآلي الفعلي؟\n\nسيقوم البوت بالتسجيل التلقائي في جميع مواد القائمة فور فتح بوابة التسجيل.'
@@ -2215,7 +2242,7 @@
                 } else {
                     if (banner) banner.classList.remove('visible');
                 }
-            } catch (e) {}
+            } catch (e) { }
         }
 
         // ===== Check Portal Creds Status =====
@@ -2234,7 +2261,7 @@
                         credsStatus.innerHTML = '<span style="color:#dc2626;font-weight:700;">⚠️ بيانات المنظومة غير محفوظة</span>';
                     }
                 }
-            } catch (e) {}
+            } catch (e) { }
         }
 
         async function loadSyncQueue(isManual = false) {

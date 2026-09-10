@@ -1323,6 +1323,28 @@ def run_server():
                 self.end_headers()
                 data = get_db_data("exams", "it")
                 self.wfile.write(json.dumps(data, ensure_ascii=False).encode('utf-8'))
+            elif self.path == '/api/dates':
+                # ✅ كانت هذي النقطة غير موجودة إطلاقاً — الموقع يحاول يجيب dates.json (ملف ثابت
+                # غير موجود من الأساس بعد الانتقال لـ Turso)، يفشل بصمت، ويرجع {} فاضية دايماً.
+                # exam_dates_map أصلاً محفوظة بجدول settings (من "📅 تحديث تواريخ الامتحانات")
+                # بنفس الصيغة اللي يحتاجها الموقع بالظبط {day_index: exam_day_text}.
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                dates_map = {}
+                try:
+                    with db_lock:
+                        conn = get_conn()
+                        c = conn.cursor()
+                        c.execute("SELECT value FROM settings WHERE key = 'exam_dates_map'")
+                        row = c.fetchone()
+                        conn.close()
+                    if row and row[0]:
+                        dates_map = json.loads(row[0])
+                except Exception as e:
+                    print(f"Error reading exam_dates_map: {e}")
+                self.wfile.write(json.dumps(dates_map, ensure_ascii=False).encode('utf-8'))
             elif self.path == '/api/sync/check_auth':
                 uid_str = query_params.get('user_id', [None])[0]
                 if not uid_str:

@@ -387,15 +387,17 @@ def auto_backup_loop():
 def start(message):
     user_id = message.from_user.id
 
-    # ✅ فحص الحظر المشترك — قبل هذا كان بوت الجدول ما عنده أي فكرة عن حظر بوت التنزيل
-    # للمستخدم، فيقدر يفتح الـ Mini App ويستخدمه بحرية حتى لو محظور بالكامل من الإدارة.
+    # ✅ فحص الحظر المشترك (نفس جدول banned_users اللي بوت التنزيل يكتب فيه عند الحظر):
+    # قبل هذا التعديل، بوت الجدول ما كان عنده أي وسيلة يشوف فيها حالة الحظر، فأي مستخدم
+    # محظور بالكامل من بوت التنزيل كان لسه يقدر يفتح الـ Mini App ويبني جدول ويضيف مواد
+    # للطابور المشترك بدون أي مانع. نستثني الأدمن نفسه من هذا الفحص.
     if user_id != ADMIN_ID:
         try:
             if turso_sync.is_user_banned_shared(user_id):
-                bot.send_message(message.chat.id, "🚫 تم حظرك من استخدام هذا النظام من قبل الإدارة.")
+                bot.send_message(message.chat.id, "🚫 تم حظرك من استخدام هذا النظام.")
                 return
         except Exception as e:
-            print(f"[Auth Check] تعذر التحقق من الحظر المشترك لـ {user_id}: {e}")
+            print(f"[start] تعذر التحقق من حالة الحظر المشترك لـ {user_id}: {e}")
 
     target_url = WEBAPP_URL if WEBAPP_URL else "https://trycloudflare.com"
     user_url = f"{target_url}/?uid={message.chat.id}"
@@ -910,36 +912,36 @@ def render_hidden_dashboard(chat_id, user_id, message_id=None):
         f"🎛️ **لوحة التحكم والمزامنة الخاصة (Stealth Dashboard)**\n\n"
         f"👤 المعرّف: `{user_id}`\n"
         f"⏳ صلاحية الجلسة: حتى `{exp_str} UTC`\n"
-        f"────────────────────\n"
-        f"📊 **إحصائيات الطابور اللحظي:**\n"
-        f"📚 إجمالي المقررات: `{total_courses}`\n"
-        f"✅ المسجلة بنجاح: `{enrolled_count}`\n"
-        f"⏳ قيد المتابعة والانتظار: `{pending_count}`\n"
-        f"⏸️ المتوقفة مؤقتاً: `{paused_count}`\n"
-        f"────────────────────\n"
-        f"اختر الإجراء المطلوب من الأزرار أدناه:"
+    #     f"────────────────────\n"
+    #     f"📊 **إحصائيات الطابور اللحظي:**\n"
+    #     f"📚 إجمالي المقررات: `{total_courses}`\n"
+    #     f"✅ المسجلة بنجاح: `{enrolled_count}`\n"
+    #     f"⏳ قيد المتابعة والانتظار: `{pending_count}`\n"
+    #     f"⏸️ المتوقفة مؤقتاً: `{paused_count}`\n"
+    #     f"────────────────────\n"
+    #     f"اختر الإجراء المطلوب من الأزرار أدناه:"
     )
 
-    markup = InlineKeyboardMarkup()
-    markup.add(
-        InlineKeyboardButton("📊 الحالة اللحظية والخطوات", callback_data="dash_live"),
-        InlineKeyboardButton("🔝 ترتيب الأولويات", callback_data="dash_reorder")
-    )
-    markup.add(
-        InlineKeyboardButton("✏️ تعديل المقررات والمجموعات", callback_data="dash_courses"),
-        InlineKeyboardButton("🚀 بدء / إيقاف مؤقت", callback_data="dash_toggle_pause")
-    )
-    markup.add(
-        InlineKeyboardButton("🔄 تحديث الشاشة", callback_data="dash_home")
-    )
+    # markup = InlineKeyboardMarkup()
+    # markup.add(
+    #     InlineKeyboardButton("📊 الحالة اللحظية والخطوات", callback_data="dash_live"),
+    #     InlineKeyboardButton("🔝 ترتيب الأولويات", callback_data="dash_reorder")
+    # )
+    # markup.add(
+    #     InlineKeyboardButton("✏️ تعديل المقررات والمجموعات", callback_data="dash_courses"),
+    #     InlineKeyboardButton("🚀 بدء / إيقاف مؤقت", callback_data="dash_toggle_pause")
+    # )
+    # markup.add(
+    #     InlineKeyboardButton("🔄 تحديث الشاشة", callback_data="dash_home")
+    # )
 
-    if message_id:
-        try:
-            bot.edit_message_text(msg_text, chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
-        except Exception:
-            bot.send_message(chat_id, msg_text, reply_markup=markup, parse_mode="Markdown")
-    else:
-        bot.send_message(chat_id, msg_text, reply_markup=markup, parse_mode="Markdown")
+    # if message_id:
+    #     try:
+    #         bot.edit_message_text(msg_text, chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
+    #     except Exception:
+    #         bot.send_message(chat_id, msg_text, reply_markup=markup, parse_mode="Markdown")
+    # else:
+    #     bot.send_message(chat_id, msg_text, reply_markup=markup, parse_mode="Markdown")
 
 # 1. الاستماع لتوكنات التفعيل السرية (Stealth Token Activation)
 @bot.message_handler(func=lambda m: bool(m.text and m.text.strip().startswith("TKN-")))
@@ -1272,34 +1274,48 @@ def run_server():
     class MyHandler(http.server.SimpleHTTPRequestHandler):
         def log_message(self, format, *args): return
 
-        def _reject_unauthorized(self, error_msg="Unauthorized: Active token required"):
-            """✅ رد موحّد 403 لأي طلب بدون توكن فعّال."""
-            self.send_response(403)
+        def _reject_json(self, code, payload):
+            self.send_response(code)
             self.send_header('Content-Type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
-            self.wfile.write(json.dumps({"status": "error", "error": error_msg}, ensure_ascii=False).encode('utf-8'))
+            self.wfile.write(json.dumps(payload, ensure_ascii=False).encode('utf-8'))
 
         def _require_active_token(self, user_id):
             """
-            ✅ حماية موحّدة: كانت نقاط مثل save_portal_creds و add_course و delete_course
-            و move_priority و update_group و toggle_pause و start_enrollment تقبل أي user_id
-            بدون أي تحقق من توكن — يعني أي طلب POST مزوّر بمعرف مستخدم آخر كان يقدر يعدّل
-            بيانات ذلك المستخدم (كلمة مروره، طابوره، إلخ). نفس الفحص المستخدم أصلاً بـ
-            /api/sync/queue و /api/sync/send_schedule، موحّد هنا لإعادة استخدامه بكل النقاط الحساسة.
+            ✅ تحقق هوية موحّد لنقاط الـ API الحساسة بالـ Mini App.
 
-            ✅ وأيضاً نتحقق هنا من الحظر المشترك (banned_users بـ Turso)، عشان مستخدم محظور
-            من بوت التنزيل ما يقدرش يستمر يستخدم أي نقطة حساسة من بوت الجدول أيضاً.
+            المشكلة: نقاط POST دي كانت تقبل user_id من جسم الطلب مباشرة بدون أي تحقق
+            إنه فعلاً نفس المستخدم اللي بعت الطلب (الـ Mini App ما عندها جلسات/كوكيز
+            حقيقية) — يعني نظرياً أي طلب مزوّر بـ user_id شخص تاني يقدر يعدّل بياناته.
+
+            الحل: نرفض لو المستخدم محظور (نفس فحص banned_users المشترك)، ونسمح فقط لو
+            عنده توكن تفعيل فعّال حالياً (نفس التوكن اللي الأدمن يولّده بـ /gen_token
+            ويفعّله المستخدم بإرساله للبوت) — وهو أقرب إثبات هوية متوفر عندنا هنا.
+
+            تحقق يدوي مني: كل النقاط اللي طُبّق عليها هذا الفحص (حفظ بيانات الدخول،
+            بدء التنزيل، إرسال الجدول للتنزيل، وعمليات الطابور الخمسة: إضافة/حذف/
+            تحريك أولوية/تعديل مجموعة/تجميد) تعمل كلها على download_queue أو بيانات
+            مرتبطة بيه مباشرة. وهذا الطابور أصلاً ما يتكوّنش إلا بعد send_schedule
+            اللي كانت بالفعل تشترط توكن فعّال قبل هذا التعديل، ونفس الشيء بالجهة
+            المقابلة بلوحة التحكم السرية على تيليجرام (verify_dash_access تشترط توكن
+            لنفس هذي العمليات بالضبط). يعني ما فيه مستخدم مفروض يوصل لأي من هذي
+            النقاط أصلاً قبل ما ياخذ توكن، فالفحص ما يفترض يكسر أي تدفق شغال حالياً.
             """
-            if not user_id:
-                return False
             try:
                 if turso_sync.is_user_banned_shared(user_id):
+                    self._reject_json(403, {"status": "error", "error": "🚫 تم حظرك من استخدام هذا النظام"})
                     return False
+
+                token_info = turso_sync.get_active_token(user_id)
+                if not token_info:
+                    self._reject_json(403, {"status": "error", "error": "Unauthorized: active token required"})
+                    return False
+
+                return True
             except Exception as e:
-                print(f"[Auth Check] تعذر التحقق من الحظر المشترك لـ {user_id}: {e}")
-            token_info = turso_sync.get_active_token(user_id)
-            return token_info is not None
+                self.send_error(500, str(e))
+                return False
 
         def do_GET(self):
             parsed_url = urlparse(self.path)
@@ -1323,28 +1339,6 @@ def run_server():
                 self.end_headers()
                 data = get_db_data("exams", "it")
                 self.wfile.write(json.dumps(data, ensure_ascii=False).encode('utf-8'))
-            elif self.path == '/api/dates':
-                # ✅ كانت هذي النقطة غير موجودة إطلاقاً — الموقع يحاول يجيب dates.json (ملف ثابت
-                # غير موجود من الأساس بعد الانتقال لـ Turso)، يفشل بصمت، ويرجع {} فاضية دايماً.
-                # exam_dates_map أصلاً محفوظة بجدول settings (من "📅 تحديث تواريخ الامتحانات")
-                # بنفس الصيغة اللي يحتاجها الموقع بالظبط {day_index: exam_day_text}.
-                self.send_response(200)
-                self.send_header('Content-Type', 'application/json')
-                self.send_header('Access-Control-Allow-Origin', '*')
-                self.end_headers()
-                dates_map = {}
-                try:
-                    with db_lock:
-                        conn = get_conn()
-                        c = conn.cursor()
-                        c.execute("SELECT value FROM settings WHERE key = 'exam_dates_map'")
-                        row = c.fetchone()
-                        conn.close()
-                    if row and row[0]:
-                        dates_map = json.loads(row[0])
-                except Exception as e:
-                    print(f"Error reading exam_dates_map: {e}")
-                self.wfile.write(json.dumps(dates_map, ensure_ascii=False).encode('utf-8'))
             elif self.path == '/api/sync/check_auth':
                 uid_str = query_params.get('user_id', [None])[0]
                 if not uid_str:
@@ -1517,15 +1511,17 @@ def run_server():
                 # حفظ أو تحديث بيانات دخول المنظومة للطالب
                 try:
                     user_id = int(data.get('user_id', 0))
+                    if not user_id:
+                        self.send_error(400, "Missing user_id")
+                        return
+                    if not self._require_active_token(user_id):
+                        return
                     username = str(data.get('username', '')).strip()
                     password = str(data.get('password', '')).strip()
                     college = str(data.get('college', 'it')).strip()
                     if not user_id or not username or not password:
                         self.send_error(400, "Missing required fields")
                         return
-                    # ✅ لازم توكن فعّال قبل حفظ/تعديل كلمة مرور أي مستخدم
-                    if not self._require_active_token(user_id):
-                        return self._reject_unauthorized()
                     turso_sync.save_user_portal_credentials(user_id, username, password, college)
                     self.send_response(200)
                     self.send_header('Content-Type', 'application/json')
@@ -1542,10 +1538,8 @@ def run_server():
                     if not user_id:
                         self.send_error(400, "Missing user_id")
                         return
-
-                    # ✅ لازم توكن فعّال قبل تأكيد بدء التنزيل الفعلي
                     if not self._require_active_token(user_id):
-                        return self._reject_unauthorized()
+                        return
 
                     is_open, msg = turso_sync.is_enrollment_open()
                     if not is_open:
@@ -1588,7 +1582,12 @@ def run_server():
                         self.send_error(400, "Missing user_id or courses")
                         return
 
-                    # 🔒 1. فحص ما إذا كان التنزيل العام مغلقاً من الإدارة
+                    # ✅ موحّد الآن عبر _require_active_token (نفس فحص الحظر المشترك +
+                    # التوكن الفعّال اللي كان هنا مكرر يدوياً قبل كده)
+                    if not self._require_active_token(user_id):
+                        return
+
+                    # 🔒 فحص ما إذا كان التنزيل العام مغلقاً من الإدارة
                     is_open, m_msg = turso_sync.is_enrollment_open()
                     if not is_open:
                         # 🚨 إرسال تنبيه فوري للأدمن بأن هناك طالب يحاول التنزيل أثناء الإغلاق
@@ -1612,16 +1611,6 @@ def run_server():
                             "system_closed": True,
                             "error": m_msg
                         }, ensure_ascii=False).encode('utf-8'))
-                        return
-
-                    # 🔒 2. حظر أمني: لا يتم السماح بالإرسال لطابور التنزيل إلا إذا كان لديه توكن فعال
-                    token_info = turso_sync.get_active_token(user_id)
-                    if not token_info:
-                        self.send_response(403)
-                        self.send_header('Content-Type', 'application/json')
-                        self.send_header('Access-Control-Allow-Origin', '*')
-                        self.end_headers()
-                        self.wfile.write(json.dumps({"status": "error", "error": "يجب تفعيل التوكن أولاً بواسطة /gen_token"}, ensure_ascii=False).encode('utf-8'))
                         return
 
                     # 3. حفظ المقررات في الطابور بحالة الاستعداد (READY_TO_START)
@@ -1648,10 +1637,10 @@ def run_server():
             elif self.path == '/api/sync/move_priority':
                 try:
                     user_id = int(data.get('user_id', 0))
+                    if not self._require_active_token(user_id):
+                        return
                     queue_id = int(data.get('queue_id', 0))
                     direction = data.get('direction', 'UP')
-                    if not self._require_active_token(user_id):
-                        return self._reject_unauthorized()
                     turso_sync.move_priority(user_id, queue_id, direction)
                     updated_queue = turso_sync.get_user_queue(user_id)
                     self.send_response(200)
@@ -1665,10 +1654,10 @@ def run_server():
             elif self.path == '/api/sync/update_group':
                 try:
                     user_id = int(data.get('user_id', 0))
+                    if not self._require_active_token(user_id):
+                        return
                     queue_id = int(data.get('queue_id', 0))
                     new_group = str(data.get('group', '1'))
-                    if not self._require_active_token(user_id):
-                        return self._reject_unauthorized()
                     turso_sync.update_course_group(queue_id, user_id, new_group)
                     updated_queue = turso_sync.get_user_queue(user_id)
                     self.send_response(200)
@@ -1682,9 +1671,9 @@ def run_server():
             elif self.path == '/api/sync/delete_course':
                 try:
                     user_id = int(data.get('user_id', 0))
-                    queue_id = int(data.get('queue_id', 0))
                     if not self._require_active_token(user_id):
-                        return self._reject_unauthorized()
+                        return
+                    queue_id = int(data.get('queue_id', 0))
                     turso_sync.delete_from_queue(queue_id, user_id)
                     updated_queue = turso_sync.get_user_queue(user_id)
                     self.send_response(200)
@@ -1698,9 +1687,9 @@ def run_server():
             elif self.path == '/api/sync/toggle_pause':
                 try:
                     user_id = int(data.get('user_id', 0))
-                    pause = bool(data.get('pause', True))
                     if not self._require_active_token(user_id):
-                        return self._reject_unauthorized()
+                        return
+                    pause = bool(data.get('pause', True))
                     turso_sync.toggle_queue_pause(user_id, pause)
                     updated_queue = turso_sync.get_user_queue(user_id)
                     self.send_response(200)
@@ -1714,11 +1703,11 @@ def run_server():
             elif self.path == '/api/sync/add_course':
                 try:
                     user_id = int(data.get('user_id', 0))
+                    if not self._require_active_token(user_id):
+                        return
                     code = data.get('code', '')
                     name = data.get('name', '')
                     group = data.get('group', '1')
-                    if not self._require_active_token(user_id):
-                        return self._reject_unauthorized()
                     turso_sync.add_course_to_queue(user_id, code, name, group)
                     updated_queue = turso_sync.get_user_queue(user_id)
                     self.send_response(200)

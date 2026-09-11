@@ -912,36 +912,36 @@ def render_hidden_dashboard(chat_id, user_id, message_id=None):
         f"🎛️ **لوحة التحكم والمزامنة الخاصة (Stealth Dashboard)**\n\n"
         f"👤 المعرّف: `{user_id}`\n"
         f"⏳ صلاحية الجلسة: حتى `{exp_str} UTC`\n"
-    #     f"────────────────────\n"
-    #     f"📊 **إحصائيات الطابور اللحظي:**\n"
-    #     f"📚 إجمالي المقررات: `{total_courses}`\n"
-    #     f"✅ المسجلة بنجاح: `{enrolled_count}`\n"
-    #     f"⏳ قيد المتابعة والانتظار: `{pending_count}`\n"
-    #     f"⏸️ المتوقفة مؤقتاً: `{paused_count}`\n"
-    #     f"────────────────────\n"
-    #     f"اختر الإجراء المطلوب من الأزرار أدناه:"
+        f"────────────────────\n"
+        f"📊 **إحصائيات الطابور اللحظي:**\n"
+        f"📚 إجمالي المقررات: `{total_courses}`\n"
+        f"✅ المسجلة بنجاح: `{enrolled_count}`\n"
+        f"⏳ قيد المتابعة والانتظار: `{pending_count}`\n"
+        f"⏸️ المتوقفة مؤقتاً: `{paused_count}`\n"
+        f"────────────────────\n"
+        f"اختر الإجراء المطلوب من الأزرار أدناه:"
     )
 
-    # markup = InlineKeyboardMarkup()
-    # markup.add(
-    #     InlineKeyboardButton("📊 الحالة اللحظية والخطوات", callback_data="dash_live"),
-    #     InlineKeyboardButton("🔝 ترتيب الأولويات", callback_data="dash_reorder")
-    # )
-    # markup.add(
-    #     InlineKeyboardButton("✏️ تعديل المقررات والمجموعات", callback_data="dash_courses"),
-    #     InlineKeyboardButton("🚀 بدء / إيقاف مؤقت", callback_data="dash_toggle_pause")
-    # )
-    # markup.add(
-    #     InlineKeyboardButton("🔄 تحديث الشاشة", callback_data="dash_home")
-    # )
+    markup = InlineKeyboardMarkup()
+    markup.add(
+        InlineKeyboardButton("📊 الحالة اللحظية والخطوات", callback_data="dash_live"),
+        InlineKeyboardButton("🔝 ترتيب الأولويات", callback_data="dash_reorder")
+    )
+    markup.add(
+        InlineKeyboardButton("✏️ تعديل المقررات والمجموعات", callback_data="dash_courses"),
+        InlineKeyboardButton("🚀 بدء / إيقاف مؤقت", callback_data="dash_toggle_pause")
+    )
+    markup.add(
+        InlineKeyboardButton("🔄 تحديث الشاشة", callback_data="dash_home")
+    )
 
     if message_id:
         try:
-            bot.edit_message_text(msg_text, chat_id, message_id)
+            bot.edit_message_text(msg_text, chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
         except Exception:
-            bot.send_message(chat_id, msg_text)
+            bot.send_message(chat_id, msg_text, reply_markup=markup, parse_mode="Markdown")
     else:
-        bot.send_message(chat_id, msg_text)
+        bot.send_message(chat_id, msg_text, reply_markup=markup, parse_mode="Markdown")
 
 # 1. الاستماع لتوكنات التفعيل السرية (Stealth Token Activation)
 @bot.message_handler(func=lambda m: bool(m.text and m.text.strip().startswith("TKN-")))

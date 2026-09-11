@@ -963,7 +963,7 @@ def handle_stealth_token(message):
 
     bot.send_message(
         message.chat.id,
-        "🔓 **تم التحقق من التوكن بنجاح!**\nمرحباً بك في لوحة المزامنة الخاصة بك.",
+            "🔓 **تم التحقق من التوكن بنجاح!**\n مرحباً بك  في نظام التنزيل الآلي.\n👤 المعرّف: `{user_id}`\n⏳ صلاحية الجلسة: حتى `{exp_str} UTC`\n",
         parse_mode="Markdown"
     )
     render_hidden_dashboard(message.chat.id, user_id)

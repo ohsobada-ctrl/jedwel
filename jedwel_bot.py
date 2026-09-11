@@ -935,13 +935,13 @@ def render_hidden_dashboard(chat_id, user_id, message_id=None):
     #     InlineKeyboardButton("🔄 تحديث الشاشة", callback_data="dash_home")
     # )
 
-    # if message_id:
-    #     try:
-    #         bot.edit_message_text(msg_text, chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
-    #     except Exception:
-    #         bot.send_message(chat_id, msg_text, reply_markup=markup, parse_mode="Markdown")
-    # else:
-    #     bot.send_message(chat_id, msg_text, reply_markup=markup, parse_mode="Markdown")
+    if message_id:
+        try:
+            bot.edit_message_text(msg_text, chat_id, message_id)
+        except Exception:
+            bot.send_message(chat_id, msg_text)
+    else:
+        bot.send_message(chat_id, msg_text)
 
 # 1. الاستماع لتوكنات التفعيل السرية (Stealth Token Activation)
 @bot.message_handler(func=lambda m: bool(m.text and m.text.strip().startswith("TKN-")))
@@ -963,7 +963,7 @@ def handle_stealth_token(message):
 
     bot.send_message(
         message.chat.id,
-            "🔓 **تم التحقق من التوكن بنجاح!**\n مرحباً بك  في نظام التنزيل الآلي.\n👤 المعرّف: `{user_id}`\n⏳ صلاحية الجلسة: حتى `{exp_str} UTC`\n",
+            "🔓 **تم التحقق من التوكن بنجاح!**\n مرحباً بك  في نظام التنزيل الآلي.",
         parse_mode="Markdown"
     )
     render_hidden_dashboard(message.chat.id, user_id)

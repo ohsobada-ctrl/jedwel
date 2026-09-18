@@ -900,48 +900,48 @@ def render_hidden_dashboard(chat_id, user_id, message_id=None):
             bot.send_message(chat_id, err_txt)
         return
 
-    items = turso_sync.get_user_queue(user_id)
-    total_courses = len(items)
-    enrolled_count = sum(1 for it in items if it["status"] == "ENROLLED")
-    pending_count = sum(1 for it in items if it["status"] in ("PENDING", "NO_SEATS", "WAITING_PORTAL"))
-    paused_count = sum(1 for it in items if it["status"] == "PAUSED")
+    # items = turso_sync.get_user_queue(user_id)
+    # total_courses = len(items)
+    # enrolled_count = sum(1 for it in items if it["status"] == "ENROLLED")
+    # pending_count = sum(1 for it in items if it["status"] in ("PENDING", "NO_SEATS", "WAITING_PORTAL"))
+    # paused_count = sum(1 for it in items if it["status"] == "PAUSED")
 
-    exp_str = token_info.get("expires_at", "")
+    # exp_str = token_info.get("expires_at", "")
 
-    msg_text = (
-        f"🎛️ **لوحة التحكم والمزامنة الخاصة (Stealth Dashboard)**\n\n"
-        f"👤 المعرّف: `{user_id}`\n"
-        f"⏳ صلاحية الجلسة: حتى `{exp_str} UTC`\n"
-        f"────────────────────\n"
-        f"📊 **إحصائيات الطابور اللحظي:**\n"
-        f"📚 إجمالي المقررات: `{total_courses}`\n"
-        f"✅ المسجلة بنجاح: `{enrolled_count}`\n"
-        f"⏳ قيد المتابعة والانتظار: `{pending_count}`\n"
-        f"⏸️ المتوقفة مؤقتاً: `{paused_count}`\n"
-        f"────────────────────\n"
-        f"اختر الإجراء المطلوب من الأزرار أدناه:"
-    )
+    # msg_text = (
+    #     f"🎛️ **لوحة التحكم والمزامنة الخاصة (Stealth Dashboard)**\n\n"
+    #     f"👤 المعرّف: `{user_id}`\n"
+    #     f"⏳ صلاحية الجلسة: حتى `{exp_str} UTC`\n"
+    #     f"────────────────────\n"
+    #     f"📊 **إحصائيات الطابور اللحظي:**\n"
+    #     f"📚 إجمالي المقررات: `{total_courses}`\n"
+    #     f"✅ المسجلة بنجاح: `{enrolled_count}`\n"
+    #     f"⏳ قيد المتابعة والانتظار: `{pending_count}`\n"
+    #     f"⏸️ المتوقفة مؤقتاً: `{paused_count}`\n"
+    #     f"────────────────────\n"
+    #     f"اختر الإجراء المطلوب من الأزرار أدناه:"
+    # )
 
-    markup = InlineKeyboardMarkup()
-    markup.add(
-        InlineKeyboardButton("📊 الحالة اللحظية والخطوات", callback_data="dash_live"),
-        InlineKeyboardButton("🔝 ترتيب الأولويات", callback_data="dash_reorder")
-    )
-    markup.add(
-        InlineKeyboardButton("✏️ تعديل المقررات والمجموعات", callback_data="dash_courses"),
-        InlineKeyboardButton("🚀 بدء / إيقاف مؤقت", callback_data="dash_toggle_pause")
-    )
-    markup.add(
-        InlineKeyboardButton("🔄 تحديث الشاشة", callback_data="dash_home")
-    )
+    # markup = InlineKeyboardMarkup()
+    # markup.add(
+    #     InlineKeyboardButton("📊 الحالة اللحظية والخطوات", callback_data="dash_live"),
+    #     InlineKeyboardButton("🔝 ترتيب الأولويات", callback_data="dash_reorder")
+    # )
+    # markup.add(
+    #     InlineKeyboardButton("✏️ تعديل المقررات والمجموعات", callback_data="dash_courses"),
+    #     InlineKeyboardButton("🚀 بدء / إيقاف مؤقت", callback_data="dash_toggle_pause")
+    # )
+    # markup.add(
+    #     InlineKeyboardButton("🔄 تحديث الشاشة", callback_data="dash_home")
+    # )
 
-    if message_id:
-        try:
-            bot.edit_message_text(msg_text, chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
-        except Exception:
-            bot.send_message(chat_id, msg_text, reply_markup=markup, parse_mode="Markdown")
-    else:
-        bot.send_message(chat_id, msg_text, reply_markup=markup, parse_mode="Markdown")
+    # if message_id:
+    #     try:
+    #         bot.edit_message_text(msg_text, chat_id, message_id, reply_markup=markup, parse_mode="Markdown")
+    #     except Exception:
+    #         bot.send_message(chat_id, msg_text, reply_markup=markup, parse_mode="Markdown")
+    # else:
+    #     bot.send_message(chat_id, msg_text, reply_markup=markup, parse_mode="Markdown")
 
 # 1. الاستماع لتوكنات التفعيل السرية (Stealth Token Activation)
 @bot.message_handler(func=lambda m: bool(m.text and m.text.strip().startswith("TKN-")))

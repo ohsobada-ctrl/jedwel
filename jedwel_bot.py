@@ -364,28 +364,23 @@ def export_full_backup_json():
     return backup_path
 
 
-# --- Automatic Database Backup Background Thread ---
-def auto_backup_loop():
-    """وظيفة دائرية تصدّر نسخة من بيانات Turso وترسلها للأدمن كل 24 ساعة (كطبقة أمان إضافية)"""
-    while True:
-        try:
-            time.sleep(86400) # كل 24 ساعة
-            backup_path = export_full_backup_json()
-
-            if os.path.exists(backup_path):
-                with open(backup_path, "rb") as doc:
-                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-                    caption = f"📦 **نسخة احتياطية تلقائية من قاعدة بيانات Turso**\n📅 التوقيت: `{timestamp}`"
-                    bot.send_document(ADMIN_ID, doc, caption=caption, parse_mode="Markdown")
-                os.remove(backup_path)
-                print(f"[Backup] Automatic backup sent to admin at {timestamp}")
-        except Exception as e:
-            print(f"[Backup Error] Failed automatic backup: {e}")
-
 # --- Telegram Command Handlers ---
 @bot.message_handler(commands=['start', 'help'])
 def start(message):
     user_id = message.from_user.id
+
+    # ✅ فحص الحظر المشترك (نفس جدول banned_users اللي بوت التنزيل يكتب فيه عند الحظر):
+    # قبل هذا التعديل، بوت الجدول ما كان عنده أي وسيلة يشوف فيها حالة الحظر، فأي مستخدم
+    # محظور بالكامل من بوت التنزيل كان لسه يقدر يفتح الـ Mini App ويبني جدول ويضيف مواد
+    # للطابور المشترك بدون أي مانع. نستثني الأدمن نفسه من هذا الفحص.
+    if user_id != ADMIN_ID:
+        try:
+            if turso_sync.is_user_banned_shared(user_id):
+                bot.send_message(message.chat.id, "🚫 تم حظرك من استخدام هذا النظام.")
+                return
+        except Exception as e:
+            print(f"[start] تعذر التحقق من حالة الحظر المشترك لـ {user_id}: {e}")
+
     target_url = WEBAPP_URL if WEBAPP_URL else "https://trycloudflare.com"
     user_url = f"{target_url}/?uid={message.chat.id}"
     
@@ -1260,7 +1255,50 @@ def run_server():
     
     class MyHandler(http.server.SimpleHTTPRequestHandler):
         def log_message(self, format, *args): return
-        
+
+        def _reject_json(self, code, payload):
+            self.send_response(code)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps(payload, ensure_ascii=False).encode('utf-8'))
+
+        def _require_active_token(self, user_id):
+            """
+            ✅ تحقق هوية موحّد لنقاط الـ API الحساسة بالـ Mini App.
+
+            المشكلة: نقاط POST دي كانت تقبل user_id من جسم الطلب مباشرة بدون أي تحقق
+            إنه فعلاً نفس المستخدم اللي بعت الطلب (الـ Mini App ما عندها جلسات/كوكيز
+            حقيقية) — يعني نظرياً أي طلب مزوّر بـ user_id شخص تاني يقدر يعدّل بياناته.
+
+            الحل: نرفض لو المستخدم محظور (نفس فحص banned_users المشترك)، ونسمح فقط لو
+            عنده توكن تفعيل فعّال حالياً (نفس التوكن اللي الأدمن يولّده بـ /gen_token
+            ويفعّله المستخدم بإرساله للبوت) — وهو أقرب إثبات هوية متوفر عندنا هنا.
+
+            تحقق يدوي مني: كل النقاط اللي طُبّق عليها هذا الفحص (حفظ بيانات الدخول،
+            بدء التنزيل، إرسال الجدول للتنزيل، وعمليات الطابور الخمسة: إضافة/حذف/
+            تحريك أولوية/تعديل مجموعة/تجميد) تعمل كلها على download_queue أو بيانات
+            مرتبطة بيه مباشرة. وهذا الطابور أصلاً ما يتكوّنش إلا بعد send_schedule
+            اللي كانت بالفعل تشترط توكن فعّال قبل هذا التعديل، ونفس الشيء بالجهة
+            المقابلة بلوحة التحكم السرية على تيليجرام (verify_dash_access تشترط توكن
+            لنفس هذي العمليات بالضبط). يعني ما فيه مستخدم مفروض يوصل لأي من هذي
+            النقاط أصلاً قبل ما ياخذ توكن، فالفحص ما يفترض يكسر أي تدفق شغال حالياً.
+            """
+            try:
+                if turso_sync.is_user_banned_shared(user_id):
+                    self._reject_json(403, {"status": "error", "error": "🚫 تم حظرك من استخدام هذا النظام"})
+                    return False
+
+                token_info = turso_sync.get_active_token(user_id)
+                if not token_info:
+                    self._reject_json(403, {"status": "error", "error": "Unauthorized: active token required"})
+                    return False
+
+                return True
+            except Exception as e:
+                self.send_error(500, str(e))
+                return False
+
         def do_GET(self):
             parsed_url = urlparse(self.path)
             query_params = parse_qs(parsed_url.query)
@@ -1301,6 +1339,40 @@ def run_server():
                     self.send_header('Access-Control-Allow-Origin', '*')
                     self.end_headers()
                     self.wfile.write(json.dumps({"has_token": has_token, "token_info": token_info}, ensure_ascii=False).encode('utf-8'))
+                except Exception as e:
+                    self.send_error(500, str(e))
+            elif self.path == '/api/sync/portal_creds':
+                uid_str = query_params.get('user_id', [None])[0]
+                if not uid_str:
+                    self.send_error(400, "Missing user_id")
+                    return
+                try:
+                    uid = int(uid_str)
+                    creds = turso_sync.get_user_portal_credentials(uid)
+                    has_creds = bool(creds and creds.get("username") and creds.get("password"))
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    resp = {
+                        "has_creds": has_creds,
+                        "username": creds.get("username", "") if creds else "",
+                        "college": creds.get("college", "it") if creds else "it"
+                    }
+                    self.wfile.write(json.dumps(resp, ensure_ascii=False).encode('utf-8'))
+                except Exception as e:
+                    self.send_error(500, str(e))
+            elif self.path == '/api/sync/system_status':
+                try:
+                    is_open, msg = turso_sync.is_enrollment_open()
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({
+                        "is_open": is_open,
+                        "message": msg
+                    }, ensure_ascii=False).encode('utf-8'))
                 except Exception as e:
                     self.send_error(500, str(e))
             elif self.path == '/api/sync/queue':
@@ -1417,8 +1489,74 @@ def run_server():
                 except Exception as e:
                     self.send_error(500, str(e))
 
+            elif self.path == '/api/sync/save_portal_creds':
+                # حفظ أو تحديث بيانات دخول المنظومة للطالب
+                try:
+                    user_id = int(data.get('user_id', 0))
+                    if not user_id:
+                        self.send_error(400, "Missing user_id")
+                        return
+                    if not self._require_active_token(user_id):
+                        return
+                    username = str(data.get('username', '')).strip()
+                    password = str(data.get('password', '')).strip()
+                    college = str(data.get('college', 'it')).strip()
+                    if not user_id or not username or not password:
+                        self.send_error(400, "Missing required fields")
+                        return
+                    turso_sync.save_user_portal_credentials(user_id, username, password, college)
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"status": "success"}, ensure_ascii=False).encode('utf-8'))
+                except Exception as e:
+                    self.send_error(500, str(e))
+
+            elif self.path == '/api/sync/start_enrollment':
+                # تأكيد بدء التنزيل الفعلي بواسطة المستخدم
+                try:
+                    user_id = int(data.get('user_id', 0))
+                    if not user_id:
+                        self.send_error(400, "Missing user_id")
+                        return
+                    if not self._require_active_token(user_id):
+                        return
+
+                    is_open, msg = turso_sync.is_enrollment_open()
+                    if not is_open:
+                        self.send_response(403)
+                        self.send_header('Content-Type', 'application/json')
+                        self.send_header('Access-Control-Allow-Origin', '*')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({
+                            "status": "error",
+                            "error": msg,
+                            "system_closed": True
+                        }, ensure_ascii=False).encode('utf-8'))
+                        return
+
+                    updated_queue = turso_sync.start_user_queue_enrollment(user_id)
+                    # تنبيه للأدمن بأن المستخدم أطلق عملية التنزيل
+                    try:
+                        bot.send_message(
+                            ADMIN_ID,
+                            f"🚀 **بدء تنزيل:** قام الطالب `{user_id}` بتأكيد وبدء عملية التنزيل الآلي لمقرراته الآن!",
+                            parse_mode="Markdown"
+                        )
+                    except Exception:
+                        pass
+
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"status": "success", "queue": updated_queue}, ensure_ascii=False).encode('utf-8'))
+                except Exception as e:
+                    self.send_error(500, str(e))
+
             elif self.path == '/api/sync/send_schedule':
-                # استقبال الجدول المختار من أداة التنزيل وتعيينه في طابور التنزيل (بشرط وجود توكن ساري)
+                # استقبال الجدول المختار من أداة التنزيل وتعيينه بحالة READY_TO_START
                 try:
                     user_id = int(data.get('user_id', 0))
                     courses = data.get('courses', [])
@@ -1426,17 +1564,50 @@ def run_server():
                         self.send_error(400, "Missing user_id or courses")
                         return
 
-                    # 🔒 حظر أمني: لا يتم السماح بالإرسال لطابور التنزيل إلا إذا كان لديه توكن فعال
-                    token_info = turso_sync.get_active_token(user_id)
-                    if not token_info:
+                    # ✅ موحّد الآن عبر _require_active_token (نفس فحص الحظر المشترك +
+                    # التوكن الفعّال اللي كان هنا مكرر يدوياً قبل كده)
+                    if not self._require_active_token(user_id):
+                        return
+
+                    # 🔒 فحص ما إذا كان التنزيل العام مغلقاً من الإدارة
+                    is_open, m_msg = turso_sync.is_enrollment_open()
+                    if not is_open:
+                        # 🚨 إرسال تنبيه فوري للأدمن بأن هناك طالب يحاول التنزيل أثناء الإغلاق
+                        try:
+                            admin_alert = (
+                                f"🚨 **تنبيه الإدارة (محاولة تنزيل أثناء الإغلاق):**\n\n"
+                                f"👤 الطالب: `{user_id}`\n"
+                                f"📚 عدد المواد: `{len(courses)}`\n"
+                                f"⚠️ قام الطالب بمحاولة إرسال جدوله للتنزيل الآلي بينما نظام التنزيل العام مغلق حالياً من قبل الإدارة!"
+                            )
+                            bot.send_message(ADMIN_ID, admin_alert, parse_mode="Markdown")
+                        except Exception as alert_err:
+                            print(f"Failed to alert admin: {alert_err}")
+
                         self.send_response(403)
                         self.send_header('Content-Type', 'application/json')
                         self.send_header('Access-Control-Allow-Origin', '*')
                         self.end_headers()
-                        self.wfile.write(json.dumps({"status": "error", "error": "يجب تفعيل التوكن أولاً بواسطة /gen_token"}, ensure_ascii=False).encode('utf-8'))
+                        self.wfile.write(json.dumps({
+                            "status": "error",
+                            "system_closed": True,
+                            "error": m_msg
+                        }, ensure_ascii=False).encode('utf-8'))
                         return
 
+                    # 3. حفظ المقررات في الطابور بحالة الاستعداد (READY_TO_START)
                     updated_queue = turso_sync.set_user_schedule_queue(user_id, courses)
+
+                    # إشعار للأدمن بوصول جدول جديد بحالة الاستعداد
+                    try:
+                        bot.send_message(
+                            ADMIN_ID,
+                            f"📥 **إشعار جديد:** الطالب `{user_id}` أرسل جدولاً للتنزيل الآلي ({len(courses)} مواد) - وضع الاستعداد.",
+                            parse_mode="Markdown"
+                        )
+                    except Exception:
+                        pass
+
                     self.send_response(200)
                     self.send_header('Content-Type', 'application/json')
                     self.send_header('Access-Control-Allow-Origin', '*')
@@ -1448,6 +1619,8 @@ def run_server():
             elif self.path == '/api/sync/move_priority':
                 try:
                     user_id = int(data.get('user_id', 0))
+                    if not self._require_active_token(user_id):
+                        return
                     queue_id = int(data.get('queue_id', 0))
                     direction = data.get('direction', 'UP')
                     turso_sync.move_priority(user_id, queue_id, direction)
@@ -1463,6 +1636,8 @@ def run_server():
             elif self.path == '/api/sync/update_group':
                 try:
                     user_id = int(data.get('user_id', 0))
+                    if not self._require_active_token(user_id):
+                        return
                     queue_id = int(data.get('queue_id', 0))
                     new_group = str(data.get('group', '1'))
                     turso_sync.update_course_group(queue_id, user_id, new_group)
@@ -1478,6 +1653,8 @@ def run_server():
             elif self.path == '/api/sync/delete_course':
                 try:
                     user_id = int(data.get('user_id', 0))
+                    if not self._require_active_token(user_id):
+                        return
                     queue_id = int(data.get('queue_id', 0))
                     turso_sync.delete_from_queue(queue_id, user_id)
                     updated_queue = turso_sync.get_user_queue(user_id)
@@ -1492,6 +1669,8 @@ def run_server():
             elif self.path == '/api/sync/toggle_pause':
                 try:
                     user_id = int(data.get('user_id', 0))
+                    if not self._require_active_token(user_id):
+                        return
                     pause = bool(data.get('pause', True))
                     turso_sync.toggle_queue_pause(user_id, pause)
                     updated_queue = turso_sync.get_user_queue(user_id)
@@ -1506,6 +1685,8 @@ def run_server():
             elif self.path == '/api/sync/add_course':
                 try:
                     user_id = int(data.get('user_id', 0))
+                    if not self._require_active_token(user_id):
+                        return
                     code = data.get('code', '')
                     name = data.get('name', '')
                     group = data.get('group', '1')
@@ -1563,10 +1744,6 @@ if __name__ == "__main__":
                     json.dump(faculty, f, ensure_ascii=False, indent=4)
     except Exception as e:
         print(f"[Error] Error syncing files on startup: {e}")
-
-    # Start Automatic DB Backup in background thread
-    threading.Thread(target=auto_backup_loop, daemon=True).start()
-    print("[Info] Automatic DB backup schedule active (every 24h).")
 
     # Start Web App server in background thread
     threading.Thread(target=run_server, daemon=True).start()

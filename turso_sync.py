@@ -58,11 +58,89 @@ def init_sync_tables():
             );
         """)
 
+        # 3. جدول بيانات دخول المنظومة للطلاب (رقم القيد وكلمة المرور المشتركة)
+        client.execute("""
+            CREATE TABLE IF NOT EXISTS user_portal_creds (
+                user_id INTEGER PRIMARY KEY,
+                username TEXT NOT NULL,
+                password TEXT NOT NULL,
+                college TEXT DEFAULT 'it',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+
+        # 4. جدول إعدادات النظام وقفل التنزيل
+        client.execute("""
+            CREATE TABLE IF NOT EXISTS system_settings (
+                setting_key TEXT PRIMARY KEY,
+                setting_val TEXT NOT NULL,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        client.execute("INSERT OR IGNORE INTO system_settings (setting_key, setting_val, updated_at) VALUES ('enrollment_active', '1', CURRENT_TIMESTAMP);")
+        client.execute("INSERT OR IGNORE INTO system_settings (setting_key, setting_val, updated_at) VALUES ('maintenance_message', 'نظام التنزيل الآلي مغلق حالياً من قبل الإدارة بانتظار إعلان موعد الفتح.', CURRENT_TIMESTAMP);")
+
+        # 5. جدول الحظر المشترك — قبل هذا كان الحظر محفوظ محلياً بملف users.json على سيرفر
+        # بوت التنزيل فقط، وبوت الجدول ما عنده أي وسيلة يشوف فيها هل المستخدم محظور أو لا.
+        # هذا الجدول يخلي الحظر مرئي ومتزامن بين البوتين الاثنين.
+        client.execute("""
+            CREATE TABLE IF NOT EXISTS banned_users (
+                user_id INTEGER PRIMARY KEY,
+                banned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                reason TEXT
+            );
+        """)
+
         # فهارس لتسريع البحث والأولوية
         client.execute("CREATE INDEX IF NOT EXISTS idx_tokens_token ON user_tokens (token);")
         client.execute("CREATE INDEX IF NOT EXISTS idx_queue_user_priority ON download_queue (user_id, priority ASC);")
         client.execute("CREATE INDEX IF NOT EXISTS idx_queue_status ON download_queue (status);")
         logger.info("[TursoSync] تم التحقق من إنشاء الجداول والفهارس بنجاح.")
+    finally:
+        client.close()
+
+# ----------------- الحظر المشترك بين البوتين (banned_users) -----------------
+
+def ban_user_shared(user_id: int, reason: str = "") -> bool:
+    """حظر مستخدم بشكل مشترك بحيث يظهر لكل من بوت التنزيل وبوت الجدول"""
+    client = get_client()
+    try:
+        client.execute("""
+            INSERT INTO banned_users (user_id, banned_at, reason)
+            VALUES (?, CURRENT_TIMESTAMP, ?)
+            ON CONFLICT(user_id) DO UPDATE SET
+                banned_at = CURRENT_TIMESTAMP,
+                reason = excluded.reason;
+        """, [user_id, reason])
+        return True
+    except Exception as e:
+        logger.error(f"[TursoSync] خطأ أثناء حظر المستخدم {user_id}: {e}")
+        return False
+    finally:
+        client.close()
+
+def unban_user_shared(user_id: int) -> bool:
+    """إلغاء الحظر المشترك عن مستخدم"""
+    client = get_client()
+    try:
+        client.execute("DELETE FROM banned_users WHERE user_id = ?", [user_id])
+        return True
+    except Exception as e:
+        logger.error(f"[TursoSync] خطأ أثناء إلغاء حظر المستخدم {user_id}: {e}")
+        return False
+    finally:
+        client.close()
+
+def is_user_banned_shared(user_id: int) -> bool:
+    """التحقق من الحظر المشترك — تستخدمها كل من بوت التنزيل وبوت الجدول"""
+    client = get_client()
+    try:
+        res = client.execute("SELECT 1 FROM banned_users WHERE user_id = ?", [user_id])
+        return bool(res.rows)
+    except Exception as e:
+        logger.error(f"[TursoSync] خطأ أثناء التحقق من حظر المستخدم {user_id}: {e}")
+        return False
     finally:
         client.close()
 
@@ -144,6 +222,23 @@ def verify_user_token(token: str, telegram_user_id: int) -> Tuple[bool, str, Opt
             "expires_at": expires_at_str,
             "is_active": is_active
         }
+    finally:
+        client.close()
+
+def revoke_user_token(user_id: int) -> bool:
+    """إلغاء وإبطال صلاحية توكن المستخدم فوراً عند الحظر"""
+    client = get_client()
+    try:
+        past_date = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")
+        client.execute(
+            "UPDATE user_tokens SET is_active = 0, expires_at = ? WHERE user_id = ?",
+            [past_date, int(user_id)]
+        )
+        logger.info(f"[TursoSync] تم إبطال توكن المستخدم {user_id} فوراً.")
+        return True
+    except Exception as e:
+        logger.error(f"[TursoSync] خطأ في إلغاء توكن المستخدم {user_id}: {e}")
+        return False
     finally:
         client.close()
 
@@ -263,7 +358,7 @@ def set_user_schedule_queue(user_id: int, courses_list: List[Dict[str, Any]]) ->
             client.execute(
                 """
                 INSERT INTO download_queue (user_id, course_code, course_name, group_no, priority, status, last_updated)
-                VALUES (?, ?, ?, ?, ?, 'PENDING', CURRENT_TIMESTAMP);
+                VALUES (?, ?, ?, ?, ?, 'READY_TO_START', CURRENT_TIMESTAMP);
                 """,
                 [user_id, code, name, group, idx]
             )
@@ -406,5 +501,257 @@ def get_unfinished_tasks_for_recovery() -> List[Dict[str, Any]]:
                 "status": r[6]
             })
         return tasks
+    finally:
+        client.close()
+
+def get_active_and_pending_user_ids() -> List[int]:
+    """
+    جلب معرفات المستخدمين الذين لديهم نشاط أو مهام معلقة في الوقت الحالي:
+    (مهام في حالة PENDING, NO_SEATS, WAITING_PORTAL, READY_TO_START, أو PAUSED مؤخراً)
+    """
+    client = get_client()
+    try:
+        res = client.execute("""
+            SELECT DISTINCT user_id 
+            FROM download_queue 
+            WHERE status IN ('PENDING', 'NO_SEATS', 'WAITING_PORTAL', 'READY_TO_START', 'PAUSED')
+        """)
+        return [int(r[0]) for r in res.rows if r[0] is not None]
+    except Exception as e:
+        logger.error(f"Error getting active and pending user ids: {e}")
+        return []
+    finally:
+        client.close()
+
+# ----------------- بيانات دخول المنظومة للطلاب (رقم القيد وكلمة المرور) -----------------
+
+def save_user_portal_credentials(user_id: int, username: str, password: str, college: str = "it") -> bool:
+    """حفظ أو تحديث بيانات دخول الطالب لمنظومة الجامعة في Turso"""
+    client = get_client()
+    try:
+        client.execute("""
+            INSERT INTO user_portal_creds (user_id, username, password, college, updated_at)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(user_id) DO UPDATE SET
+                username = excluded.username,
+                password = excluded.password,
+                college = excluded.college,
+                updated_at = CURRENT_TIMESTAMP;
+        """, [user_id, username.strip(), password.strip(), college.strip()])
+        logger.info(f"[TursoSync] تم حفظ بيانات منظومة الجامعة للمستخدم {user_id} بنجاح.")
+        return True
+    finally:
+        client.close()
+
+def get_user_portal_credentials(user_id: int) -> Optional[Dict[str, Any]]:
+    """جلب بيانات دخول المنظومة للمستخدم إن وجدت"""
+    client = get_client()
+    try:
+        res = client.execute(
+            "SELECT user_id, username, password, college FROM user_portal_creds WHERE user_id = ?",
+            [user_id]
+        )
+        if not res.rows:
+            return None
+        r = res.rows[0]
+        return {
+            "user_id": r[0],
+            "username": r[1],
+            "password": r[2],
+            "college": r[3] or "it"
+        }
+    finally:
+        client.close()
+
+def has_user_portal_credentials(user_id: int) -> bool:
+    """التحقق السريع مما إذا كان الطالب قد أدخل بيانات دخوله سابقاً"""
+    creds = get_user_portal_credentials(user_id)
+    return bool(creds and creds.get("username") and creds.get("password"))
+
+# ----------------- إعدادات النظام وقفل التنزيل العام -----------------
+
+def get_system_setting(key: str, default: Optional[str] = None) -> Optional[str]:
+    """جلب قيمة إعداد من إعدادات النظام"""
+    client = get_client()
+    try:
+        res = client.execute("SELECT setting_val FROM system_settings WHERE setting_key = ?", [key])
+        if res.rows:
+            return res.rows[0][0]
+        return default
+    except Exception:
+        return default
+    finally:
+        client.close()
+
+def set_system_setting(key: str, val: str) -> bool:
+    """تعيين أو تحديث إعداد في النظام العام"""
+    client = get_client()
+    try:
+        client.execute("""
+            INSERT INTO system_settings (setting_key, setting_val, updated_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(setting_key) DO UPDATE SET
+                setting_val = excluded.setting_val,
+                updated_at = CURRENT_TIMESTAMP;
+        """, [key, str(val)])
+        return True
+    finally:
+        client.close()
+
+def is_enrollment_open() -> Tuple[bool, str]:
+    """فحص ما إذا كان نظام التنزيل مفتوحاً من قبل الإدارة، وإرجاع رسالة الإغلاق إن كان مقفلاً"""
+    active = get_system_setting("enrollment_active", "1")
+    msg = get_system_setting("maintenance_message", "نظام التنزيل الآلي مغلق حالياً من قبل الإدارة بانتظار إعلان موعد الفتح.")
+    return (active == "1"), (msg or "نظام التنزيل مغلق حالياً.")
+
+def start_user_queue_enrollment(user_id: int) -> List[Dict[str, Any]]:
+    """تفعيل طابور التنزيل للمستخدم بعد موافقته الصريحة (تحويل READY_TO_START إلى PENDING)"""
+    client = get_client()
+    try:
+        client.execute(
+            "UPDATE download_queue SET status = 'PENDING', last_updated = CURRENT_TIMESTAMP WHERE user_id = ? AND status = 'READY_TO_START'",
+            [user_id]
+        )
+        return get_user_queue(user_id)
+    finally:
+        client.close()
+
+def pause_all_active_tasks() -> int:
+    """إيقاف طوارئ لكافة المواد النشطة في الطابور لجميع المستخدمين"""
+    client = get_client()
+    try:
+        res = client.execute(
+            "UPDATE download_queue SET status = 'PAUSED', last_updated = CURRENT_TIMESTAMP WHERE status IN ('PENDING', 'WAITING_PORTAL', 'NO_SEATS')"
+        )
+        return res.rows_affected if hasattr(res, 'rows_affected') else 1
+    finally:
+        client.close()
+
+def resume_all_paused_tasks() -> int:
+    """استئناف كافة المواد المتوقفة مؤقتاً في الطابور لجميع المستخدمين"""
+    client = get_client()
+    try:
+        res = client.execute(
+            "UPDATE download_queue SET status = 'PENDING', last_updated = CURRENT_TIMESTAMP WHERE status = 'PAUSED'"
+        )
+        return res.rows_affected if hasattr(res, 'rows_affected') else 1
+    finally:
+        client.close()
+
+
+def extend_user_token(user_id: int, extra_hours: int) -> Tuple[bool, str]:
+    """
+    تمديد صلاحية توكن مستخدم موجود بعدد ساعات إضافية دون إعادة توليد التوكن.
+    يرجع (success, new_expires_at_iso).
+    """
+    client = get_client()
+    try:
+        res = client.execute(
+            "SELECT expires_at, is_active FROM user_tokens WHERE user_id = ?",
+            [int(user_id)]
+        )
+        if not res.rows:
+            return False, "NO_TOKEN"
+
+        expires_at_str = res.rows[0][0]
+        is_active = res.rows[0][1]
+
+        # قراءة وقت الانتهاء الحالي (أو الوقت الحالي إن كان منتهياً)
+        try:
+            exp_time = datetime.strptime(expires_at_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+        except Exception:
+            try:
+                exp_time = datetime.fromisoformat(expires_at_str).replace(tzinfo=timezone.utc)
+            except Exception:
+                exp_time = datetime.now(timezone.utc)
+
+        # إذا انتهى التوكن نمدده من الوقت الحالي، وإلا من وقت الانتهاء
+        now_utc = datetime.now(timezone.utc)
+        base_time = max(exp_time, now_utc)
+        new_expires_at = (base_time + timedelta(hours=extra_hours)).strftime("%Y-%m-%d %H:%M:%S")
+
+        client.execute(
+            "UPDATE user_tokens SET expires_at = ?, is_active = 1 WHERE user_id = ?",
+            [new_expires_at, int(user_id)]
+        )
+        logger.info(f"[TursoSync] تم تمديد توكن المستخدم {user_id} بـ {extra_hours} ساعة. ينتهي في {new_expires_at} UTC")
+        return True, new_expires_at
+    except Exception as e:
+        logger.error(f"[TursoSync] خطأ في تمديد توكن المستخدم {user_id}: {e}")
+        return False, str(e)
+    finally:
+        client.close()
+
+
+def get_users_with_paused_tasks() -> List[int]:
+    """جلب معرفات المستخدمين الذين لديهم مهام PAUSED في الطابور"""
+    client = get_client()
+    try:
+        res = client.execute(
+            "SELECT DISTINCT user_id FROM download_queue WHERE status = 'PAUSED'"
+        )
+        return [int(r[0]) for r in res.rows if r[0] is not None]
+    except Exception as e:
+        logger.error(f"[TursoSync] خطأ في جلب المستخدمين ذوي مهام PAUSED: {e}")
+        return []
+    finally:
+        client.close()
+
+
+def check_and_expire_tokens() -> List[int]:
+    """
+    فحص التوكنات المنتهية الصلاحية وإيقاف مهامها (Pause).
+    يرجع قائمة بمعرفات المستخدمين المتأثرين لإرسال إشعارات لهم.
+    """
+    client = get_client()
+    try:
+        now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+
+        # جلب المستخدمين الذين انتهت توكناتهم ولديهم مهام نشطة
+        res = client.execute(
+            """
+            SELECT DISTINCT q.user_id
+            FROM download_queue q
+            JOIN user_tokens t ON q.user_id = t.user_id
+            WHERE t.is_active = 1 AND t.expires_at <= ?
+              AND q.status IN ('PENDING', 'WAITING_PORTAL', 'NO_SEATS')
+            """,
+            [now_str]
+        )
+        affected_users = [int(r[0]) for r in res.rows if r[0] is not None]
+
+        if affected_users:
+            for uid in affected_users:
+                # إيقاف المهام مؤقتاً (PAUSED) مع الحفاظ على البيانات
+                client.execute(
+                    """
+                    UPDATE download_queue
+                    SET status = 'PAUSED', last_updated = CURRENT_TIMESTAMP
+                    WHERE user_id = ? AND status IN ('PENDING', 'WAITING_PORTAL', 'NO_SEATS')
+                    """,
+                    [uid]
+                )
+            logger.info(f"[TursoSync] تم إيقاف مهام {len(affected_users)} مستخدمين بسبب انتهاء التوكن: {affected_users}")
+
+        return affected_users
+    except Exception as e:
+        logger.error(f"[TursoSync] خطأ في check_and_expire_tokens: {e}")
+        return []
+    finally:
+        client.close()
+
+
+def resume_user_paused_tasks(user_id: int) -> int:
+    """استئناف مهام مستخدم معين المتوقفة (PAUSED -> PENDING)"""
+    client = get_client()
+    try:
+        res = client.execute(
+            "UPDATE download_queue SET status = 'PENDING', last_updated = CURRENT_TIMESTAMP WHERE user_id = ? AND status = 'PAUSED'",
+            [int(user_id)]
+        )
+        return res.rows_affected if hasattr(res, 'rows_affected') else 1
+    except Exception as e:
+        logger.error(f"[TursoSync] خطأ في استئناف مهام المستخدم {user_id}: {e}")
+        return 0
     finally:
         client.close()

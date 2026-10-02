@@ -1,0 +1,15 @@
+{
+    "allowed_users": [],
+    "banned_users": [],
+    "all_users": [],
+    "user_info": {},
+    "user_creds": {},
+    "monitored_queues": {},
+    "waiting_tasks": [],
+    "settings": {
+        "refresh_interval": 15,
+        "wait_timeout": 30,
+        "stay_awake": false,
+        "capacity_wait_time": 15
+    }
+}

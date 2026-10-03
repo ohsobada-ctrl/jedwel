@@ -637,6 +637,7 @@ def resume_all_paused_tasks() -> int:
         return res.rows_affected if hasattr(res, 'rows_affected') else 1
     finally:
         client.close()
+<<<<<<< HEAD
 
 
 def extend_user_token(user_id: int, extra_hours: int) -> Tuple[bool, str]:
@@ -755,3 +756,5 @@ def resume_user_paused_tasks(user_id: int) -> int:
         return 0
     finally:
         client.close()
+=======
+>>>>>>> ffec65847b024cfd829cfc350ed4dba5017f7f93

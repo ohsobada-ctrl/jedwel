@@ -1177,8 +1177,13 @@
         /* ==== Confirm Enrollment Button ==== */
         .confirm-enroll-card {
             display: none;
+<<<<<<< HEAD
             background: linear-gradient(135deg, rgba(16, 185, 129, .08), rgba(5, 150, 105, .12));
             border: 1.5px solid rgba(16, 185, 129, 0.4);
+=======
+            background: linear-gradient(135deg, rgba(16,185,129,.08), rgba(5,150,105,.12));
+            border: 1.5px solid rgba(16,185,129,0.4);
+>>>>>>> ffec65847b024cfd829cfc350ed4dba5017f7f93
             border-radius: var(--radius-md);
             padding: 16px;
             margin-bottom: 12px;
@@ -1213,14 +1218,22 @@
             font-size: 1rem;
             cursor: pointer;
             width: 100%;
+<<<<<<< HEAD
             box-shadow: 0 6px 16px -6px rgba(16, 185, 129, .5);
+=======
+            box-shadow: 0 6px 16px -6px rgba(16,185,129,.5);
+>>>>>>> ffec65847b024cfd829cfc350ed4dba5017f7f93
             transition: all .2s ease;
             font-family: 'Cairo', sans-serif;
         }
 
         .btn-confirm-enroll:hover {
             transform: translateY(-1px);
+<<<<<<< HEAD
             box-shadow: 0 10px 22px -6px rgba(16, 185, 129, .6);
+=======
+            box-shadow: 0 10px 22px -6px rgba(16,185,129,.6);
+>>>>>>> ffec65847b024cfd829cfc350ed4dba5017f7f93
         }
 
         .btn-confirm-enroll:active {
@@ -1232,7 +1245,11 @@
             display: none;
             position: fixed;
             inset: 0;
+<<<<<<< HEAD
             background: rgba(0, 0, 0, 0.55);
+=======
+            background: rgba(0,0,0,0.55);
+>>>>>>> ffec65847b024cfd829cfc350ed4dba5017f7f93
             z-index: 9999;
             align-items: flex-end;
             justify-content: center;
@@ -1244,6 +1261,7 @@
         }
 
         @keyframes fadeIn {
+<<<<<<< HEAD
             from {
                 opacity: 0;
             }
@@ -1251,6 +1269,10 @@
             to {
                 opacity: 1;
             }
+=======
+            from { opacity: 0; }
+            to { opacity: 1; }
+>>>>>>> ffec65847b024cfd829cfc350ed4dba5017f7f93
         }
 
         .modal-sheet {
@@ -1259,11 +1281,16 @@
             padding: 24px 20px 32px;
             width: 100%;
             max-width: 540px;
+<<<<<<< HEAD
             box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.2);
+=======
+            box-shadow: 0 -8px 40px rgba(0,0,0,0.2);
+>>>>>>> ffec65847b024cfd829cfc350ed4dba5017f7f93
             animation: slideUp .25s ease;
         }
 
         @keyframes slideUp {
+<<<<<<< HEAD
             from {
                 transform: translateY(60px);
                 opacity: 0;
@@ -1273,6 +1300,10 @@
                 transform: translateY(0);
                 opacity: 1;
             }
+=======
+            from { transform: translateY(60px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+>>>>>>> ffec65847b024cfd829cfc350ed4dba5017f7f93
         }
 
         .modal-sheet .modal-handle {
@@ -1666,8 +1697,12 @@
             <div class="system-closed-banner" id="systemClosedBanner">
                 <div class="banner-icon">🔒</div>
                 <div class="banner-title">نظام التنزيل الآلي مغلق مؤقتاً</div>
+<<<<<<< HEAD
                 <div class="banner-msg" id="systemClosedMsg">نظام التنزيل الآلي مغلق حالياً من قبل الإدارة بانتظار إعلان
                     موعد الفتح.</div>
+=======
+                <div class="banner-msg" id="systemClosedMsg">نظام التنزيل الآلي مغلق حالياً من قبل الإدارة بانتظار إعلان موعد الفتح.</div>
+>>>>>>> ffec65847b024cfd829cfc350ed4dba5017f7f93
             </div>
 
             <!-- Engine Status Card -->
@@ -1678,10 +1713,15 @@
                         <div id="syncEngineBadge" class="sync-badge badge-active">🟢 البوت نشط وجاهز</div>
                     </div>
                     <div class="sync-header-actions">
+<<<<<<< HEAD
                         <button class="sync-ctrl-btn" id="btnSyncCreds" onclick="openPortalCredsModal()"
                             title="بيانات دخول المنظومة">🔑 بياناتي</button>
                         <button class="sync-ctrl-btn" id="btnSyncPause" onclick="syncTogglePause()">⏸️ إيقاف
                             مؤقت</button>
+=======
+                        <button class="sync-ctrl-btn" id="btnSyncCreds" onclick="openPortalCredsModal()" title="بيانات دخول المنظومة">🔑 بياناتي</button>
+                        <button class="sync-ctrl-btn" id="btnSyncPause" onclick="syncTogglePause()">⏸️ إيقاف مؤقت</button>
+>>>>>>> ffec65847b024cfd829cfc350ed4dba5017f7f93
                         <button class="sync-ctrl-btn refresh-btn" onclick="loadSyncQueue(true)">🔄 تحديث</button>
                     </div>
                 </div>
@@ -1694,8 +1734,12 @@
             <!-- Confirm Enrollment Card (shown only when READY_TO_START items exist) -->
             <div class="confirm-enroll-card" id="confirmEnrollCard">
                 <div class="ce-title">🚀 جاهز للبدء!</div>
+<<<<<<< HEAD
                 <div class="ce-sub">جدولك محفوظ في قائمة الانتظار. اضغط "تأكيد البدء" لبدء التنزيل الآلي
                     الفعلي.<br>سيقوم البوت بالتسجيل التلقائي في المواد بمجرد فتح بوابة التسجيل.</div>
+=======
+                <div class="ce-sub">جدولك محفوظ في قائمة الانتظار. اضغط "تأكيد البدء" لبدء التنزيل الآلي الفعلي.<br>سيقوم البوت بالتسجيل التلقائي في المواد بمجرد فتح بوابة التسجيل.</div>
+>>>>>>> ffec65847b024cfd829cfc350ed4dba5017f7f93
                 <button class="btn-confirm-enroll" id="btnConfirmEnroll" onclick="confirmEnrollment()">
                     ✅ تأكيد البدء وإطلاق التنزيل الآلي
                 </button>
@@ -1744,6 +1788,7 @@
         <div class="modal-sheet" onclick="event.stopPropagation()">
             <div class="modal-handle"></div>
             <div class="modal-title">🔑 بيانات دخول المنظومة</div>
+<<<<<<< HEAD
             <div class="modal-sub">أدخل رقم قيدك وكلمة المرور لتتمكن من التنزيل الآلي. يتم الحفظ بشكل آمن ومشفر ولا يراه
                 أحد غيرك.</div>
 
@@ -1756,6 +1801,17 @@
                 <label for="portalPassword">كلمة المرور</label>
                 <input type="password" id="portalPassword" class="modal-input" placeholder="كلمة مرور المنظومة"
                     autocomplete="current-password">
+=======
+            <div class="modal-sub">أدخل رقم قيدك وكلمة المرور لتتمكن من التنزيل الآلي. يتم الحفظ بشكل آمن ومشفر ولا يراه أحد غيرك.</div>
+
+            <div class="modal-field">
+                <label for="portalUsername">رقم القيد (البريد الإلكتروني)</label>
+                <input type="text" id="portalUsername" class="modal-input" placeholder="مثال: 2021001234" autocomplete="username" inputmode="email">
+            </div>
+            <div class="modal-field">
+                <label for="portalPassword">كلمة المرور</label>
+                <input type="password" id="portalPassword" class="modal-input" placeholder="كلمة مرور المنظومة" autocomplete="current-password">
+>>>>>>> ffec65847b024cfd829cfc350ed4dba5017f7f93
             </div>
             <div class="modal-field">
                 <label for="portalCollege">الكلية</label>
@@ -1768,8 +1824,12 @@
             <div id="portalCredsError" style="color:#dc2626; font-size:0.82rem; margin-top:4px; display:none;"></div>
 
             <div class="modal-btn-row">
+<<<<<<< HEAD
                 <button class="btn-modal-save" id="btnSavePortalCreds" onclick="savePortalCreds()">💾 حفظ
                     البيانات</button>
+=======
+                <button class="btn-modal-save" id="btnSavePortalCreds" onclick="savePortalCreds()">💾 حفظ البيانات</button>
+>>>>>>> ffec65847b024cfd829cfc350ed4dba5017f7f93
                 <button class="btn-modal-cancel" onclick="closePortalCredsModal(null)">إلغاء</button>
             </div>
         </div>
@@ -1819,6 +1879,7 @@
         // ===== Load Data =====
         async function initApp() {
             try {
+<<<<<<< HEAD
                 // Read current schedules from Turso, never the bundled JSON snapshot.
                 const ts = Date.now();
                 const readSchedule = async (url) => {
@@ -1831,6 +1892,48 @@
                     readSchedule(`/api/exams?v=${ts}`),
                     readSchedule(`./dates.json?v=${ts}`).catch(() => ({}))
                 ]);
+=======
+                let f, e, d;
+
+                // إذا كانت البيانات محقونة مباشرةً في الصفحة (index_final.html) استخدمها فوراً
+                if (window.allCourses && window.allExams) {
+                    f = window.allCourses;
+                    e = window.allExams;
+                    d = window.datesMap || {};
+                } else {
+                    // وإلا جلب البيانات من الخادم
+                    const ts = new Date().getTime();
+                    const res = await Promise.all([
+                        fetch(`./faculty.json?v=${ts}`).then(r => {
+                            if (!r.ok) throw new Error('Faculty fetch not ok');
+                            return r.json();
+                        }).catch(() => {
+                            console.log("Fallback: Fetching faculty from API");
+                            return fetch(`/api/faculty?v=${ts}`).then(r => r.json()).catch(() => []);
+                        }),
+                        fetch(`./exams.json?v=${ts}`).then(r => {
+                            if (!r.ok) throw new Error('Exams fetch not ok');
+                            return r.json();
+                        }).catch(() => {
+                            console.log("Fallback: Fetching exams from API");
+                            return fetch(`/api/exams?v=${ts}`).then(r => r.json()).catch(() => []);
+                        }),
+                        fetch(`./dates.json?v=${ts}`).then(r => {
+                            if (!r.ok) throw new Error('Dates fetch not ok');
+                            return r.json();
+                        }).catch(() => {
+                            // ✅ نفس نمط الـ fallback المستخدم لـ faculty/exams — dates.json
+                            // ملف ثابت غير موجود أصلاً بعد الانتقال لـ Turso، فكان يفشل بصمت
+                            // ويرجع {} دايماً. الحين يرجع لـ /api/dates (اللي يقرأ exam_dates_map
+                            // من جدول settings مباشرة).
+                            console.log("Fallback: Fetching dates from API");
+                            return fetch(`/api/dates?v=${ts}`).then(r => r.json()).catch(() => ({}));
+                        })
+                    ]);
+                    f = res[0]; e = res[1]; d = res[2];
+                }
+
+>>>>>>> ffec65847b024cfd829cfc350ed4dba5017f7f93
                 facultyData = (f || []).filter(x => x.code && x.code.trim());
                 examsData = e || [];
                 datesMap = d || {};
@@ -2080,7 +2183,11 @@
                         document.getElementById('portalCollege').value = data.college || 'it';
                     }
                 }
+<<<<<<< HEAD
             } catch (e) { }
+=======
+            } catch (e) {}
+>>>>>>> ffec65847b024cfd829cfc350ed4dba5017f7f93
 
             document.getElementById('portalCredsModal').classList.add('open');
         }
@@ -2153,7 +2260,11 @@
                         return;
                     }
                 }
+<<<<<<< HEAD
             } catch (e) { }
+=======
+            } catch (e) {}
+>>>>>>> ffec65847b024cfd829cfc350ed4dba5017f7f93
 
             const confirmed = confirm(
                 '🚀 هل أنت متأكد من رغبتك في بدء التنزيل الآلي الفعلي؟\n\nسيقوم البوت بالتسجيل التلقائي في جميع مواد القائمة فور فتح بوابة التسجيل.'
@@ -2208,7 +2319,11 @@
                 } else {
                     if (banner) banner.classList.remove('visible');
                 }
+<<<<<<< HEAD
             } catch (e) { }
+=======
+            } catch (e) {}
+>>>>>>> ffec65847b024cfd829cfc350ed4dba5017f7f93
         }
 
         // ===== Check Portal Creds Status =====
@@ -2227,7 +2342,11 @@
                         credsStatus.innerHTML = '<span style="color:#dc2626;font-weight:700;">⚠️ بيانات المنظومة غير محفوظة</span>';
                     }
                 }
+<<<<<<< HEAD
             } catch (e) { }
+=======
+            } catch (e) {}
+>>>>>>> ffec65847b024cfd829cfc350ed4dba5017f7f93
         }
 
         async function loadSyncQueue(isManual = false) {
